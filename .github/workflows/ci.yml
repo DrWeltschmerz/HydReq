@@ -80,7 +80,7 @@ jobs:
         image: kennethreitz/httpbin
         ports: ['8080:80']
         options: >-
-          --health-cmd "curl -fsS http://localhost:8080/ip || exit 1"
+          --health-cmd "sh -lc 'wget -q -O - http://127.0.0.1:80/ip >/dev/null'"
           --health-interval 10s --health-timeout 5s --health-retries 10
       postgres:
         image: postgres:16
@@ -117,7 +117,7 @@ jobs:
             ${{ runner.os }}-go-
       - name: Wait for services (httpbin)
         run: |
-          for i in {1..30}; do curl -fsS http://localhost:8080/ip >/dev/null && break || sleep 2; done
+          for i in {1..60}; do curl -fsS http://localhost:8080/ip >/dev/null && break || sleep 2; done
       - name: Wait for MSSQL (port 1433)
         shell: bash
         run: |
