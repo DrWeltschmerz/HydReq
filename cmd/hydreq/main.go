@@ -23,6 +23,9 @@ import (
 
 func main() {
 	var rootCmd = &cobra.Command{Use: "hydreq", Short: "HydReq (Hydra Request) - Lightweight API test runner"}
+	// Avoid printing usage/help on runtime errors; we'll print concise messages ourselves.
+	rootCmd.SilenceUsage = true
+	rootCmd.SilenceErrors = true
 
 	var file string
 	var verbose bool
@@ -36,6 +39,7 @@ func main() {
 		Use:   "run",
 		Short: "Run a YAML suite",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
 			// Keep CLI output minimal and focused
 			s, err := runner.LoadSuite(file)
 			if err != nil {
@@ -74,8 +78,17 @@ func main() {
 					}
 				}
 			}
+			// Treat test failures as exit code 1 without printing cobra usage/help
 			if err != nil {
+				if sum.Failed > 0 {
+					os.Exit(1)
+					return nil
+				}
 				return err
+			}
+			if sum.Failed > 0 {
+				os.Exit(1)
+				return nil
 			}
 			return nil
 		},

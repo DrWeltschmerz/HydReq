@@ -1,0 +1,32 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build hydreq",
+			"type": "shell",
+			"command": "go build -o ./bin/hydreq ./cmd/hydreq",
+			"problemMatcher": [
+				"$go"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build hydreq",
+			"type": "shell",
+			"command": "go build -o ./bin/hydreq ./cmd/hydreq",
+			"problemMatcher": [
+				"$go"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build hydreq",
+			"type": "shell",
+			"command": "go build -o ./bin/hydreq ./cmd/hydreq",
+			"problemMatcher": [
+				"$go"
+			],
+			"group": "build"
+		}
+	]
+}

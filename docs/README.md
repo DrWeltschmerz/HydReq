@@ -2,14 +2,16 @@
 
 Welcome! This is the full documentation for HydReq. Start here and jump to the topics you need.
 
-- Getting started: installation, quick start
   - ./getting-started.md
 - Web UI guide
   - ./web-ui.md
-- CLI usage, flags, and exit codes
+ - Visual editor
+   - ./visual-editor.md
   - ./cli.md
 - Authoring suites (YAML schema, variables, data generators, matrix)
   - ./authoring.md
+ - Changelog
+   - ../CHANGELOG.md
 - Scheduling: stages and dependsOn
   - ./scheduling.md
 - Hooks:

@@ -54,7 +54,7 @@ Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, r
 ## Documentation
 
 - Full docs: `docs/README.md`
-- Quick links: [Getting started](docs/getting-started.md), [Web UI](docs/web-ui.md), [CLI](docs/cli.md), [Authoring](docs/authoring.md), [Scheduling](docs/scheduling.md), [Hooks](docs/hooks.md), [SQL hooks](docs/sql-hooks.md), [OpenAPI](docs/openapi.md), [Adapters](docs/adapters.md), [Reports](docs/reports.md), [Examples](docs/examples.md), [Troubleshooting](docs/troubleshooting.md), [Contributing](docs/contributing.md), [Roadmap](docs/roadmap.md)
+- Quick links: [Getting started](docs/getting-started.md), [Web UI](docs/web-ui.md), [CLI](docs/cli.md), [Authoring](docs/authoring.md), [Scheduling](docs/scheduling.md), [Hooks](docs/hooks.md), [SQL hooks](docs/sql-hooks.md), [OpenAPI](docs/openapi.md), [Visual editor](docs/visual-editor.md), [Adapters](docs/adapters.md), [Reports](docs/reports.md), [Examples](docs/examples.md), [Troubleshooting](docs/troubleshooting.md), [Contributing](docs/contributing.md), [Roadmap](docs/roadmap.md), [What’s new](CHANGELOG.md)
 
 ## Contents
 
@@ -89,7 +89,7 @@ Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, r
 1) Download a prebuilt archive from the Releases page for your OS/arch.
 2) Unzip and run the `hydreq` binary.
 3) Your browser opens at http://127.0.0.1:8787.
-   - Left: select suites from `testdata`, set Workers, optional env overrides (KEY=VALUE).
+  - Left: select suites from `testdata`, set Workers, Tags (optional), Default timeout (optional), and env overrides (KEY=VALUE).
    - Right: progress for batch/suite/stages and a console with per-test start/result lines and collapsible details.
 
 ### Quick start (CLI)
@@ -122,6 +122,9 @@ Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, r
 - Controls: Only failed, Auto-scroll, Dark mode, Stop. Keyboard shortcuts: r=run, s=stop, c=clear, f=only failed, d=dark.
 - Each test shows a blue “starting” line, then flips to ✓/✗/– when done. Failures include expandable details.
 - A summary appears for every suite and a final batch summary aggregates pass/fail/skip.
+- Editor: Click “Edit” next to a suite for a Visual + YAML editor with validation, Quick Run (with deps), hook editing (HTTP/SQL), and Save vs Save & Close.
+  - Tip: For CI artifacts (JSON/JUnit), prefer the CLI flags `--report-json` / `--report-junit`.
+  - Extras: YAML tab mirrors the Visual state live (read‑only); dark theme by default; density toggle (compact/comfortable); resizable preview pane; SQL DSN helper templates and show/hide for DSNs.
 
 ### Using the CLI
 
@@ -251,7 +254,7 @@ hydreq import bruno path/to/export.json > suite.yaml
 ./scripts/local-ci.sh
 ```
 
-This script runs unit tests, starts local services, runs DB tests (if env DSNs present), and executes all example suites.
+This script runs unit tests, starts local services, runs DB tests (if env DSNs present), and executes all example suites. Containers are automatically stopped on exit; set `KEEP_SERVICES=1` to keep them running.
 
 ### Auth example (local)
 To include `testdata/auth.yaml` in batch runs:
@@ -278,13 +281,22 @@ export BASIC_B64=$(printf 'user:pass' | base64 | tr -d '\n')
 See [Copilot and editor support](#copilot-and-editor-support) for the end‑user guide. The repo ships the schema and prompts; contributors don’t need extra setup.
 
 ### Roadmap
-- OAuth2 client credentials helper
+Near‑term
+- Reports in GUI (download JSON/JUnit artifacts)
+- Tags filter and default-timeout UX polish and persistence in GUI
+- Editor polish: collapse persistence, Convert… cleanup, DSN helpers docs, “Run with deps” badges
+- YAML‑preserving save path (raw mode to keep comments/order)
+- OAuth2 client credentials helper for suite auth
+
+Medium‑term
 - Results history in GUI and diffs between runs
 - VS Code extension for inline runs and decorations
 - HAR import enrichments (query/form/multipart mapping, baseUrl inference)
+- Expanded OpenAPI hints and response schema diffs
+
+Longer‑term
 - gRPC testing (reflect/proto) and contract checks
-- Docker image and GitHub Action for CI
-- Interactive YAML editing directly in the GUI (edit/save suites with schema hints)
+- Official Docker image and GitHub Action for CI
 
 ---
 

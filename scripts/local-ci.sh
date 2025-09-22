@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Always stop docker-compose services when we're done (unless KEEP_SERVICES=1)
+services_started=0
+cleanup() {
+	if [[ "${KEEP_SERVICES:-0}" != "1" && "$services_started" == "1" ]]; then
+		echo "Shutting down docker-compose services..."
+		# Stop and remove containers and networks started by compose; keep volumes by default
+		docker-compose down --remove-orphans || true
+	fi
+}
+trap cleanup EXIT INT TERM
+
 echo "Running unit tests..."
 did_db_tests=0
 go test ./...
@@ -8,6 +19,7 @@ go test ./...
 if command -v docker >/dev/null 2>&1 && command -v docker-compose >/dev/null 2>&1; then
 	echo "Starting docker-compose services (httpbin, Postgres, MSSQL)..."
 	docker-compose up -d
+	services_started=1
 	echo "Waiting for httpbin..."
 	for i in {1..30}; do
 		curl -sSf http://localhost:8080/ip >/dev/null && break || sleep 2

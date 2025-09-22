@@ -19,3 +19,4 @@ qa.sqlite
 # IDE/editor
 #.vscode/
 .idea/
+*.bak*
