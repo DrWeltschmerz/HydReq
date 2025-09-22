@@ -84,16 +84,16 @@ Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, r
 	 - Left: select suites from `testdata`, set Workers, optional env overrides (KEY=VALUE).
 	 - Right: progress for batch/suite/stages and a console with per-test start/result lines and collapsible details.
 
-	### Quick start (CLI)
+### Quick start (CLI)
 
-	1) Download a prebuilt release archive for your OS/arch and unzip.
-	2) Run a suite from the terminal:
+1) Download a prebuilt release archive for your OS/arch and unzip.
+2) Run a suite from the terminal:
 
 	```
 	./hydreq run -f testdata/example.yaml --workers 4 -v
 	```
 
-	3) Optional reports (JSON + JUnit):
+3) Optional reports (JSON + JUnit):
 
 	```
 	./hydreq run -f testdata/example.yaml \
