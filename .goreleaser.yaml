@@ -1,3 +1,4 @@
+version: 2
 project_name: hydreq
 before:
   hooks:
@@ -10,14 +11,9 @@ builds:
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
     env:
-      - CGO_ENABLED=1
+      - CGO_ENABLED=0
 archives:
-  - id: hydreq-archive
-    builds: [hydreq]
-    format: tar.gz
-    format_overrides:
-      - goos: windows
-        format: zip
+  - id: default
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
