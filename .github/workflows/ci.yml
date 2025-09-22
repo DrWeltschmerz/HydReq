@@ -59,8 +59,8 @@ jobs:
           SA_PASSWORD: "Your_password123"
         ports: ['1433:1433']
         options: >-
-          --health-cmd "(/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Your_password123' -Q 'select 1') || exit 1"
-          --health-interval 15s --health-timeout 5s --health-retries 10
+          --health-cmd "bash -lc 'grep -q \"SQL Server is now ready for client connections\" /var/opt/mssql/log/errorlog'"
+          --health-interval 10s --health-timeout 5s --health-retries 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -99,8 +99,8 @@ jobs:
           SA_PASSWORD: "Your_password123"
         ports: ['1433:1433']
         options: >-
-          --health-cmd "(/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Your_password123' -Q 'select 1') || exit 1"
-          --health-interval 15s --health-timeout 5s --health-retries 10
+          --health-cmd "bash -lc 'grep -q \"SQL Server is now ready for client connections\" /var/opt/mssql/log/errorlog'"
+          --health-interval 10s --health-timeout 5s --health-retries 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -118,6 +118,10 @@ jobs:
       - name: Wait for services (httpbin)
         run: |
           for i in {1..30}; do curl -fsS http://localhost:8080/ip >/dev/null && break || sleep 2; done
+      - name: Wait for MSSQL (port 1433)
+        shell: bash
+        run: |
+          for i in {1..60}; do (echo > /dev/tcp/127.0.0.1/1433) >/dev/null 2>&1 && break || sleep 2; done
       - name: Build and run examples
         env:
           HTTPBIN_BASE_URL: http://localhost:8080
