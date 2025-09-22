@@ -1,5 +1,10 @@
 # HydReq (Hydra Request)
 
+[![CI](https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml/badge.svg)](https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/DrWeltschmerz/HydReq?include_prereleases&sort=semver)](https://github.com/DrWeltschmerz/HydReq/releases)
+[![Downloads](https://img.shields.io/github/downloads/DrWeltschmerz/HydReq/total.svg)](https://github.com/DrWeltschmerz/HydReq/releases)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+
 ```                                                                         
                            *%%%%%%%%%%%%%%%@:                                   
                        @%%%%%%%%%%%%%%%%%%%%%%%%*                               
@@ -210,6 +215,7 @@ export BASIC_B64=$(printf 'user:pass' | base64 | tr -d '\n')
 - HAR import enrichments (query/form/multipart mapping, baseUrl inference)
 - gRPC testing (reflect/proto) and contract checks
 - Docker image and GitHub Action for CI
+- Interactive YAML editing directly in the GUI (edit/save suites with schema hints)
 
 ## License
 
