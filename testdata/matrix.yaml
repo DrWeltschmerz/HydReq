@@ -1,0 +1,42 @@
+name: httpbin matrix demo
+baseUrl: ${ENV:HTTPBIN_BASE_URL}
+
+vars:
+  commonHeader: qa-matrix-demo
+  HTTPBIN_BASE_URL: https://httpbin.org
+
+tests:
+  - name: POST echoes matrix json
+    request:
+      method: POST
+      url: /anything
+      headers:
+        X-Demo: ${commonHeader}
+      body:
+        color: "${color}"
+        size: "${size}"
+    assert:
+      status: 200
+      jsonEquals:
+        json.color: "${color}"
+        json.size: "${size}"
+        headers.X-Demo: "${commonHeader}"
+    matrix:
+      color: [red, blue]
+      size: [S, M]
+
+  - name: GET echoes matrix args
+    request:
+      method: GET
+      url: /anything
+      query:
+        animal: "${animal}"
+        order: "${order}"
+    assert:
+      status: 200
+      jsonEquals:
+        args.animal: "${animal}"
+        args.order: "${order}"
+    matrix:
+      animal: [cat, dog]
+      order: [asc, desc]

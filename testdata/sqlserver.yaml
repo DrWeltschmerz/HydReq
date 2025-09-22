@@ -1,0 +1,18 @@
+name: sqlserver example
+vars:
+  MSSQL_DSN: "${ENV:MSSQL_DSN}"
+tests:
+  - name: mssql create table
+    pre:
+      - name: create
+        sql:
+          driver: sqlserver
+          dsn: ${MSSQL_DSN}
+          query: |
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='qa_items' and xtype='U')
+            CREATE TABLE qa_items(
+              id INT IDENTITY(1,1) PRIMARY KEY,
+              name NVARCHAR(100)
+            );
+    request: { method: GET, url: https://httpbin.org/status/200 }
+    assert: { status: 200 }

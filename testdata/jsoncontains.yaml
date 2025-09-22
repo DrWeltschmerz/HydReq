@@ -1,0 +1,21 @@
+name: json contains demo
+baseUrl: ${ENV:HTTPBIN_BASE_URL}
+
+vars:
+  HTTPBIN_BASE_URL: https://httpbin.org
+
+tests:
+  - name: contains in body and json path
+    request:
+      method: POST
+      url: /anything
+      body:
+        note: "this is a long sentence"
+        id: 42
+    assert:
+      status: 200
+      bodyContains:
+        - "long sentence"
+      jsonContains:
+        json.note: "long"
+        json.id: "4"

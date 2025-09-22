@@ -1,0 +1,9 @@
+{
+  "yaml.schemas": {
+    "./schemas/suite.schema.json": [
+      "testdata/*.yaml",
+      "**/suite*.yaml",
+      "**/*qa*.yaml"
+    ]
+  }
+}

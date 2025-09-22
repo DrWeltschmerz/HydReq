@@ -1,0 +1,50 @@
+name: hooks demo
+baseUrl: ${ENV:HTTPBIN_BASE_URL}
+
+vars:
+  seed: abc
+  HTTPBIN_BASE_URL: https://httpbin.org
+
+preSuite:
+  - name: init
+    vars:
+      token: demo-token
+
+tests:
+  - name: pre hook sets header and extracts
+    pre:
+      - name: set local var
+        vars:
+          local: pre-value
+    request:
+      method: GET
+      url: /headers
+      headers:
+        X-Seed: "${seed}"
+        X-Token: "${token}"
+        X-Local: "${local}"
+    assert:
+      status: 200
+      jsonEquals:
+        headers.X-Seed: "${seed}"
+        headers.X-Token: "${token}"
+        headers.X-Local: "${local}"
+    extract:
+      echoedToken:
+        jsonPath: headers.X-Token
+    post:
+      - name: verify echo using extracted
+        request:
+          method: POST
+          url: /anything
+          body:
+            token: "${echoedToken}"
+        assert:
+          status: 200
+          jsonEquals:
+            json.token: "${echoedToken}"
+
+postSuite:
+  - name: finalize
+    vars:
+      done: yes

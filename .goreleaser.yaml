@@ -1,0 +1,39 @@
+project_name: hydreq
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - id: hydreq
+    main: ./cmd/hydreq
+    binary: hydreq
+    ldflags: -s -w
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    env:
+      - CGO_ENABLED=1
+archives:
+  - id: hydreq-archive
+    builds: [hydreq]
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE* 
+      - schemas/**
+      - .vscode/**
+      - .copilot/**
+      - testdata/**
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+release:
+  draft: false
+  prerelease: auto

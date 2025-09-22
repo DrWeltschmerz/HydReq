@@ -1,0 +1,20 @@
+name: openapi demo
+baseUrl: ${ENV:HTTPBIN_BASE_URL}
+vars:
+  HTTPBIN_BASE_URL: https://httpbin.org
+openApi:
+  file: testdata/specs/openapi.yaml
+  enabled: true
+
+tests:
+  - name: validate echo via oapi
+    request:
+      method: POST
+      url: /anything
+      body:
+        json:
+          echo: "hello"
+    assert:
+      status: 200
+    openApi:
+      enabled: true

@@ -1,0 +1,130 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/DrWeltschmerz/HydReq/main/schemas/suite.schema.json",
+  "title": "QA Suite",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string" },
+    "baseUrl": { "type": "string" },
+    "vars": { "type": "object", "additionalProperties": { "type": "string" } },
+    "auth": {
+      "type": "object",
+      "properties": {
+        "bearerEnv": { "type": "string" },
+        "basicEnv": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "openApi": {
+      "type": "object",
+      "properties": {
+        "file": { "type": "string" },
+        "enabled": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "preSuite": { "$ref": "#/definitions/hooks" },
+    "postSuite": { "$ref": "#/definitions/hooks" },
+    "tests": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/testCase" }
+    }
+  },
+  "required": ["name", "baseUrl", "tests"],
+  "definitions": {
+    "hooks": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/hook" }
+    },
+    "hook": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "vars": { "type": "object", "additionalProperties": { "type": "string" } },
+        "request": { "$ref": "#/definitions/request" },
+        "assert": { "$ref": "#/definitions/assertions" },
+        "extract": { "$ref": "#/definitions/extract" },
+        "sql": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "driver": { "type": "string", "enum": ["sqlite", "pgx", "sqlserver"] },
+            "dsn": { "type": "string" },
+            "query": { "type": "string" },
+            "extract": { "type": "object", "additionalProperties": { "type": "string" } }
+          },
+          "required": ["driver", "dsn", "query"]
+        }
+      }
+    },
+    "testCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "request": { "$ref": "#/definitions/request" },
+        "assert": { "$ref": "#/definitions/assertions" },
+        "extract": { "$ref": "#/definitions/extract" },
+        "skip": { "type": "boolean" },
+        "only": { "type": "boolean" },
+        "timeoutMs": { "type": "integer", "minimum": 0 },
+        "repeat": { "type": "integer", "minimum": 0 },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "retry": {
+          "type": "object",
+          "properties": {
+            "max": { "type": "integer", "minimum": 0 },
+            "backoffMs": { "type": "integer", "minimum": 0 },
+            "jitterPct": { "type": "integer", "minimum": 0, "maximum": 100 }
+          },
+          "additionalProperties": false
+        },
+        "stage": { "type": "integer" },
+        "matrix": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } } },
+        "vars": { "type": "object", "additionalProperties": { "type": "string" } },
+        "dependsOn": { "type": "array", "items": { "type": "string" } },
+        "pre": { "$ref": "#/definitions/hooks" },
+        "post": { "$ref": "#/definitions/hooks" },
+        "openApi": { "type": "object", "properties": { "enabled": { "type": "boolean" } }, "additionalProperties": false }
+      },
+      "required": ["name", "request", "assert"]
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "method": { "type": "string" },
+        "url": { "type": "string" },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "query": { "type": "object", "additionalProperties": { "type": "string" } },
+        "body": {}
+      },
+      "required": ["method", "url"]
+    },
+    "assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": { "type": "integer" },
+        "headerEquals": { "type": "object", "additionalProperties": { "type": "string" } },
+        "jsonEquals": { "type": "object", "additionalProperties": {} },
+        "jsonContains": { "type": "object", "additionalProperties": {} },
+        "bodyContains": { "type": "array", "items": { "type": "string" } },
+        "maxDurationMs": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "extract": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "jsonPath": { "type": "string" }
+        },
+        "required": ["jsonPath"],
+        "additionalProperties": false
+      }
+    }
+  }
+}

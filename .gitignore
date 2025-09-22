@@ -1,0 +1,21 @@
+bin/
+*.out
+*.log
+.DS_Store
+
+# Generated reports and artifacts
+reports/
+report.json
+report.xml
+*.report.json
+*.report.xml
+
+# Local databases and temp files
+qa.sqlite
+*.sqlite
+*.db
+*.tmp
+
+# IDE/editor
+#.vscode/
+.idea/

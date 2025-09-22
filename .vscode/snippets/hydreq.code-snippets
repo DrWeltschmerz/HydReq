@@ -1,0 +1,87 @@
+{
+  "HydReq: Basic GET": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-get",
+    "body": [
+      "- name: ${1:GET example}",
+      "  request:",
+      "    method: GET",
+      "    url: ${2:/status/200}",
+      "  assert:",
+      "    status: ${3:200}"
+    ],
+    "description": "HydReq test: basic GET with status assertion"
+  },
+  "HydReq: POST echo and extract": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-post-extract",
+    "body": [
+      "- name: ${1:POST echo}",
+      "  request:",
+      "    method: POST",
+      "    url: ${2:/anything}",
+      "    body:",
+      "      id: ${3:42}",
+      "      user: ${4:qa}",
+      "  assert:",
+      "    status: 200",
+      "    jsonEquals:",
+      "      json.id: \"${3:42}\"",
+      "      json.user: ${4:qa}",
+      "  extract:",
+      "    echoedUser:",
+      "      jsonPath: json.user"
+    ],
+    "description": "HydReq test: POST with body, jsonEquals, and extraction"
+  },
+  "HydReq: Matrix": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-matrix",
+    "body": [
+      "- name: ${1:matrix demo}",
+      "  request:",
+      "    method: GET",
+      "    url: /anything",
+      "    query:",
+      "      color: \"${color}\"",
+      "      size: \"${size}\"",
+      "  assert:",
+      "    status: 200",
+      "    jsonEquals:",
+      "      args.color: \"${color}\"",
+      "      args.size: \"${size}\"",
+      "  matrix:",
+      "    color: [red, blue]",
+      "    size: [S, M]"
+    ],
+    "description": "HydReq test: data-driven matrix expansion"
+  },
+  "HydReq: Hook (HTTP)": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-hook-http",
+    "body": [
+      "pre:",
+      "  - name: ${1:init}",
+      "    request:",
+      "      method: GET",
+      "      url: ${2:/status/200}",
+      "    assert:",
+      "      status: 200"
+    ],
+    "description": "HydReq hook: pre HTTP request with assertion"
+  },
+  "HydReq: SQL hook (sqlite)": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-hook-sqlite",
+    "body": [
+      "pre:",
+      "  - name: ${1:insert row}",
+      "    sql:",
+      "      driver: sqlite",
+      "      dsn: file:./qa.sqlite?cache=shared",
+      "      query: |",
+      "        INSERT INTO notes(id, content, created) VALUES ('${FAKE:uuid}', 'hello ${RANDINT:1:9}', '${NOW:2006-01-02T15:04:05Z07:00}');"
+    ],
+    "description": "HydReq hook: sqlite insert with generators"
+  }
+}

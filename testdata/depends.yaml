@@ -1,0 +1,33 @@
+name: dependsOn demo
+baseUrl: ${ENV:HTTPBIN_BASE_URL}
+
+vars:
+  HTTPBIN_BASE_URL: https://httpbin.org
+  seedId: "12345"
+
+tests:
+  - name: create id
+    request:
+      method: POST
+      url: /anything
+      body:
+        id: "${seedId}"
+    assert:
+      status: 200
+      jsonEquals:
+        json.id: "${seedId}"
+    extract:
+      prevId:
+        jsonPath: json.id
+
+  - name: reuse extracted id
+    dependsOn: ["create id"]
+    request:
+      method: POST
+      url: /anything
+      body:
+        prev: "${prevId}"
+    assert:
+      status: 200
+      jsonEquals:
+        json.prev: "${prevId}"

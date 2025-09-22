@@ -1,0 +1,259 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HydReq GUI</title>
+  <style>
+    :root { --hdr-bg:#0b1020; --hdr-fg:#c6e2ff; --bd:#eee; --li-hov:#f5f7fb; --li-sel:#e6f2ff; --pill:#eef2ff; --pg-bg:#eee; --txt:#111; --bg:#fff; --btn-bg:#fff; --btn-bd:#ddd; --btn-hov:#f6f9ff; }
+    body.dark { --hdr-bg:#0b0e17; --hdr-fg:#d6e0ff; --bd:#222; --li-hov:#1a2230; --li-sel:#10213a; --pill:#1f2937; --pg-bg:#1f2937; --txt:#e5e7eb; --bg:#0b0e17; --btn-bg:#111827; --btn-bd:#374151; --btn-hov:#1f2937; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; background: var(--bg); color: var(--txt); }
+    header { background: var(--hdr-bg); color: var(--hdr-fg); padding: 16px; font-weight: 700; display:flex; align-items:center; justify-content:space-between; }
+    main { display: grid; grid-template-columns: 360px 1fr; height: calc(100vh - 64px); }
+    aside { border-right: 1px solid var(--bd); padding: 12px; overflow: auto; }
+    section { padding: 12px; overflow: auto; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+  li:hover { background: var(--li-hov); }
+  li.selected { background: var(--li-sel); }
+    .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .pill { background: var(--pill); border-radius: 999px; padding: 2px 8px; font-size: 12px; }
+  .progress { height: 10px; background: var(--pg-bg); border-radius: 6px; overflow: hidden; }
+    .progress > div { height: 10px; background: linear-gradient(90deg, #00d4ff, #5bff5b); width: 0%; }
+    .log { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; white-space: pre-wrap; }
+    .ok { color: #10b981; } .fail { color: #ef4444; } .skip { color: #f59e0b; }
+    .toolbar { display:flex; gap:8px; align-items:center; }
+    button { padding: 6px 10px; border: 1px solid var(--btn-bd); background: var(--btn-bg); border-radius: 6px; cursor: pointer; color: inherit; }
+    button:hover { background: var(--btn-hov); }
+    .run { color:#3b82f6 }
+  </style>
+</head>
+<body>
+  <header>
+    <div>HydReq — Hydra Request</div>
+    <div class="row" style="margin:0">
+      <label class="row" style="margin:0"><input id="onlyFailed" type="checkbox"/> Only failed</label>
+      <label class="row" style="margin:0"><input id="autoScroll" type="checkbox"/> Auto-scroll</label>
+      <label class="row" style="margin:0"><input id="darkToggle" type="checkbox"/> Dark</label>
+      <button id="cancel" title="Cancel current run (s)">Stop</button>
+    </div>
+  </header>
+  <main>
+    <aside>
+      <div class="row">
+        <button id="refresh" title="Rescan testdata for *.yaml suites">Refresh</button>
+        <label>Workers <input id="workers" type="number" min="1" max="64" value="4" style="width:64px"/></label>
+      </div>
+      <details>
+        <summary>Env overrides</summary>
+        <div class="row">
+          <textarea id="env_kv" placeholder="KEY=VALUE (one per line)" style="width:100%;height:80px"></textarea>
+        </div>
+        <div class="row" id="env_active" style="flex-wrap:wrap;gap:4px"></div>
+      </details>
+      <ul id="suites"></ul>
+      <div class="row">
+        <button id="run">Run Selected</button>
+        <span class="pill" id="selCount">0 selected</span>
+      </div>
+    </aside>
+    <section>
+      <div class="row"><div style="flex:1">Batch progress</div><div class="pill" id="batchText">0/0</div></div>
+      <div class="progress"><div id="batchBar"></div></div>
+      <div style="height:8px"></div>
+  <div class="row"><div style="flex:1">Suite progress — <span id="currentSuite">(none)</span></div><div class="pill" id="suiteText">0/0</div></div>
+      <div class="progress"><div id="suiteBar"></div></div>
+      <div id="stages"></div>
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h3 style="margin:0">Results</h3>
+        <button id="clearLog" title="Clear the console output">Clear</button>
+      </div>
+      <div id="results" class="log"></div>
+    </section>
+  </main>
+  <script>
+  const suitesEl = document.getElementById('suites');
+    const selCount = document.getElementById('selCount');
+    const workersEl = document.getElementById('workers');
+  const envKV = document.getElementById('env_kv');
+  const envActive = document.getElementById('env_active');
+    const batchBar = document.getElementById('batchBar');
+    const batchText = document.getElementById('batchText');
+  const suiteBar = document.getElementById('suiteBar');
+  const currentSuiteEl = document.getElementById('currentSuite');
+    const suiteText = document.getElementById('suiteText');
+    const results = document.getElementById('results');
+    const stages = document.getElementById('stages');
+  const darkToggle = document.getElementById('darkToggle');
+  const onlyFailed = document.getElementById('onlyFailed');
+  const autoScroll = document.getElementById('autoScroll');
+  const cancelBtn = document.getElementById('cancel');
+
+  let selected = new Set(JSON.parse(localStorage.getItem('hydreq.sel')||'[]'));
+    let batch = { done: 0, total: 0 };
+    let suite = { done: 0, total: 0 };
+  const testRows = new Map(); // Name -> {container, line}
+  const agg = { passed:0, failed:0, skipped:0, total:0, suites:0, durationMs:0 };
+  function scrollBottom(){ if (autoScroll.checked) { results.scrollTop = results.scrollHeight; } }
+  let currentRunId = null;
+
+    function pct(d,t){ return t>0 ? Math.min(100, Math.round(100*d/t)) : 0; }
+    function setBar(el, d, t){ el.style.width = pct(d,t) + '%'; }
+    function parseEnv(){
+      const env = {};
+      const lines = envKV.value.split(/\n/);
+      for (const line of lines){
+        const s = line.trim(); if (!s) continue; const eq = s.indexOf('=');
+        if (eq>0){ const k=s.slice(0,eq).trim(); const v=s.slice(eq+1).trim(); if(k) env[k]=v; }
+      }
+      return env;
+    }
+    function renderActiveEnv(env){
+      envActive.innerHTML='';
+      Object.keys(env).forEach(k=>{ const b=document.createElement('span'); b.className='pill'; b.textContent=k; envActive.appendChild(b); });
+    }
+
+    function renderSuites(list){
+      suitesEl.innerHTML = '';
+      list.forEach(p => {
+        const li = document.createElement('li');
+        li.textContent = p;
+        if (selected.has(p)) li.classList.add('selected');
+  li.onclick = () => { if (selected.has(p)) selected.delete(p); else selected.add(p); localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected))); selCount.textContent = selected.size + ' selected'; renderSuites(list); };
+        suitesEl.appendChild(li);
+      });
+      selCount.textContent = selected.size + ' selected';
+    }
+
+    async function refresh(){
+      const res = await fetch('/api/suites');
+      const list = await res.json();
+      renderSuites(list);
+    }
+
+    async function run(){
+      const suites = Array.from(selected);
+      if (suites.length === 0){ alert('Select at least one suite'); return; }
+      const env = parseEnv();
+      renderActiveEnv(env);
+      const res = await fetch('/api/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({suites, workers: parseInt(workersEl.value)||4, env})});
+      if (!res.ok){
+        let txt = '';
+        try { txt = await res.text(); } catch {}
+        alert('Run failed: ' + res.status + (txt?(' - '+txt):''));
+        return;
+      }
+  const { runId } = await res.json();
+  currentRunId = runId;
+  listen(runId);
+    }
+
+    function listen(id){
+  batch = { done:0, total:0 }; suite = { done:0, total:0 };
+  results.textContent=''; stages.innerHTML=''; testRows.clear(); agg.passed=agg.failed=agg.skipped=agg.total=agg.suites=agg.durationMs=0; setBar(batchBar,0,1); setBar(suiteBar,0,1); batchText.textContent='0/0'; suiteText.textContent='0/0';
+      const es = new EventSource('/api/stream?runId=' + encodeURIComponent(id));
+      es.onmessage = (e)=>{
+        const ev = JSON.parse(e.data);
+        const type = ev.type;
+        const payload = ev.payload || {};
+        if (type === 'testStart'){
+          const {Name} = payload;
+          const wrap = document.createElement('div');
+          const line = document.createElement('div'); line.className='run'; line.textContent = '… ' + Name;
+          wrap.appendChild(line);
+          results.appendChild(wrap);
+          testRows.set(Name, {container: wrap, line});
+          scrollBottom();
+        }
+        if (type === 'batchStart'){
+          batch.total = payload.total; batch.done = 0; setBar(batchBar,0,batch.total); batchText.textContent = '0/' + batch.total;
+        }
+        if (type === 'suiteStart'){
+          suite.total = payload.total; suite.done = 0; setBar(suiteBar,0,suite.total); suiteText.textContent = '0/' + suite.total; stages.innerHTML='';
+          currentSuiteEl.textContent = (payload.name || payload.path || '');
+          // log start of suite
+          const nm = (payload.name || payload.path || '');
+          const ln = document.createElement('div'); ln.textContent = `=== running: ${nm} ===`; results.appendChild(ln);
+          scrollBottom();
+          const stageMap = payload.stages || {};
+          for(const k in stageMap){
+            const d=document.createElement('div'); d.className='row';
+            d.innerHTML='<div style="width:120px">stage '+k+'</div><div class="progress" style="flex:1"><div id="stage_'+k+'" style="width:0%"></div></div><div class="pill" id="stage_txt_'+k+'">0/'+stageMap[k]+'</div>';
+            stages.appendChild(d);
+          }
+        }
+        if (type === 'test'){
+          const {Name, Status, DurationMs, Stage, Messages} = payload;
+          agg.total++;
+          if (Status==='passed') agg.passed++; else if (Status==='failed') agg.failed++; else if (Status==='skipped') agg.skipped++;
+          if (onlyFailed.checked && Status !== 'failed') {
+            const row = testRows.get(Name); if (row) { row.container.remove(); testRows.delete(Name); }
+          } else {
+            let row = testRows.get(Name);
+            if (!row){
+              const wrap = document.createElement('div');
+              const line = document.createElement('div'); wrap.appendChild(line); results.appendChild(wrap);
+              row = {container: wrap, line}; testRows.set(Name, row);
+            }
+            row.line.className = (Status==='passed'?'ok':(Status==='failed'?'fail':'skip'));
+            row.line.textContent = (Status==='passed'?'✓':(Status==='failed'?'✗':'-')) + ' ' + Name + ' (' + DurationMs + ' ms)';
+            if (Status==='failed' && Array.isArray(Messages) && Messages.length){
+              let det = row.container.querySelector('details');
+              if (!det){ det = document.createElement('details'); const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); row.container.appendChild(det); }
+              let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='fail'; det.appendChild(pre); }
+              pre.textContent = Messages.join('\n');
+            }
+            scrollBottom();
+          }
+          // progress and stages after rendering
+          suite.done++; setBar(suiteBar, suite.done, suite.total); suiteText.textContent = suite.done + '/' + suite.total;
+          const st = document.getElementById('stage_'+Stage); const stt = document.getElementById('stage_txt_'+Stage);
+          if(st && stt){ const txt = stt.textContent.split('/'); const done = (parseInt(txt[0],10)||0)+1; const total = parseInt(txt[1],10)||0; st.style.width = pct(done,total)+'%'; stt.textContent = done+'/'+total; }
+        }
+        if (type === 'suiteEnd'){
+          batch.done++; setBar(batchBar, batch.done, batch.total); batchText.textContent = batch.done + '/' + batch.total;
+          const name = payload.name || payload.path || '';
+          const s = payload.summary || {};
+          const line = `=== ${name} — ${s.passed||0} passed, ${s.failed||0} failed, ${s.skipped||0} skipped, total ${s.total||0} in ${(s.durationMs||0)} ms ===`;
+          const div = document.createElement('div'); div.textContent = line; results.appendChild(div);
+          agg.suites++; agg.durationMs += (s.durationMs||0);
+          scrollBottom();
+        }
+        if (type === 'batchEnd'){
+          const div = document.createElement('div'); div.textContent = `=== Batch summary — ${agg.passed} passed, ${agg.failed} failed, ${agg.skipped} skipped, total ${agg.total} in ${agg.durationMs} ms (suites ${agg.suites}/${batch.total}) ===`; results.appendChild(div);
+          scrollBottom();
+        }
+        if (type === 'error'){ const d = document.createElement('div'); d.className='fail'; d.textContent = 'Error: ' + (payload.error||''); results.appendChild(d); }
+        if (type === 'done'){ es.close(); currentRunId = null; }
+      };
+    }
+
+    document.getElementById('refresh').onclick = refresh;
+    document.getElementById('run').onclick = run;
+  document.getElementById('clearLog').onclick = ()=>{ results.textContent=''; };
+  // init preferences from localStorage
+  const darkInit = localStorage.getItem('hydreq.dark') === '1';
+  if (darkInit) { document.body.classList.add('dark'); darkToggle.checked = true; }
+  darkToggle.onchange = ()=>{ document.body.classList.toggle('dark', darkToggle.checked); localStorage.setItem('hydreq.dark', darkToggle.checked ? '1' : '0'); };
+  const ofInit = localStorage.getItem('hydreq.onlyFailed') === '1';
+  if (ofInit) { onlyFailed.checked = true; }
+  onlyFailed.onchange = ()=>{ localStorage.setItem('hydreq.onlyFailed', onlyFailed.checked ? '1' : '0'); };
+  const asInit = localStorage.getItem('hydreq.autoScroll') !== '0'; // default on
+  autoScroll.checked = asInit;
+  autoScroll.onchange = ()=>{ localStorage.setItem('hydreq.autoScroll', autoScroll.checked ? '1' : '0'); };
+  // cancel current run
+  cancelBtn.onclick = async ()=>{ if (!currentRunId) return; try{ await fetch('/api/cancel?runId='+encodeURIComponent(currentRunId), { method:'POST' }); } catch(e){} };
+  // keyboard shortcuts
+  document.addEventListener('keydown', (e)=>{
+    const tag = (e.target && (e.target.tagName||'')).toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable)) return;
+    if (e.key === 'r') { run(); e.preventDefault(); }
+    if (e.key === 's') { cancelBtn.click(); e.preventDefault(); }
+    if (e.key === 'c') { document.getElementById('clearLog').click(); e.preventDefault(); }
+    if (e.key === 'f') { onlyFailed.checked = !onlyFailed.checked; onlyFailed.dispatchEvent(new Event('change')); e.preventDefault(); }
+    if (e.key === 'd') { darkToggle.checked = !darkToggle.checked; darkToggle.dispatchEvent(new Event('change')); e.preventDefault(); }
+  });
+  refresh();
+  </script>
+</body>
+</html>
