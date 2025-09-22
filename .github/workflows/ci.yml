@@ -80,7 +80,7 @@ jobs:
         image: kennethreitz/httpbin
         ports: ['8080:80']
         options: >-
-          --health-cmd "sh -lc 'python -c \"import urllib.request; urllib.request.urlopen(\\\"http://127.0.0.1:80/ip\\\"); print(\\\"ok\\\")\"'"
+          --health-cmd "sh -lc 'python3 -c \"import urllib.request; urllib.request.urlopen(\\\"http://127.0.0.1:80/ip\\\"); print(\\\"ok\\\")\" || python -c \"import urllib.request; urllib.request.urlopen(\\\"http://127.0.0.1:80/ip\\\"); print(\\\"ok\\\")\"'"
           --health-interval 10s --health-timeout 5s --health-retries 30 --health-start-period 20s
       postgres:
         image: postgres:16
