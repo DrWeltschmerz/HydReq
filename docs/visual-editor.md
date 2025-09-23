@@ -20,12 +20,15 @@ What you can do
 	- Run a single hook inline to see pass/fail, messages, and extracted vars.
 
 YAML tab and mirroring
-- The YAML tab shows a read-only live mirror of the Visual state (serialized on the server). Toggle tabs any time.
-- You can still Save from the YAML tab to preserve your manual formatting/comments; otherwise Visual saves re-serialize to a minimal format.
+- Live two‑way sync:
+	- YAML → Visual: when YAML parses, Visual re-enables and repopulates immediately.
+	- Visual → YAML: all controls (suite/request/assertions/extract/flow/retry/matrix/hooks) update YAML live; add/remove rows are captured.
+- Malformed YAML: Visual is disabled but YAML stays editable so you can fix it; tabs are auto‑converted to spaces.
+- Save from YAML preserves your formatting/comments; Visual save uses a minimal, stable format.
 
 Quick Run and validation
-- Quick Run executes the currently selected test (or the whole suite when on the YAML tab). You can toggle “with deps” to include transitive dependsOn.
-- Validation shows issues with severity and path; one-click Copy collects them plus the YAML preview.
+- Quick Run executes the currently selected test (or the whole suite from the YAML tab). Toggle “with deps” to include transitive dependsOn.
+- Validation shows severity and path, with friendlier YAML errors (line numbers, and a hint when tabs are detected). Copy collects issues plus the YAML preview.
 
 Quality-of-life
 - Save vs Save & Close. Saves are atomic and create timestamped backups.

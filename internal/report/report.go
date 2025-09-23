@@ -39,6 +39,15 @@ type BatchReport struct {
 	RunAt   time.Time        `json:"runAt"`
 	Summary Summary          `json:"summary"`
 	Suites  []DetailedReport `json:"suites,omitempty"`
+	NotRun  []NotRunInfo     `json:"notRun,omitempty"`
+}
+
+// NotRunInfo captures suites that were discovered but not executed
+// (e.g., failed to load or failed schema validation).
+type NotRunInfo struct {
+	Path            string `json:"path"`
+	Error           string `json:"error,omitempty"`
+	ValidationError string `json:"validationError,omitempty"`
 }
 
 func WriteJSONSummary(path string, sum Summary) error {

@@ -87,14 +87,30 @@ func WriteHTMLDetailed(path string, rep DetailedReport) error {
       --success:#40a02b; --error:#d20f39; --warning:#df8e1d; --info:#1e66f5;
       --grad1:#1e66f5; --grad2:#40a02b;
     }
+    /* Synthwave (dark, DaisyUI-inspired) */
+    body.synthwave {
+      --hdr-bg:#2d1b69; --hdr-fg:#f5f1ff; --bd:#3d2a7a; --li-hov:#332366; --li-sel:#3c2b78; --pill:#2f205f; --pg-bg:#2f205f; --txt:#f8f8ff; --bg:#231638;
+      --btn-bg:#2a1f57; --btn-bd:#4a3a8f; --btn-hov:#33276b; --link:#58c7f3;
+      --input-bg:#1f163f; --input-bd:#4a3a8f; --input-fg:#f5f1ff; --input-focus:#58c7f3;
+      --success:#36d399; --error:#f87272; --warning:#fbbd23; --info:#58c7f3;
+      --grad1:#f472b6; --grad2:#60a5fa;
+    }
+    /* Synthwave (dark, DaisyUI-inspired) */
+    body.synthwave {
+      --hdr-bg:#2d1b69; --hdr-fg:#f5f1ff; --bd:#3d2a7a; --li-hov:#332366; --li-sel:#3c2b78; --pill:#2f205f; --pg-bg:#2f205f; --txt:#f8f8ff; --bg:#231638;
+      --btn-bg:#2a1f57; --btn-bd:#4a3a8f; --btn-hov:#33276b; --link:#58c7f3;
+      --input-bg:#1f163f; --input-bd:#4a3a8f; --input-fg:#f5f1ff; --input-focus:#58c7f3;
+      --success:#36d399; --error:#f87272; --warning:#fbbd23; --info:#58c7f3;
+      --grad1:#f472b6; --grad2:#60a5fa;
+    }
     body { background: var(--bg); color: var(--txt); }
     .navbar { background: var(--hdr-bg) !important; color: var(--hdr-fg) !important; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
     function getTheme(){ try{ return localStorage.getItem('hydreq.theme')||'dark'; }catch{return 'dark'} }
-    function themeToDaisy(name){ switch(name){ case 'dark': return 'dark'; case 'synthwave': return 'synthwave'; case 'hack': return 'forest'; case 'catppuccin-mocha': return 'dracula'; case 'catppuccin-latte': return 'cupcake'; default: return 'light'; } }
-    function applyTheme(name){ const root=document.documentElement; root.setAttribute('data-theme', themeToDaisy(name)); document.body.classList.toggle('dark', name==='dark'||name==='synthwave'); document.body.classList.toggle('hack', name==='hack'); document.body.classList.toggle('catppuccin-mocha', name==='catppuccin-mocha'); document.body.classList.toggle('catppuccin-latte', name==='catppuccin-latte'); try{ localStorage.setItem('hydreq.theme', name);}catch{} }
+  function themeToDaisy(name){ switch(name){ case 'dark': return 'dark'; case 'synthwave': return 'synthwave'; case 'hack': return 'forest'; case 'catppuccin-mocha': return 'dracula'; case 'catppuccin-latte': return 'cupcake'; default: return 'light'; } }
+  function applyTheme(name){ const root=document.documentElement; root.setAttribute('data-theme', themeToDaisy(name)); document.body.classList.toggle('dark', name==='dark'||name==='synthwave'); document.body.classList.toggle('synthwave', name==='synthwave'); document.body.classList.toggle('hack', name==='hack'); document.body.classList.toggle('catppuccin-mocha', name==='catppuccin-mocha'); document.body.classList.toggle('catppuccin-latte', name==='catppuccin-latte'); try{ localStorage.setItem('hydreq.theme', name);}catch{} }
     function toggleFailed(el){
       const on = el.dataset.on === '1';
       el.dataset.on = on ? '0' : '1';
@@ -311,7 +327,16 @@ func WriteHTMLBatch(path string, br BatchReport) error {
   <script>
     function getTheme(){ try{ return localStorage.getItem('hydreq.theme')||'dark'; }catch{return 'dark'} }
     function themeToDaisy(name){ switch(name){ case 'dark': return 'dark'; case 'synthwave': return 'synthwave'; case 'hack': return 'forest'; case 'catppuccin-mocha': return 'dracula'; case 'catppuccin-latte': return 'cupcake'; default: return 'light'; } }
-    function applyTheme(name){ const root=document.documentElement; root.setAttribute('data-theme', themeToDaisy(name)); document.body.classList.toggle('dark', name==='dark'||name==='synthwave'); document.body.classList.toggle('hack', name==='hack'); document.body.classList.toggle('catppuccin-mocha', name==='catppuccin-mocha'); document.body.classList.toggle('catppuccin-latte', name==='catppuccin-latte'); try{ localStorage.setItem('hydreq.theme', name);}catch{} }
+    function applyTheme(name){
+      const root=document.documentElement;
+      root.setAttribute('data-theme', themeToDaisy(name));
+      document.body.classList.toggle('dark', name==='dark'||name==='synthwave');
+      document.body.classList.toggle('synthwave', name==='synthwave');
+      document.body.classList.toggle('hack', name==='hack');
+      document.body.classList.toggle('catppuccin-mocha', name==='catppuccin-mocha');
+      document.body.classList.toggle('catppuccin-latte', name==='catppuccin-latte');
+      try{ localStorage.setItem('hydreq.theme', name);}catch{}
+    }
     function toggleTheme(btn){ const r=document.documentElement; const dark=r.getAttribute('data-theme')==='dark'; r.setAttribute('data-theme', dark?'light':'dark'); btn.textContent=dark?'Dark':'Light'; }
     function suiteFilter(containerId){
       const root = document.getElementById(containerId);
@@ -387,6 +412,24 @@ func WriteHTMLBatch(path string, br BatchReport) error {
         <button class="btn btn-xs" onclick="document.querySelectorAll('details').forEach(d=>d.open=false)">Collapse all</button>
       </div>
     </div>
+    {{if .NotRun}}
+    <div class="alert alert-warning my-2">
+      <span class="font-semibold">Some suites were not run</span>
+    </div>
+    <div class="overflow-x-auto mb-4">
+      <table class="table table-sm">
+        <thead><tr><th>Path</th><th>Reason</th></tr></thead>
+        <tbody>
+          {{range .NotRun}}
+            <tr>
+              <td class="mono">{{.Path}}</td>
+              <td class="text-xs opacity-80">{{if .ValidationError}}{{.ValidationError}}{{else}}{{.Error}}{{end}}</td>
+            </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{end}}
     <div class="mt-2 overflow-x-auto">
       <table class="table table-zebra">
   <thead class="sticky"><tr><th>Suite</th><th class="text-right">Total</th><th class="text-right" style="color: var(--success)">Passed</th><th class="text-right" style="color: var(--error)">Failed</th><th class="text-right" style="color: var(--warning)">Skipped</th><th class="text-right">Duration</th></tr></thead>

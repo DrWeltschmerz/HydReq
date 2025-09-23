@@ -15,5 +15,5 @@ tests:
               id INT IDENTITY(1,1) PRIMARY KEY,
               name NVARCHAR(100)
             );
-  request: { method: GET, url: /status/200 }
+    request: { method: GET, url: /status/200 }
     assert: { status: 200 }

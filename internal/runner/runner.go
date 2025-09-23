@@ -33,6 +33,9 @@ import (
 	"github.com/DrWeltschmerz/HydReq/pkg/models"
 )
 
+// ErrSuiteNotRunnable signals configuration prevents execution (e.g., required baseUrl missing).
+var ErrSuiteNotRunnable = errors.New("suite not runnable")
+
 type Summary struct {
 	Total    int
 	Passed   int
@@ -119,6 +122,26 @@ func RunSuite(ctx context.Context, s *models.Suite, opts Options) (Summary, erro
 
 	// Expand matrices
 	testsExpanded := expandTestCases(s.Tests)
+
+	// Preflight: if any request URL is relative/path-like and suite.baseUrl is empty after
+	// interpolation, refuse to run the suite so we don't generate misleading request errors.
+	{
+		needBase := false
+		for _, t := range testsExpanded {
+			url := interpolate(t.Request.URL, vars)
+			if !(strings.HasPrefix(strings.ToLower(url), "http://") || strings.HasPrefix(strings.ToLower(url), "https://")) {
+				needBase = true
+				break
+			}
+		}
+		if needBase {
+			base := strings.TrimSpace(interpolate(s.BaseURL, vars))
+			if base == "" {
+				sum.Duration = time.Since(start)
+				return sum, fmt.Errorf("%w: baseUrl is empty; set suite.baseUrl or required environment", ErrSuiteNotRunnable)
+			}
+		}
+	}
 
 	// Run preSuite hooks sequentially (respect vars)
 	if len(s.PreSuite) > 0 {

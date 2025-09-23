@@ -41,7 +41,7 @@ if [[ "${START_SERVICES:-0}" == "1" && "${KEEP_SERVICES:-0}" != "1" ]]; then
 	docker compose -f docker-compose.yml down --remove-orphans || true
 fi
 
-echo "\nArtifacts under ./reports (per-suite + run-<ts>.html/json/xml)."
+printf "\nArtifacts under ./reports (per-suite + run-<ts>.html/json/xml).\n"
 # Hints for quick viewing / screenshots
 last_run_html=$(ls -1t reports/run-*.html 2>/dev/null | head -n1 || true)
 if [[ -n "${last_run_html}" ]]; then

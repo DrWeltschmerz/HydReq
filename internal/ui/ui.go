@@ -29,6 +29,17 @@ func Failf(format string, a ...any) {
 	}
 	fmt.Printf(Red+"✗ "+Reset+format+"\n", a...)
 }
+
+// FailWithBoldPrefix prints an error with a bold, red prefix and a normal-colored message.
+// Example: ✗ <bold>load suite testdata/x.yaml:</bold> yaml parse error
+func FailWithBoldPrefix(prefix string, format string, a ...any) {
+	if !Enabled {
+		return
+	}
+	// Red exclamation, bold red prefix, reset, then message
+	fmt.Print(Red + "✗ " + Bold + prefix + ":" + Reset + " ")
+	fmt.Printf(format+"\n", a...)
+}
 func Skipf(format string, a ...any) {
 	if !Enabled {
 		return

@@ -76,6 +76,14 @@
       --success:#40a02b; --error:#d20f39; --warning:#df8e1d; --info:#1e66f5;
       --grad1:#1e66f5; --grad2:#40a02b;
     }
+    /* Synthwave (dark, DaisyUI-inspired) */
+    body.synthwave {
+      --hdr-bg:#2d1b69; --hdr-fg:#f5f1ff; --bd:#3d2a7a; --li-hov:#332366; --li-sel:#3c2b78; --pill:#2f205f; --pg-bg:#2f205f; --txt:#f8f8ff; --bg:#231638;
+      --btn-bg:#2a1f57; --btn-bd:#4a3a8f; --btn-hov:#33276b; --link:#58c7f3;
+      --input-bg:#1f163f; --input-bd:#4a3a8f; --input-fg:#f5f1ff; --input-focus:#58c7f3;
+      --success:#36d399; --error:#f87272; --warning:#fbbd23; --info:#58c7f3;
+      --grad1:#f472b6; --grad2:#60a5fa;
+    }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; background: var(--bg); color: var(--txt); }
     header { background: var(--hdr-bg); color: var(--hdr-fg); padding: 16px; font-weight: 700; display:flex; align-items:center; justify-content:space-between; }
     main { display: grid; grid-template-columns: 360px 1fr; height: calc(100vh - 64px); }
@@ -191,6 +199,8 @@
   .ed-grid-col-2 { grid-column: 2 / 3; }
   .ed-grid-140-1-auto2 { display: grid; grid-template-columns: 140px 1fr auto auto; gap: 8px; align-items: center; }
   .dim { opacity: .8; }
+  .tab.disabled { opacity: .5; pointer-events: none; }
+  .ed-disabled { opacity: .6; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -436,6 +446,7 @@
       const root = document.documentElement;
       root.setAttribute('data-theme', themeToDaisy(name));
       document.body.classList.toggle('dark', name === 'dark' || name === 'synthwave');
+      document.body.classList.toggle('synthwave', name === 'synthwave');
       document.body.classList.toggle('hack', name === 'hack');
       document.body.classList.toggle('catppuccin-mocha', name === 'catppuccin-mocha');
       document.body.classList.toggle('catppuccin-latte', name === 'catppuccin-latte');
@@ -680,15 +691,59 @@
   const rightPane = splitter ? splitter.nextElementSibling : null;
     rawEl.value = data.raw || '';
     // Initialize CodeMirror for YAML
-    let yamlEditor = null;
+  // Track if the YAML text was modified by the user since last mirror
+  let yamlDirty = false;
+  let yamlEditor = null;
     function ensureYamlEditor(){
       if (yamlEditor) return yamlEditor;
-  yamlEditor = CodeMirror.fromTextArea(rawEl, { mode: 'yaml', lineNumbers: true, theme: (isDocDark()?'material-darker':'default') });
+      yamlEditor = CodeMirror.fromTextArea(rawEl, {
+        mode: 'yaml',
+        lineNumbers: true,
+        theme: (isDocDark()? 'material-darker':'default'),
+        indentUnit: 2,
+        tabSize: 2,
+        indentWithTabs: false,
+        extraKeys: {
+          Tab: function(cm){
+            if (cm.somethingSelected()) cm.indentSelection('add'); else cm.replaceSelection('  ', 'end');
+          },
+          'Shift-Tab': function(cm){ cm.indentSelection('subtract'); }
+        }
+      });
+      // Replace any tabs with two spaces on input/paste
+      yamlEditor.on('beforeChange', function(cm, change){
+        if (!change || !Array.isArray(change.text)) return;
+        let changed = false;
+        const out = change.text.map(function(line){
+          if (line.indexOf('\t') !== -1){ changed = true; return line.replace(/\t/g, '  '); }
+          return line;
+        });
+        if (changed) change.update(change.from, change.to, out, change.origin);
+      });
+  // Track YAML user edits and validate immediately (function is hoisted)
+  yamlEditor.on('change', function(){ yamlDirty = true; validateRawAndApply(); });
       // Resize to fit parent
       setTimeout(()=> yamlEditor.refresh(), 0);
       return yamlEditor;
     }
     issuesEl.innerHTML = '';
+
+    // One-time event delegation: any change within Visual pane updates working model and mirrors YAML
+    (function attachVisualDelegates(){
+      const root = modal.querySelector('#pane_visual');
+      if (!root) return;
+      const handler = ()=>{ try { sync(); syncYamlPreviewFromVisual(); } catch {} };
+      root.addEventListener('input', handler, true);
+      root.addEventListener('change', handler, true);
+      root.addEventListener('click', (e)=>{
+        const t = e.target;
+        if (!t) return;
+        // Trigger sync on button clicks (add/remove rows, toggles, etc.)
+        if ((t.tagName && t.tagName.toLowerCase()==='button') || t.closest('button')) {
+          handler();
+        }
+      }, true);
+    })();
 
     function normalizeParsed(inObj){
       if (!inObj || typeof inObj !== 'object') return { tests: [] };
@@ -774,22 +829,69 @@
     let dirty = false;
     function markDirty(){ dirty = true; }
   function attemptClose(){ if (dirty && !confirm('Discard unsaved changes?')) return; modal.remove(); document.body.classList.remove('modal-open'); }
-    async function mirrorYamlFromVisual(){
-      // serialize current working via validate endpoint and put YAML into editor (read-only)
+    async function mirrorYamlFromVisual(force=false){
+      // serialize current working via validate endpoint and put YAML into editor
       try{
         const res = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working })});
         if (!res.ok) return;
         const v = await res.json();
         const y = v && v.yaml ? v.yaml : '';
         ensureYamlEditor();
-        yamlEditor.setValue(y);
-        yamlEditor.setOption('readOnly', true);
+        // Only mirror when YAML tab is not active, unless forced
+        if (paneYaml.style.display === 'none' || force) {
+          const cur = yamlEditor.getValue();
+          if (cur !== y) yamlEditor.setValue(y);
+          // mirrored content is programmatic, not a user edit
+          yamlDirty = false;
+        }
+        yamlEditor.setOption('readOnly', false);
       }catch{}
     }
-    function switchTab(which){
+    // Debounced mirroring from Visual to YAML when YAML tab hidden
+    const syncYamlPreviewFromVisual = debounce(()=>{ if (paneYaml.style.display === 'none') mirrorYamlFromVisual(false); }, 300);
+    function setVisualEnabled(enabled){
+      // Disable/enable all controls in visual pane and tests list
+      const ctrlSel = '#pane_visual input, #pane_visual select, #pane_visual textarea, #pane_visual button';
+      modal.querySelectorAll(ctrlSel).forEach(el=>{ el.disabled = !enabled; });
+      const testsPanel = modal.querySelector('.ed-tests-panel');
+      if (testsPanel){ if (!enabled) testsPanel.classList.add('ed-disabled'); else testsPanel.classList.remove('ed-disabled'); }
+      // Disable Visual tab interaction
+      if (!enabled) tabVisual.classList.add('disabled'); else tabVisual.classList.remove('disabled');
+    }
+    function debounce(fn, wait){ let t=null; return function(){ const args=arguments; clearTimeout(t); t=setTimeout(()=> fn.apply(this,args), wait); } }
+    async function validateRawAndApply(){
+      try{
+        ensureYamlEditor();
+        const rawText = yamlEditor.getValue();
+        const res = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ raw: rawText })});
+        if (!res.ok) return;
+        const v = await res.json();
+        renderIssues(v.issues||[], v.yaml||'');
+        lastValidated = v;
+        if (v.parsed){
+          // enable visual and sync working from YAML
+          setVisualEnabled(true);
+          working = normalizeParsed(v.parsed);
+          if (!Array.isArray(working.tests)) working.tests = [];
+          // If Visual tab is showing, re-render to reflect live YAML
+          if (paneVisual.style.display !== 'none'){
+            renderTests();
+            renderForm();
+          }
+        } else {
+          // no parsed -> disable Visual
+          setVisualEnabled(false);
+        }
+      }catch{}
+    }
+    async function switchTab(which){
       if (which === 'visual'){
+        // If YAML has been modified, re-validate and sync to working before showing Visual
+        if (yamlDirty) { await validateRawAndApply(); yamlDirty = false; }
         paneVisual.style.display='flex'; paneYaml.style.display='none';
         tabVisual.classList.add('tab-active'); tabYaml.classList.remove('tab-active');
+        // Ensure Visual reflects latest parsed YAML
+        try { renderTests(); renderForm(); } catch {}
         // Refresh Visual quick-run box from per-test cache and clear YAML validation snapshot
         try { renderQuickRunForSelection(); } catch {}
         try {
@@ -800,8 +902,8 @@
         paneVisual.style.display='none'; paneYaml.style.display='flex';
         tabYaml.classList.add('tab-active'); tabVisual.classList.remove('tab-active');
         ensureYamlEditor(); yamlEditor.refresh();
-        // If coming from visual, mirror the YAML preview
-        mirrorYamlFromVisual();
+        // If YAML has no user edits since last mirror, force a mirror so it reflects Visual changes
+        if (!yamlDirty) { mirrorYamlFromVisual(true); }
         // Restore YAML-mode cached results/validation (if any)
         try {
           const y = JSON.parse(localStorage.getItem(`hydreq.${LS_VER}.yamlRun:`+LS_ENC(path))||'null');
@@ -849,20 +951,21 @@
       });
     }
 
-    function kvTable(container, obj){
+    function kvTable(container, obj, onChange){
       const c = (typeof container === 'string') ? modal.querySelector(container) : container;
       c.innerHTML = '';
       const table = document.createElement('div');
       const addRow = (k='', v='')=>{
         const row = document.createElement('div'); row.className = 'ed-grid-1-1-auto'; row.style.marginBottom='6px';
         const ki = document.createElement('input'); ki.type='text'; ki.value=k; const vi=document.createElement('input'); vi.type='text'; vi.value=v;
-        const del = document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick = ()=>{ row.remove(); };
+        if (onChange){ ['input','change','blur'].forEach(ev=>{ ki.addEventListener(ev, onChange); vi.addEventListener(ev, onChange); }); }
+        const del = document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick = ()=>{ row.remove(); if (onChange) onChange(); };
         row.appendChild(ki); row.appendChild(vi); row.appendChild(del);
         table.appendChild(row);
       };
       // populate
       if (obj){ Object.keys(obj).forEach(k=> addRow(k, obj[k])); }
-      const add = document.createElement('button'); add.textContent='Add'; add.onclick = ()=> addRow();
+      const add = document.createElement('button'); add.textContent='Add'; add.onclick = ()=> { addRow(); if (onChange) onChange(); };
       c.appendChild(table); c.appendChild(add);
       return ()=>{
         const rows = Array.from(table.children);
@@ -875,19 +978,20 @@
       };
     }
 
-    function listTable(container, arr){
+    function listTable(container, arr, onChange){
       const c = (typeof container === 'string') ? modal.querySelector(container) : container;
       c.innerHTML = '';
       const table = document.createElement('div');
       const addRow = (v='')=>{
         const row = document.createElement('div'); row.className = 'ed-grid-1-auto'; row.style.marginBottom='6px';
         const vi=document.createElement('input'); vi.type='text'; vi.value=v;
-        const del = document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick = ()=>{ row.remove(); };
+        if (onChange){ ['input','change','blur'].forEach(ev=> vi.addEventListener(ev, onChange)); }
+        const del = document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick = ()=>{ row.remove(); if (onChange) onChange(); };
         row.appendChild(vi); row.appendChild(del);
         table.appendChild(row);
       };
       if (Array.isArray(arr)) arr.forEach(v=> addRow(v));
-      const add = document.createElement('button'); add.textContent='Add'; add.onclick = ()=> addRow();
+      const add = document.createElement('button'); add.textContent='Add'; add.onclick = ()=> { addRow(); if (onChange) onChange(); };
       c.appendChild(table); c.appendChild(add);
       return ()=>{
         const rows = Array.from(table.children);
@@ -897,9 +1001,9 @@
       };
     }
 
-    function mapTable(container, obj, valuePlaceholder='value'){
+    function mapTable(container, obj, valuePlaceholder='value', onChange){
       // Like kvTable, but for arbitrary value types (free text) and returns map[string]string-like
-      return kvTable(container, obj||{});
+      return kvTable(container, obj||{}, onChange);
     }
 
     function hookList(container, hooks, options){
@@ -1049,7 +1153,7 @@
         })();
         right.appendChild(runDepsBtn); right.appendChild(badge);
         div.appendChild(label); div.appendChild(right);
-        div.onclick = (ev)=>{ if (ev.target===runDepsBtn) return; selIndex=i; renderTests(); renderForm(); renderQuickRunForSelection(); };
+  div.onclick = (ev)=>{ if (ev.target===runDepsBtn) return; selIndex=i; renderTests(); renderForm(); renderQuickRunForSelection(); try{ sync(); mirrorYamlFromVisual(false);}catch{} };
         runDepsBtn.onclick = async (ev)=>{
           ev.stopPropagation();
           try{ if (typeof sync === 'function') sync(); }catch{}
@@ -1068,8 +1172,8 @@
       // Attach add/delete handlers
       const addBtn = modal.querySelector('#ed_add_test');
       const delBtn = modal.querySelector('#ed_del_test');
-      addBtn.onclick = ()=>{ working.tests.push({ name: `test ${working.tests.length+1}`, request:{ method:'GET', url:'' }, assert:{ status:200 } }); selIndex = working.tests.length-1; renderTests(); renderForm(); };
-      delBtn.onclick = ()=>{ if (working.tests.length===0) return; if (!confirm('Delete selected test?')) return; working.tests.splice(selIndex,1); selIndex = Math.max(0, selIndex-1); renderTests(); if (working.tests.length) renderForm(); };
+  addBtn.onclick = ()=>{ working.tests.push({ name: `test ${working.tests.length+1}`, request:{ method:'GET', url:'' }, assert:{ status:200 } }); selIndex = working.tests.length-1; renderTests(); renderForm(); try{ sync(); mirrorYamlFromVisual(false);}catch{} };
+  delBtn.onclick = ()=>{ if (working.tests.length===0) return; if (!confirm('Delete selected test?')) return; working.tests.splice(selIndex,1); selIndex = Math.max(0, selIndex-1); renderTests(); if (working.tests.length) renderForm(); try{ sync(); mirrorYamlFromVisual(false);}catch{} };
     }
 
     function renderForm(){
@@ -1091,18 +1195,18 @@
       modal.querySelector('#ed_method').value = (req.method||'GET').toUpperCase();
       modal.querySelector('#ed_url').value = req.url || '';
       modal.querySelector('#ed_timeout').value = t.timeoutMs || '';
-      const headersGet = kvTable('#ed_headers', req.headers||{});
-      const queryGet = kvTable('#ed_query', req.query||{});
+  const headersGet = kvTable('#ed_headers', req.headers||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
+  const queryGet = kvTable('#ed_query', req.query||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
       // Body: show as JSON if object, otherwise as string
       const bodyEl = modal.querySelector('#ed_body');
       try { bodyEl.value = (req.body && typeof req.body === 'object') ? JSON.stringify(req.body, null, 2) : (req.body || ''); } catch{ bodyEl.value = req.body || ''; }
   // Assertions
       const as = t.assert || {};
       modal.querySelector('#ed_assert_status').value = (as.status||0);
-      const aHeadGet = kvTable('#ed_assert_headerEquals', as.headerEquals||{});
-      const aEqGet = mapTable('#ed_assert_jsonEquals', as.jsonEquals||{});
-      const aContGet = mapTable('#ed_assert_jsonContains', as.jsonContains||{});
-      const aBodyGet = listTable('#ed_assert_bodyContains', as.bodyContains||[]);
+  const aHeadGet = kvTable('#ed_assert_headerEquals', as.headerEquals||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
+  const aEqGet = mapTable('#ed_assert_jsonEquals', as.jsonEquals||{}, 'value', ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
+  const aContGet = mapTable('#ed_assert_jsonContains', as.jsonContains||{}, 'value', ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
+  const aBodyGet = listTable('#ed_assert_bodyContains', as.bodyContains||[], ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
       modal.querySelector('#ed_assert_maxDuration').value = (as.maxDurationMs||'');
       // Extract
       const extractC = modal.querySelector('#ed_extract');
@@ -1113,12 +1217,13 @@
           const row = document.createElement('div'); row.className='ed-grid-1-1-auto'; row.style.marginBottom='6px';
           const nameI = document.createElement('input'); nameI.placeholder='var name'; nameI.value=name;
           const pathI = document.createElement('input'); pathI.placeholder='json.id'; pathI.value=jsonPath;
-          const del = document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick=()=> row.remove();
+          ['input','change','blur'].forEach(ev=>{ nameI.addEventListener(ev, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} }); pathI.addEventListener(ev, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} }); });
+          const del = document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick=()=> { row.remove(); try{ sync(); syncYamlPreviewFromVisual(); }catch{} };
           row.appendChild(nameI); row.appendChild(pathI); row.appendChild(del); table.appendChild(row);
         };
         const ex = t.extract || {};
         Object.keys(ex).forEach(k=> addRow(k, (ex[k] && ex[k].jsonPath)||''));
-        const add = document.createElement('button'); add.textContent='Add'; add.onclick = ()=> addRow();
+        const add = document.createElement('button'); add.textContent='Add'; add.onclick = ()=> { addRow(); try{ sync(); syncYamlPreviewFromVisual(); }catch{} };
         extractC.appendChild(table); extractC.appendChild(add);
         return ()=>{
           const rows = Array.from(table.children);
@@ -1152,12 +1257,13 @@
           const row = document.createElement('div'); row.className='ed-grid-1-1-auto'; row.style.marginBottom='6px';
           const ki=document.createElement('input'); ki.placeholder='var'; ki.value=k;
           const vi=document.createElement('input'); vi.placeholder='v1, v2, v3'; vi.value=(Array.isArray(vals)?vals.join(', '):'');
-          const del=document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick=()=> row.remove();
+          ['input','change','blur'].forEach(ev=>{ ki.addEventListener(ev, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} }); vi.addEventListener(ev, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} }); });
+          const del=document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick=()=> { row.remove(); try{ sync(); syncYamlPreviewFromVisual(); }catch{} };
           row.appendChild(ki); row.appendChild(vi); row.appendChild(del); table.appendChild(row);
         };
         const mx = t.matrix || {};
         Object.keys(mx).forEach(k=> addRow(k, mx[k]||[]));
-        const add = document.createElement('button'); add.textContent='Add'; add.onclick = ()=> addRow();
+        const add = document.createElement('button'); add.textContent='Add'; add.onclick = ()=> { addRow(); try{ sync(); syncYamlPreviewFromVisual(); }catch{} };
         matrixC.appendChild(table); matrixC.appendChild(add);
         return ()=>{
           const rows = Array.from(table.children);
@@ -1195,7 +1301,7 @@
         else if (ba) txt = 'Authorization: Basic ${'+ba+'}';
         modal.querySelector('#ed_auth_preview').textContent = txt;
       }
-      const sync = ()=>{
+  const sync = ()=>{
         // Suite sync
         working.name = (modal.querySelector('#ed_suite_name').value||'');
         working.baseUrl = (modal.querySelector('#ed_suite_baseurl').value||'');
@@ -1258,6 +1364,8 @@
         else { cur.openApi = { enabled: (ov==='true') }; }
         // write back
         working.tests[selIndex] = cur;
+        // Mirror YAML from Visual edits so YAML stays live-synced
+        try { syncYamlPreviewFromVisual(); } catch {}
       };
       ['change','blur','input'].forEach(evt=>{
         modal.querySelector('#ed_suite_name').addEventListener(evt, sync);
@@ -1306,15 +1414,14 @@
 
     renderTests();
     renderForm();
-    // Helper: key for cache
-          // If YAML tab is open (preview mode), refresh the mirrored YAML
-          if (paneYaml.style.display !== 'none') { mirrorYamlFromVisual(); }
+    // start live YAML validation and initial state
+  ensureYamlEditor();
+  // Normalize initial content by converting tabs to two spaces
+  yamlEditor.setValue((data.raw || '').replace(/\t/g, '  '));
+    // initial validate from YAML content
+    validateRawAndApply();
+  // keep YAML preview in sync when editing Visual (but only when YAML tab hidden)
     const cacheKey = ()=>{
-        // Hook up change events across the form to mirror YAML live
-        modal.querySelectorAll('#ed_req_form input, #ed_req_form select, #ed_req_form textarea, #ed_req_form button').forEach(el=>{
-          const evt = (el.tagName.toLowerCase()==='select'?'change':'input');
-          el.addEventListener(evt, ()=>{ try{ sync(); }catch{} });
-        });
       const t = (working.tests && working.tests[selIndex]) || {};
       return selIndex + ':' + (t.name||('test '+(selIndex+1)));
     };
@@ -1442,8 +1549,10 @@
     modal.querySelector('#ed_close').onclick = ()=> attemptClose();
   // Keep theme of CodeMirror in sync with current theme
   function syncEditorTheme(){ if (yamlEditor){ yamlEditor.setOption('theme', isDocDark() ? 'material-darker' : 'default'); yamlEditor.refresh(); } }
-    // Show the YAML by default so the exact file content is visible first
-    switchTab('yaml');
+  // Respect last used tab; default to YAML to allow fixing malformed files
+  const lastTab = (function(){ try{ return localStorage.getItem('hydreq.editor.tab') }catch{ return null } })() || 'yaml';
+  // If YAML currently invalid, force YAML tab
+  switchTab(lastTab === 'visual' ? 'visual' : 'yaml');
     // Show cached quick run for initial selection (if any)
     if (working.tests && working.tests.length) { try{ renderQuickRunForSelection(); }catch{} }
   }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -145,15 +146,24 @@ func (s *server) handleEditorSuite(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(404)
 			return
 		}
-		// parse via runner for consistency
-		suite, err := runner.LoadSuite(path)
-		if err != nil {
-			w.WriteHeader(400)
-			_, _ = w.Write([]byte("parse error"))
-			return
+		// Best-effort parse: try to unmarshal YAML; if it fails, still return raw content
+		var suite models.Suite
+		var parsed *models.Suite
+		var perr string
+		if err := yaml.Unmarshal(b, &suite); err == nil {
+			sc := suite
+			parsed = &sc
+		} else {
+			perr = err.Error()
 		}
 		w.Header().Set("Content-Type", "application/json")
-		resp := map[string]any{"raw": string(b), "parsed": suite}
+		resp := map[string]any{"raw": string(b)}
+		if parsed != nil {
+			resp["parsed"] = parsed
+		}
+		if perr != "" {
+			resp["error"] = perr
+		}
 		_ = json.NewEncoder(w).Encode(resp)
 	default:
 		w.WriteHeader(405)
@@ -183,16 +193,66 @@ func (s *server) handleEditorValidate(w http.ResponseWriter, r *http.Request) {
 	}
 	issues := []map[string]any{}
 	var parsed models.Suite
+	var parsedValid bool
 	// prefer raw if provided
 	if strings.TrimSpace(vr.Raw) != "" {
-		if err := yaml.Unmarshal([]byte(vr.Raw), &parsed); err != nil {
-			issues = append(issues, map[string]any{"path": "root", "message": err.Error(), "severity": "error"})
+		raw := vr.Raw
+		if err := yaml.Unmarshal([]byte(raw), &parsed); err != nil {
+			// Friendlier YAML error formatting
+			msg := err.Error()
+			// Extract line number if present in error (e.g., "line 17: ...")
+			lineInfo := ""
+			if i := strings.Index(msg, "line "); i >= 0 {
+				// crude parse of number after "line "
+				rest := msg[i+5:]
+				num := ""
+				for _, ch := range rest {
+					if ch >= '0' && ch <= '9' {
+						num += string(ch)
+					} else {
+						break
+					}
+				}
+				if num != "" {
+					lineInfo = num
+				}
+			}
+			// Detect tabs in raw and include a clear hint
+			hasTabs := strings.Contains(raw, "\t")
+			hint := ""
+			if hasTabs {
+				if lineInfo == "" {
+					// try to find first line with a tab
+					lines := strings.Split(raw, "\n")
+					for idx, ln := range lines {
+						if strings.Contains(ln, "\t") {
+							lineInfo = fmt.Sprintf("%d", idx+1)
+							break
+						}
+					}
+				}
+				hint = "YAML uses spaces for indentation. Replace tabs (\t) with two spaces."
+			}
+			friendly := "YAML parse error"
+			if lineInfo != "" {
+				friendly += " at line " + lineInfo
+			}
+			if hint != "" {
+				friendly += ": " + hint
+			}
+			issues = append(issues, map[string]any{"path": "root", "message": friendly, "severity": "error"})
+			// also include original parser message as info for debugging
+			issues = append(issues, map[string]any{"path": "root", "message": msg, "severity": "info"})
+		} else {
+			parsedValid = true
 		}
 	} else if vr.Parsed != nil {
 		// re-marshal+unmarshal to models.Suite
 		if b, err := json.Marshal(vr.Parsed); err == nil {
 			if err := json.Unmarshal(b, &parsed); err != nil {
 				issues = append(issues, map[string]any{"path": "root", "message": err.Error(), "severity": "error"})
+			} else {
+				parsedValid = true
 			}
 		} else {
 			issues = append(issues, map[string]any{"path": "root", "message": err.Error(), "severity": "error"})
@@ -342,12 +402,17 @@ func (s *server) handleEditorValidate(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	// Always include parsed and YAML if we were able to parse the structure at all
+	// Include parsed only if we successfully parsed input
 	var parsedPtr *models.Suite
 	var outYAML string
-	{
+	if parsedValid {
 		parsedCopy := parsed
 		parsedPtr = &parsedCopy
+	}
+	// YAML preview/content: when validating raw, echo the raw text; when validating parsed, render canonical YAML
+	if strings.TrimSpace(vr.Raw) != "" {
+		outYAML = vr.Raw
+	} else if parsedValid {
 		var buf strings.Builder
 		enc := yaml.NewEncoder(&buf)
 		enc.SetIndent(2)
@@ -743,12 +808,13 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 		return runner.RunSuite(ctx, &single, runner.Options{Workers: 1, OnResult: func(tr runner.TestResult) { captured = tr; allResults = append(allResults, tr) }})
 	}
 	var sum runner.Summary
+	var runErr error
 	if len(tr.Env) > 0 {
 		s.envMu.Lock()
-		sum, _ = withEnv(tr.Env, runWith)
+		sum, runErr = withEnv(tr.Env, runWith)
 		s.envMu.Unlock()
 	} else {
-		sum, _ = runWith()
+		sum, runErr = runWith()
 	}
 	// Expect exactly one test result in summary details; if runner doesn't expose details, infer from summary
 	// For now, synthesize from summary counts; Messages not available without changing runner API, so leave empty unless failures exist.
@@ -766,6 +832,12 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 			status = "skipped"
 		}
 		var msgs []string
+		if runErr != nil {
+			if errors.Is(runErr, runner.ErrSuiteNotRunnable) {
+				status = "failed"
+			}
+			msgs = append(msgs, runErr.Error())
+		}
 		for _, r := range allResults {
 			prefix := "✓"
 			if r.Status == "failed" {
@@ -793,6 +865,12 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 		}
 		name := suite.Tests[tr.TestIdx].Name
 		msgs := captured.Messages
+		if runErr != nil {
+			if errors.Is(runErr, runner.ErrSuiteNotRunnable) {
+				status = "failed"
+			}
+			msgs = append([]string{runErr.Error()}, msgs...)
+		}
 		if msgs == nil {
 			msgs = []string{}
 		}
@@ -1003,15 +1081,19 @@ func (s *server) runOneWithCtx(ctx context.Context, path string, workers int, en
 		}})
 	}
 	var sum runner.Summary
+	var runErr error
 	if len(env) > 0 {
 		// serialize env overrides to avoid races
 		s.envMu.Lock()
-		sum, _ = withEnv(env, runWithSuite)
+		sum, runErr = withEnv(env, runWithSuite)
 		s.envMu.Unlock()
 	} else {
-		sum, _ = runWithSuite()
+		sum, runErr = runWithSuite()
 	}
 	// Note: runner returns an error when tests fail; we surface that via suiteEnd summary only.
+	if runErr != nil {
+		out(evt{Type: "error", Payload: map[string]any{"path": path, "error": runErr.Error()}})
+	}
 	out(evt{Type: "suiteEnd", Payload: map[string]any{
 		"path": path,
 		"name": suite.Name,

@@ -29,11 +29,21 @@ Artifacts created with `--report-dir`:
 - Per-suite: `<suite>-<timestamp>.json`, `<suite>-<timestamp>.xml`, `<suite>-<timestamp>.html`
 - Run-level (batch): `run-<timestamp>.json`, `run-<timestamp>.xml`, `run-<timestamp>.html`
 
+## Batch reports and Not Run
+
+When running multiple suites, the aggregated run-level reports include a Not Run section for any suites that failed to load or were deemed not runnable (for example, invalid YAML or missing `baseUrl` when requests use path-only URLs). The reason is included next to each file:
+
+- JSON/HTML: `status: "not-run"` with a `reason` message
+- JUnit: suites that did not run are represented as skipped cases within an aggregate testsuite
+
+This keeps console output, per-suite reports, and batch reports consistent.
+
 ## Viewing reports
 
 - Open the generated .html files directly in your browser (double‑click or drag‑and‑drop).
 - In CI, upload the reports directory as an artifact and download to view locally.
 - The HTML includes a theme selector in the navbar (Light, Dark, Synthwave, Hack, Catppuccin), persisted via localStorage.
+  - Synthwave theme was tuned to maintain readable contrasts in charts and table badges in dark contexts.
 
 ## Tips
 

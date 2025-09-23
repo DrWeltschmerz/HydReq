@@ -31,6 +31,24 @@ fi
 echo "Running vet..."
 go vet ./...
 
+if [[ "${SKIP_VALIDATION:-0}" == "1" ]]; then
+	echo "Skipping suite validation (SKIP_VALIDATION=1)"
+else
+	echo "Validating example suites against schema..."
+	if [[ ! -x bin/validate ]]; then
+		go build -o bin/validate ./cmd/validate
+	fi
+	if ./bin/validate -dir testdata -schema schemas/suite.schema.json -quiet; then
+		:
+	else
+		if [[ "${VALIDATION_WARN_ONLY:-0}" == "1" ]]; then
+			echo "WARN: validation failed but continuing (VALIDATION_WARN_ONLY=1)" >&2
+		else
+			exit 1
+		fi
+	fi
+fi
+
 echo "Ensuring go.mod is tidy..."
 cp go.mod go.mod.ci.bak
 cp go.sum go.sum.ci.bak

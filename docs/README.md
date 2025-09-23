@@ -23,6 +23,8 @@ Welcome! This is the full documentation for HydReq. Start here and jump to the t
   - ./adapters.md
 - Reports (JSON/JUnit/HTML)
   - ./reports.md
+ - Validator (schema checks)
+   - See ./cli.md#validator and ./authoring.md
 - Examples overview (from testdata/)
   - ./examples.md
 - Troubleshooting

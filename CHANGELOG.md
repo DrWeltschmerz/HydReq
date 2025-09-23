@@ -3,15 +3,33 @@
 ## v0.3.1-beta (2025-09-23)
 
 Highlights
-- Documentation sweep for theme-aware UI/reports and new CLI defaults.
-- GitHub Releases now use the matching CHANGELOG section as the release body.
+- New validator CLI and CI checks for example suites.
+- Clear suite load/not‑runnable handling with dedicated exit code and Not Run reporting.
+- Web UI editor: live two‑way YAML⇆Visual sync, editable YAML for malformed files, tab-safe mirroring; tabs auto-convert to spaces.
+- GitHub Releases pull the matching CHANGELOG section as the release body.
 
 Changes
 - Docs
-	- README, CLI, Getting Started, Web UI, Reports updated: theme selector, theme-aware HTML visuals, and default multi-suite runs when `-f` is omitted.
-	- Contributing clarifies env-only `HTTPBIN_BASE_URL` (no baked-in public fallback).
+	- README, CLI, Getting Started, Web UI, Visual editor, Reports refreshed: theme selector, theme-aware HTML, default multi-suite runs, two‑way editor sync.
+	- Validator documented (`cmd/validate`) with usage and flags; exit code semantics clarified (`2` on load/not‑runnable).
+- CLI & Runner
+	- Suites that fail to load or are not runnable (e.g., path URLs with empty `baseUrl`) do not run and produce no per-suite or batch entries; CLI exits with 2 when only such failures occur.
+	- Preflight detects path URLs with empty `baseUrl` and aborts cleanly with a clear error; error surfaced in GUI quick-run and batch stream.
+	- GitHub Actions step summary shows a bullet list of failed-to-load suites.
+- Reports
+	- Added Not Run section in batch JSON/HTML (path, error, optional validationError).
+	- Synthwave theme applied correctly to batch HTML report (colors, backgrounds, donut legend).
+- Web UI editor
+	- YAML tab is always editable; Visual is disabled when YAML is malformed.
+	- Tabs auto-convert hard tabs to spaces; validator now points to offending lines and adds a friendly hint for tabs.
+	- Live two‑way sync: YAML→Visual on parse; Visual→YAML for all controls (headers/query/assert/extract/matrix/hooks, add/remove rows).
+	- Base URL preflight surfaced in quick-run.
+- Scripts
+	- scripts/run-examples.sh prints a real newline before the "Artifacts" section.
+- CI
+	- New `validate` job runs the schema validator over `testdata/`; examples validate before running and upload artifacts.
+	- `scripts/local-ci.sh` supports `SKIP_VALIDATION=1` and `VALIDATION_WARN_ONLY=1` to override strict validation locally.
 - Release automation
-	- Release workflow extracts the section for the pushed tag from `CHANGELOG.md` and updates the GitHub Release body automatically.
 - Repo hygiene
 	- Added a PR template to standardize change summaries, screenshots, tests, and breaking changes.
 - Examples

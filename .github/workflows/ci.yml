@@ -7,6 +7,19 @@ on:
     branches: [ main ]
 
 jobs:
+  validate:
+    name: Validate suites against schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+      - name: Build validator
+        run: go build -o bin/validate ./cmd/validate
+      - name: Run validator
+        run: ./bin/validate -dir testdata -schema schemas/suite.schema.json -quiet
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -148,6 +161,10 @@ jobs:
       - name: Wait for services (httpbin)
         run: |
           for i in {1..60}; do curl -fsS http://localhost:8080/ip >/dev/null && break || sleep 2; done
+      - name: Build validator and validate suites
+        run: |
+          go build -o bin/validate ./cmd/validate
+          ./bin/validate -dir testdata -schema schemas/suite.schema.json -quiet
       - name: Wait for MSSQL (port 1433)
         shell: bash
         run: |

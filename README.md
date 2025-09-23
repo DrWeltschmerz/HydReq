@@ -54,7 +54,7 @@
                                                                                 
 ```
 
-Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, run them locally or in CI across Windows, macOS, and Linux.
+Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, run them locally or in CI across Windows, macOS, and Linux. Now with a validator CLI, run-level reports, and a live two‑way Web UI editor.
 
 Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.
 
@@ -131,7 +131,7 @@ Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.
 - A summary appears for every suite and a final batch summary aggregates pass/fail/skip.
 - Editor: Click “Edit” next to a suite for a Visual + YAML editor with validation, Quick Run (with deps), hook editing (HTTP/SQL), and Save vs Save & Close.
   - Tip: For CI artifacts (JSON/JUnit/HTML), prefer the CLI flags `--report-json` / `--report-junit` / `--report-html`.
-  - Extras: YAML tab mirrors the Visual state live (read‑only); dark theme by default; density toggle (compact/comfortable); resizable preview pane; SQL DSN helper templates and show/hide for DSNs.
+  - Extras: Live two‑way sync between YAML and Visual; malformed YAML keeps YAML editable and temporarily disables Visual; tabs are converted to spaces automatically; dark theme by default; density toggle; resizable preview; SQL DSN helper templates and show/hide for DSNs.
 
 ### Using the CLI
 
@@ -147,6 +147,18 @@ Auto-generate reports (no per-report flags)
 Naming:
 - Per-suite: `<suite>-<timestamp>.{json,xml,html}`
 - Run-level (batch): `run-<timestamp>.{json,xml,html}`
+
+Validate suites locally (optional but recommended)
+
+```
+go build -o bin/validate ./cmd/validate
+./bin/validate -dir testdata -schema schemas/suite.schema.json
+```
+
+The CI runs this validator too and will fail if any suite drifts from the schema.
+
+Exit codes
+- `0` all tests passed; `1` test failures; `2` suite failed to load or is not runnable (invalid YAML, missing baseUrl for path URLs). Not‑runnable suites do not emit results and appear in the batch report's Not Run section.
 
 CLI flags
 - `--file` (or `-f`): path to YAML suite (optional; when omitted, all suites in `testdata/` are run)
@@ -273,6 +285,11 @@ hydreq import bruno path/to/export.json > suite.yaml
 ```
 
 This script runs unit tests, starts local services, runs DB tests (if env DSNs present), and executes all example suites. Containers are automatically stopped on exit; set `KEEP_SERVICES=1` to keep them running.
+It also validates all example suites against the schema up front and fails fast on shape errors.
+
+Toggles
+- `SKIP_VALIDATION=1` — skip schema validation (useful when testing validation failures via CLI separately).
+- `VALIDATION_WARN_ONLY=1` — keep running even if validation fails; prints a warning. Handy to exercise CLI reporting for not-run suites while still producing batch artifacts.
 
 ### Auth example (local)
 To include `testdata/auth.yaml` in batch runs:
@@ -284,6 +301,7 @@ export BASIC_B64=$(printf 'user:pass' | base64 | tr -d '\n')
 
 ### Project layout
 - `cmd/hydreq` — CLI entrypoint
+ - `cmd/validate` — schema validator for suites
 - `internal/runner` — engine (scheduling, assertions, hooks, OpenAPI)
 - `internal/webui` — local Web UI (SSE, embedded assets)
 - `internal/report` — JSON/JUnit writers

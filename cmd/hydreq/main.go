@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -18,12 +19,17 @@ import (
 	"github.com/DrWeltschmerz/HydReq/internal/report"
 	"github.com/DrWeltschmerz/HydReq/internal/runner"
 	"github.com/DrWeltschmerz/HydReq/internal/ui"
+	valfmt "github.com/DrWeltschmerz/HydReq/internal/validate"
 	gui "github.com/DrWeltschmerz/HydReq/internal/webui"
+	jsonschema "github.com/santhosh-tekuri/jsonschema/v5"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 func main() {
+	// sentinel error to distinguish load failures from runtime failures
+	var errLoadSuite = errors.New("suite load error")
 	var rootCmd = &cobra.Command{Use: "hydreq", Short: "HydReq (Hydra Request) - Lightweight API test runner"}
 	// Avoid printing usage/help on runtime errors; we'll print concise messages ourselves.
 	rootCmd.SilenceUsage = true
@@ -48,6 +54,15 @@ func main() {
 			// Keep CLI output minimal and focused
 			// Unified run timestamp for all artifacts in this invocation
 			runTS := time.Now().Format("20060102-150405")
+			// Optional: compile JSON Schema if present, used to annotate not-run items
+			var compiledSchema *jsonschema.Schema
+			if _, err := os.Stat("schemas/suite.schema.json"); err == nil {
+				if abs, aerr := filepath.Abs("schemas/suite.schema.json"); aerr == nil {
+					if sch, cerr := jsonschema.Compile("file://" + abs); cerr == nil {
+						compiledSchema = sch
+					}
+				}
+			}
 			var tagList []string
 			if tags != "" {
 				tagList = strings.Split(tags, ",")
@@ -56,7 +71,7 @@ func main() {
 			runOne := func(suitePath string, br *report.BatchReport) (sumFailed int, runErr error) {
 				s, err := runner.LoadSuite(suitePath)
 				if err != nil {
-					return 0, fmt.Errorf("load suite %s: %w", suitePath, err)
+					return 0, fmt.Errorf("%w: %s: %v", errLoadSuite, suitePath, err)
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 				defer cancel()
@@ -68,6 +83,10 @@ func main() {
 				sum, err := runner.RunSuite(ctx, s, runner.Options{Verbose: verbose, Tags: tagList, Workers: workers, DefaultTimeoutMs: defaultTimeoutMs, OnResult: func(tr runner.TestResult) {
 					cases = append(cases, report.TestCase{Name: tr.Name, Stage: tr.Stage, Tags: tr.Tags, Status: tr.Status, DurationMs: tr.DurationMs, Messages: tr.Messages})
 				}})
+				// If suite is not runnable (e.g., missing baseUrl), don't print or emit artifacts/summary
+				if err != nil && errors.Is(err, runner.ErrSuiteNotRunnable) {
+					return 0, fmt.Errorf("%w: %s: %v", errLoadSuite, suitePath, err)
+				}
 				rs := report.FromRunner(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
 				if output == "json" {
 					enc := json.NewEncoder(os.Stdout)
@@ -115,12 +134,17 @@ func main() {
 					}
 				}
 				if err != nil {
+					// If suite is not runnable (e.g., missing baseUrl), wrap like a load error so callers can classify
+					if errors.Is(err, runner.ErrSuiteNotRunnable) {
+						return sum.Failed, fmt.Errorf("%w: %s: %v", errLoadSuite, suitePath, err)
+					}
 					return sum.Failed, err
 				}
 				return sum.Failed, nil
 			}
 
 			// Determine whether to run one or all suites
+			failedLoads := make([]string, 0, 8)
 			if strings.TrimSpace(file) == "" {
 				// Discover suites in testdata/*.yaml
 				paths, globErr := filepath.Glob("testdata/*.yaml")
@@ -138,7 +162,42 @@ func main() {
 					}
 					failed, err := runOne(p, &br)
 					if err != nil {
-						fmt.Fprintln(os.Stderr, err)
+						if errors.Is(err, errLoadSuite) {
+							failedLoads = append(failedLoads, p)
+							// Try to validate for a more actionable message
+							var vmsg string
+							if compiledSchema != nil {
+								if data, rerr := os.ReadFile(p); rerr == nil {
+									if jb, jerr := kyaml.YAMLToJSON(data); jerr == nil {
+										var v any
+										if jderr := json.Unmarshal(jb, &v); jderr == nil {
+											if verr := compiledSchema.Validate(v); verr != nil {
+												vmsg = valfmt.FormatValidationError(data, verr)
+											}
+										}
+									}
+								}
+							}
+							br.NotRun = append(br.NotRun, report.NotRunInfo{Path: p, Error: err.Error(), ValidationError: vmsg})
+							if output != "json" {
+								// Pretty-print load error: bold red prefix up to first colon
+								emsg := err.Error()
+								if idx := strings.Index(emsg, ": "); idx > 0 {
+									ui.FailWithBoldPrefix(emsg[:idx], "%s", strings.TrimSpace(emsg[idx+1:]))
+								} else {
+									ui.Failf("%v", err)
+								}
+							} else {
+								fmt.Fprintf(os.Stderr, "load suite %s: %v\n", p, err)
+							}
+						} else {
+							// Runtime error (e.g., preSuite failure). Results were still collected into batch.
+							if output != "json" {
+								ui.Failf("run error: %v", err)
+							} else {
+								fmt.Fprintf(os.Stderr, "run error for %s: %v\n", p, err)
+							}
+						}
 					}
 					totalFailed += failed
 				}
@@ -149,8 +208,23 @@ func main() {
 					_ = report.WriteJUnitBatchSummary(base+".xml", br.Summary)
 					_ = report.WriteHTMLBatch(base+".html", br)
 				}
-				if totalFailed > 0 {
-					os.Exit(1)
+				if len(failedLoads) > 0 && output != "json" {
+					ui.SuiteSeparator()
+					ui.Failf("%d suite(s) failed to load:", len(failedLoads))
+					for _, fp := range failedLoads {
+						ui.Detail(fp)
+					}
+					if path := os.Getenv("GITHUB_STEP_SUMMARY"); path != "" {
+						_ = appendSummary(path, failedLoads)
+					}
+				}
+				if totalFailed > 0 || len(failedLoads) > 0 {
+					// Exit code 2 when only load failures occurred; otherwise 1
+					if totalFailed == 0 && len(failedLoads) > 0 {
+						os.Exit(2)
+					} else {
+						os.Exit(1)
+					}
 					return nil
 				}
 				return nil
@@ -167,11 +241,28 @@ func main() {
 				_ = report.WriteHTMLBatch(base+".html", brSingle)
 			}
 			if err != nil {
-				if failed > 0 {
-					os.Exit(1)
+				if output != "json" {
+					// Pretty-print single-suite load error
+					emsg := err.Error()
+					if idx := strings.Index(emsg, ": "); idx > 0 {
+						ui.FailWithBoldPrefix(emsg[:idx], "%s", strings.TrimSpace(emsg[idx+1:]))
+					} else {
+						ui.Failf("%v", err)
+					}
+				} else {
+					if errors.Is(err, errLoadSuite) {
+						fmt.Fprintf(os.Stderr, "load suite %s: %v\n", file, err)
+					} else {
+						fmt.Fprintf(os.Stderr, "run error for %s: %v\n", file, err)
+					}
+				}
+				// Exit code: 2 for load error, 1 for runtime error
+				if errors.Is(err, errLoadSuite) {
+					os.Exit(2)
 					return nil
 				}
-				return err
+				os.Exit(1)
+				return nil
 			}
 			if failed > 0 {
 				os.Exit(1)
@@ -359,4 +450,24 @@ func sanitizeFilename(s string) string {
 		return "suite"
 	}
 	return string(out)
+}
+
+// appendSummary appends a small markdown section to the GitHub Actions step summary file
+// to surface suites that failed to load.
+func appendSummary(path string, failedLoads []string) error {
+	if len(failedLoads) == 0 {
+		return nil
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	b := &strings.Builder{}
+	fmt.Fprintln(b, "\n### Suites failed to load")
+	for _, fp := range failedLoads {
+		fmt.Fprintf(b, "- %s\n", fp)
+	}
+	_, err = f.WriteString(b.String())
+	return err
 }
