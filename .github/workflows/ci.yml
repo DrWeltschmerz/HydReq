@@ -204,12 +204,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          report=$(ls -1 example-reports/*.json | head -n1)
+          # Always pick the batch run report (run-*.json) if present, else fallback to first .json
+          report=$(ls -1 example-reports/run-*.json 2>/dev/null | head -n1)
+          if [[ -z "$report" ]]; then
+            report=$(ls -1 example-reports/*.json | head -n1)
+          fi
           echo "report=$report" >> $GITHUB_OUTPUT
           scripts/pr-summary.sh "$report" > pr-summary.md
           echo "\n\n---\n\n" >> pr-summary.md
-          echo "Suggested assertions (from latest report):" >> pr-summary.md
-          scripts/suggest-assertions.sh example-reports >> pr-summary.md || true
+          # Assertion suggestions are disabled in CI until feature is finalized
           # Step summary
           cat pr-summary.md >> $GITHUB_STEP_SUMMARY
       - name: Comment on PR
