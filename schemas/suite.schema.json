@@ -2,32 +2,36 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/DrWeltschmerz/HydReq/main/schemas/suite.schema.json",
   "title": "QA Suite",
+  "description": "Schema for HydReq YAML API test suites. This powers editor completions, hover docs, and validation.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "name": { "type": "string" },
-    "baseUrl": { "type": "string" },
-    "vars": { "type": "object", "additionalProperties": { "type": "string" } },
+    "name": { "type": "string", "description": "Human-readable suite name shown in UI and reports." },
+    "baseUrl": { "type": "string", "description": "Base URL used to join with request.url path (e.g., https://api.example.com). Supports ${ENV:VAR} and ${var}." },
+    "vars": { "type": "object", "description": "String variables available for interpolation throughout the suite.", "additionalProperties": { "type": "string" } },
     "auth": {
       "type": "object",
+      "description": "Suite-level authentication helpers sourced from environment variables.",
       "properties": {
-        "bearerEnv": { "type": "string" },
-        "basicEnv": { "type": "string" }
+        "bearerEnv": { "type": "string", "description": "Name of env var that contains a Bearer token (e.g., DEMO_BEARER)." },
+        "basicEnv": { "type": "string", "description": "Name of env var that contains a Base64 Basic token (e.g., BASIC_B64)." }
       },
       "additionalProperties": false
     },
     "openApi": {
       "type": "object",
+      "description": "Options for validating requests/responses against an OpenAPI 3.x spec.",
       "properties": {
-        "file": { "type": "string" },
-        "enabled": { "type": "boolean" }
+        "file": { "type": "string", "description": "Path to an OpenAPI spec file (YAML or JSON)." },
+        "enabled": { "type": "boolean", "description": "Enable OpenAPI-aware validation for this suite." }
       },
       "additionalProperties": false
     },
-    "preSuite": { "$ref": "#/definitions/hooks" },
-    "postSuite": { "$ref": "#/definitions/hooks" },
+    "preSuite": { "$ref": "#/definitions/hooks", "description": "Hooks that run once before all tests in this suite." },
+    "postSuite": { "$ref": "#/definitions/hooks", "description": "Hooks that run once after all tests in this suite." },
     "tests": {
       "type": "array",
+      "description": "List of test cases to execute. Use stage/dependsOn to control ordering.",
       "items": { "$ref": "#/definitions/testCase" }
     }
   },
@@ -35,25 +39,28 @@
   "definitions": {
     "hooks": {
       "type": "array",
+      "description": "Sequence of hook steps. Each step may issue an HTTP request with asserts/extract or run a SQL query with extract.",
       "items": { "$ref": "#/definitions/hook" }
     },
     "hook": {
       "type": "object",
       "additionalProperties": false,
+      "description": "Reusable step executed before/after a suite or test.",
       "properties": {
-        "name": { "type": "string" },
-        "vars": { "type": "object", "additionalProperties": { "type": "string" } },
-        "request": { "$ref": "#/definitions/request" },
-        "assert": { "$ref": "#/definitions/assertions" },
-        "extract": { "$ref": "#/definitions/extract" },
+        "name": { "type": "string", "description": "Optional label for this hook step." },
+        "vars": { "type": "object", "description": "Variables set/overridden for the duration of this hook.", "additionalProperties": { "type": "string" } },
+        "request": { "$ref": "#/definitions/request", "description": "HTTP request to perform in this hook." },
+        "assert": { "$ref": "#/definitions/assertions", "description": "Assertions evaluated against the hook response." },
+        "extract": { "$ref": "#/definitions/extract", "description": "Extract values from response JSON into variables." },
         "sql": {
           "type": "object",
           "additionalProperties": false,
+          "description": "Execute a SQL query and optionally extract column values into variables.",
           "properties": {
-            "driver": { "type": "string", "enum": ["sqlite", "pgx", "sqlserver"] },
-            "dsn": { "type": "string" },
-            "query": { "type": "string" },
-            "extract": { "type": "object", "additionalProperties": { "type": "string" } }
+            "driver": { "type": "string", "enum": ["sqlite", "pgx", "sqlserver"], "description": "Database driver to use." },
+            "dsn": { "type": "string", "description": "Connection string/DSN for the selected driver." },
+            "query": { "type": "string", "description": "SQL statement to execute." },
+            "extract": { "type": "object", "description": "Map variable name to column name for extraction.", "additionalProperties": { "type": "string" } }
           },
           "required": ["driver", "dsn", "query"]
         }
@@ -62,65 +69,70 @@
     "testCase": {
       "type": "object",
       "additionalProperties": false,
+      "description": "A single test case with request, assertions, and optional hooks/extracts.",
       "properties": {
-        "name": { "type": "string" },
-        "request": { "$ref": "#/definitions/request" },
-        "assert": { "$ref": "#/definitions/assertions" },
-        "extract": { "$ref": "#/definitions/extract" },
-        "skip": { "type": "boolean" },
-        "only": { "type": "boolean" },
-        "timeoutMs": { "type": "integer", "minimum": 0 },
-        "repeat": { "type": "integer", "minimum": 0 },
-        "tags": { "type": "array", "items": { "type": "string" } },
+        "name": { "type": "string", "description": "Unique test name within the suite." },
+        "request": { "$ref": "#/definitions/request", "description": "HTTP request under test." },
+        "assert": { "$ref": "#/definitions/assertions", "description": "Expected properties of the response." },
+        "extract": { "$ref": "#/definitions/extract", "description": "Extract response fields to variables for later use." },
+        "skip": { "type": "boolean", "description": "If true, skip this test." },
+        "only": { "type": "boolean", "description": "If true, only run this test (and other 'only' tests)." },
+        "timeoutMs": { "type": "integer", "minimum": 0, "description": "Per-request timeout in milliseconds (overrides default)." },
+        "repeat": { "type": "integer", "minimum": 0, "description": "Run this test multiple times (use with caution)." },
+        "tags": { "type": "array", "description": "Labels for filtering runs (e.g., smoke, slow).", "items": { "type": "string" } },
         "retry": {
           "type": "object",
+          "description": "Retry policy for this test (applies to failed assertions or errors).",
           "properties": {
-            "max": { "type": "integer", "minimum": 0 },
-            "backoffMs": { "type": "integer", "minimum": 0 },
-            "jitterPct": { "type": "integer", "minimum": 0, "maximum": 100 }
+            "max": { "type": "integer", "minimum": 0, "description": "Maximum number of retries." },
+            "backoffMs": { "type": "integer", "minimum": 0, "description": "Base backoff in milliseconds between retries." },
+            "jitterPct": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Randomized jitter percentage to add/subtract from backoff." }
           },
           "additionalProperties": false
         },
-        "stage": { "type": "integer" },
-        "matrix": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } } },
-        "vars": { "type": "object", "additionalProperties": { "type": "string" } },
-        "dependsOn": { "type": "array", "items": { "type": "string" } },
-        "pre": { "$ref": "#/definitions/hooks" },
-        "post": { "$ref": "#/definitions/hooks" },
-        "openApi": { "type": "object", "properties": { "enabled": { "type": "boolean" } }, "additionalProperties": false }
+        "stage": { "type": "integer", "description": "Execution stage. Tests with the same stage run in parallel; higher stages run later." },
+        "matrix": { "type": "object", "description": "Data-driven expansion. Each key is a var; values are arrays combined into cartesian test permutations.", "additionalProperties": { "type": "array", "items": { "type": "string" } } },
+        "vars": { "type": "object", "description": "Variables scoped to this test.", "additionalProperties": { "type": "string" } },
+        "dependsOn": { "type": "array", "description": "List of test names this test depends on (transitive).", "items": { "type": "string" } },
+        "pre": { "$ref": "#/definitions/hooks", "description": "Hooks to run before this test." },
+        "post": { "$ref": "#/definitions/hooks", "description": "Hooks to run after this test." },
+        "openApi": { "type": "object", "description": "Per-test OpenAPI overrides.", "properties": { "enabled": { "type": "boolean", "description": "Enable/disable OpenAPI validation for this test." } }, "additionalProperties": false }
       },
       "required": ["name", "request", "assert"]
     },
     "request": {
       "type": "object",
       "additionalProperties": false,
+      "description": "HTTP request definition. The url is a path joined with suite baseUrl.",
       "properties": {
-        "method": { "type": "string" },
-        "url": { "type": "string" },
-        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
-        "query": { "type": "object", "additionalProperties": { "type": "string" } },
-        "body": {}
+        "method": { "type": "string", "description": "HTTP method (GET, POST, PUT, DELETE, ...)." },
+        "url": { "type": "string", "description": "Path or relative URL (e.g., /users/123). Joined with baseUrl." },
+        "headers": { "type": "object", "description": "HTTP headers.", "additionalProperties": { "type": "string" } },
+        "query": { "type": "object", "description": "Query string parameters.", "additionalProperties": { "type": "string" } },
+        "body": { "description": "Request body. Supports object, array, or string; interpolations allowed." }
       },
       "required": ["method", "url"]
     },
     "assertions": {
       "type": "object",
       "additionalProperties": false,
+      "description": "Assertions evaluated against the HTTP response.",
       "properties": {
-        "status": { "type": "integer" },
-        "headerEquals": { "type": "object", "additionalProperties": { "type": "string" } },
-        "jsonEquals": { "type": "object", "additionalProperties": {} },
-        "jsonContains": { "type": "object", "additionalProperties": {} },
-        "bodyContains": { "type": "array", "items": { "type": "string" } },
-        "maxDurationMs": { "type": "integer", "minimum": 0 }
+        "status": { "type": "integer", "description": "Expected HTTP status code (e.g., 200)." },
+        "headerEquals": { "type": "object", "description": "Exact match of selected response headers.", "additionalProperties": { "type": "string" } },
+        "jsonEquals": { "type": "object", "description": "JSON path equals comparison (path: expected).", "additionalProperties": {} },
+        "jsonContains": { "type": "object", "description": "JSON path contains substring or value (path: expectedSubstrOrValue).", "additionalProperties": {} },
+        "bodyContains": { "type": "array", "description": "Body must contain all of the listed substrings.", "items": { "type": "string" } },
+        "maxDurationMs": { "type": "integer", "minimum": 0, "description": "Response must complete within this many milliseconds." }
       }
     },
     "extract": {
       "type": "object",
+      "description": "Extract variables from a response using JSONPath-like selectors.",
       "additionalProperties": {
         "type": "object",
         "properties": {
-          "jsonPath": { "type": "string" }
+          "jsonPath": { "type": "string", "description": "Path to the value in the JSON response (e.g., data.id)." }
         },
         "required": ["jsonPath"],
         "additionalProperties": false

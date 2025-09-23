@@ -1,95 +1,26 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "build hydreq",
-			"type": "shell",
-			"command": "go build -o ./bin/hydreq ./cmd/hydreq",
-			"problemMatcher": [
-				"$go"
-			],
-			"group": "build"
-		},
-		{
-			"label": "build hydreq",
-			"type": "shell",
-			"command": "go build -o ./bin/hydreq ./cmd/hydreq",
-			"problemMatcher": [
-				"$go"
-			],
-			"group": "build"
-		},
-		{
-			"label": "build hydreq",
-			"type": "shell",
-			"command": "go build -o ./bin/hydreq ./cmd/hydreq",
-			"problemMatcher": [
-				"$go"
-			],
-			"group": "build"
-		},
-		{
-			"label": "build hydreq (on reapply)",
-			"type": "shell",
-			"command": "go build -o ./bin/hydreq ./cmd/hydreq",
-			"problemMatcher": [
-				"$go"
-			],
-			"group": "build"
-		},
-		{
-			"label": "run tests (pre-release)",
-			"type": "shell",
-			"command": "go test -race ./...",
-			"problemMatcher": [
-				"$go - gcc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "run tests (json error handling)",
-			"type": "shell",
-			"command": "go test -race ./...",
-			"problemMatcher": [
-				"$go - gcc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "run tests (dedupe helpers)",
-			"type": "shell",
-			"command": "go test -race ./...",
-			"problemMatcher": [
-				"$go - gcc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "run tests (themes)",
-			"type": "shell",
-			"command": "go test -race ./...",
-			"problemMatcher": [
-				"$go - gcc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "run tests (themes extended)",
-			"type": "shell",
-			"command": "go test -race ./...",
-			"problemMatcher": [
-				"$go - gcc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "run tests (theming polish)",
-			"type": "shell",
-			"command": "go test -race ./...",
-			"problemMatcher": [
-				"$go - gcc"
-			],
-			"group": "build"
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build: hydreq",
+      "type": "shell",
+      "command": "go build -o ./bin/hydreq ./cmd/hydreq",
+      "problemMatcher": ["$go"],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "test: all",
+      "type": "shell",
+      "command": "go test -race ./...",
+      "problemMatcher": ["$go"],
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "hydreq: Run current suite",
+      "type": "shell",
+      "command": "[ -x \"${workspaceFolder}/bin/hydreq\" ] && ${workspaceFolder}/bin/hydreq run -f ${file} || (echo 'Error: hydreq binary not found or not executable. Please build first.' >&2; exit 1)",
+      "dependsOn": "build: hydreq",
+      "problemMatcher": []
+    }
+  ]
 }

@@ -59,3 +59,27 @@ tests:
       color: [red, blue]
       size: [S, M]
 ```
+
+Additional patterns for Copilot to suggest on demand:
+
+- Negative testing
+  - Use unexpected types/values and assert 4xx/5xx and error shapes.
+  - Example: `{ method: POST, url: /anything, body: { id: not-a-number } }` with `assert: { status: 400, jsonContains: { error: invalid } }` (adjust per API).
+
+- Fuzzing-lite
+  - Try boundary values (empty strings, long strings, min/max ints). Keep realistic; when `openApi.enabled`, prefer schema-conforming variants and then one negative.
+
+- Retries/backoff/jitter
+  - For eventual consistency: `retry: { max: 5, backoffMs: 200, jitterPct: 30 }` plus `maxDurationMs`.
+
+- OpenAPI mapping
+  - With `openApi.file` and enabled, infer required fields, media types, and status ranges. Propose skeletons per `operationId` or method+path.
+
+- SQL hooks
+  - Before tests that depend on DB state, add a `pre` hook `sql: { driver, dsn, query }` and extract variables (e.g., `userId`).
+
+- Matrix promotion
+  - Consolidate near-duplicate tests by introducing `matrix:` and replacing literals with `${var}`.
+
+- Adapters (import helpers)
+  - When users have Postman/Insomnia/HAR/OpenAPI/Bruno, suggest using `hydreq import <adapter> <path>` to bootstrap a suite, then refine with assertions and matrix.

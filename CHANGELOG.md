@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.3.3-beta (2025-09-23)
+
+Highlights
+- End-user batch runner and PR summaries now packaged with releases; hardened VS Code task; docs updates.
+
+Features
+- Scripts
+	- `scripts/run-suites.sh`: discover and run suites (defaults to `testdata/*.yaml`), write per-suite JSON/JUnit, and generate Markdown summaries.
+	- `scripts/pr-summary-batch.sh`: aggregate multiple JSON reports into a single PR-ready summary (`PR_SUMMARY_ALL.md`).
+	- Release archives now bundle `scripts/**` so end-users can generate summaries without cloning the repo.
+- VS Code
+	- “Run current suite” task now guards against missing binary and prints a clear error.
+
+Docs
+- README and Authoring docs now include batch-run examples, summary locations, and optional PR comment instructions via `gh`.
+
+Fixes
+- Assertions cheatsheet: consistent quoting in `jsonEquals` example.
+
 ## v0.3.2-beta (2025-09-23)
 Highlights
 - Validator parity: Web UI validation now uses the same JSON Schema as the CLI, so errors match across UI/CLI/CI.

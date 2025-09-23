@@ -32,9 +32,13 @@ if [[ "${START_SERVICES:-0}" == "1" ]]; then
 	fi
 fi
 
-cmd=( ./bin/hydreq run --workers 4 --report-dir reports )
-if command -v timeout >/dev/null 2>&1; then cmd=( timeout 300s "${cmd[@]}" ); fi
-"${cmd[@]}"
+
+# Run all suites in batch mode (single run command)
+if command -v timeout >/dev/null 2>&1; then
+	timeout 300s ./bin/hydreq run --workers 4 --report-dir reports
+else
+	./bin/hydreq run --workers 4 --report-dir reports
+fi
 
 if [[ "${START_SERVICES:-0}" == "1" && "${KEEP_SERVICES:-0}" != "1" ]]; then
 	echo "Stopping compose services..."

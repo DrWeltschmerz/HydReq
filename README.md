@@ -61,7 +61,7 @@ Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.
 ## Documentation
 
 - Full docs: `docs/README.md`
-- Quick links: [Getting started](docs/getting-started.md), [Web UI](docs/web-ui.md), [CLI](docs/cli.md), [Authoring](docs/authoring.md), [Scheduling](docs/scheduling.md), [Hooks](docs/hooks.md), [SQL hooks](docs/sql-hooks.md), [OpenAPI](docs/openapi.md), [Visual editor](docs/visual-editor.md), [Adapters](docs/adapters.md), [Reports](docs/reports.md), [Examples](docs/examples.md), [Troubleshooting](docs/troubleshooting.md), [Contributing](docs/contributing.md), [Roadmap](docs/roadmap.md), [What’s new](CHANGELOG.md)
+- Quick links: [Getting started](docs/getting-started.md), [Web UI](docs/web-ui.md), [CLI](docs/cli.md), [Authoring](docs/authoring.md), [Scheduling](docs/scheduling.md), [Hooks](docs/hooks.md), [SQL hooks](docs/sql-hooks.md), [OpenAPI](docs/openapi.md), [Visual editor](docs/visual-editor.md), [Adapters](docs/adapters.md), [Reports](docs/reports.md), [Examples](docs/examples.md), [Troubleshooting](docs/troubleshooting.md), [Contributing](docs/contributing.md), [Roadmap](docs/roadmap.md), [What’s new](CHANGELOG.md), Cheatsheets: [Suite](docs/cheatsheets/suite.cheatsheet.md), [Assertions](docs/cheatsheets/assertions.cheatsheet.md)
 
 ## Contents
 
@@ -76,6 +76,7 @@ Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.
   - [Features](#features)
   - [Adapters (import)](#adapters-import)
   - [Reports](#reports)
+  - [Batch run and summaries](#batch-run-and-summaries)
   - [Example suites (at a glance)](#example-suites-at-a-glance)
   - [Troubleshooting](#troubleshooting)
 - [Contributing & development](#contributing--development)
@@ -214,6 +215,10 @@ Where things live
 - Prompts: `.copilot/prompts/suite.prompts.md`
 - VS Code how-to: `.copilot/README.md` (includes a ready-to-copy `yaml.schemas` snippet)
 
+VS Code helpers
+- Task: “hydreq: Run current suite” (Terminal → Run Task) runs the active YAML with the built `hydreq`.
+- Scripts: `scripts/pr-summary.sh` (PR markdown from a JSON report), `scripts/suggest-assertions.sh` (checklist of suggested assertions from last report).
+
 ### Data generators
 
 Embed dynamic data anywhere interpolation works:
@@ -257,6 +262,23 @@ hydreq import bruno path/to/export.json > suite.yaml
 ### Reports
 - JSON, JUnit, and HTML detailed reports include per-test entries and suite summaries. HTML reports are theme-aware (same palette as the Web UI) and include donut charts, filters, and sticky headers.
 - Using `--report-dir` generates timestamped per-suite artifacts and run-level (batch) artifacts: `run-<timestamp>.{json,xml,html}`.
+
+### Batch run and summaries
+- Run multiple suites and generate summaries in one go (works from a release archive):
+
+```
+./scripts/run-suites.sh                 # defaults to testdata/*.yaml
+# or provide your own globs
+./scripts/run-suites.sh suites/*.yaml other/*.yaml
+```
+
+Outputs
+- Per-suite: `reports/<suite>.{json,xml}`
+- Batch Markdown: `reports/PR_SUMMARY_ALL.md` (aggregated totals + failed tests)
+- Latest suite Markdown: `reports/PR_SUMMARY.md` (plus suggested assertions)
+
+Optional PR comment
+- Set `GH_PR_REF=<pr-number-or-url>` and install GitHub CLI (`gh`) to auto-post a summary comment.
 
 ### Example suites (at a glance)
 - `testdata/example.yaml` — smoke and extraction
