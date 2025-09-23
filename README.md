@@ -9,11 +9,18 @@
 
 [📖 Full Docs](docs/README.md) | [🚀 Quick Start](docs/getting-started.md) | [🧪 Examples](docs/examples.md) | [🤖 Copilot Setup](#copilot-and-editor-support)
 
-<img src="logo_notext.png" alt="HydReq Logo" width="400">
-
-Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, run them locally or in CI across Windows, macOS, and Linux. Now with a validator CLI, run-level reports, batch summaries, and a live two‑way Web UI editor.
-
-Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.
+<table>
+  <tr>
+    <td width="200" valign="top">
+      <img src="logo_notext.svg" alt="HydReq Logo" width="180">
+    </td>
+    <td valign="top">
+      <p><strong>Lightweight API test runner with a clean Web UI and CLI.</strong></p>
+      <p>Author tests in YAML, run them locally or in CI across Windows, macOS, and Linux. Now with a validator CLI, run-level reports, batch summaries, and a live two‑way Web UI editor.</p>
+      <p><em>Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.</em></p>
+    </td>
+  </tr>
+</table>
 
 ## Documentation
 
