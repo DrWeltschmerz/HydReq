@@ -5,16 +5,16 @@
 
 <table width="100%" border="0" cellpadding="6" cellspacing="0">
   <tr>
-    <td width="33%" valign="middle" align="left">
+    <td width="20" valign="middle" align="left">
       <a href="https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml"><img src="https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml/badge.svg" alt="CI" height="20"></a></br>
       <a href="https://github.com/DrWeltschmerz/HydReq/releases"><img src="https://img.shields.io/github/v/release/DrWeltschmerz/HydReq?include_prereleases&sort=semver&style=flat-square" alt="Release" height="20"></a>
     </td>
-    <td width="34%" valign="middle" align="center">
+    <td width="60%" valign="middle" align="center">
       <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/DrWeltschmerz/HydReq?style=flat-square" alt="Go Version" height="20"></a>
       <a href="https://pkg.go.dev/github.com/DrWeltschmerz/HydReq"><img src="https://pkg.go.dev/badge/github.com/DrWeltschmerz/HydReq.svg" alt="Go Reference" height="20"></a>
       <a href="https://goreportcard.com/report/github.com/DrWeltschmerz/HydReq"><img src="https://goreportcard.com/badge/github.com/DrWeltschmerz/HydReq" alt="Go Report Card" height="20"></a>
     </td>
-    <td width="33%" valign="middle" align="right">
+    <td width="20%" valign="middle" align="right">
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License" height="20"></a>
     <a href="https://github.com/DrWeltschmerz/HydReq/stargazers"><img src="https://img.shields.io/github/stars/DrWeltschmerz/HydReq?style=social" alt="Stars" height="20"></a>
     </td>
