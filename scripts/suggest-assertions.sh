@@ -16,4 +16,6 @@ echo "Reading: $latest" >&2
 # For now, we output a basic checklist per test with a placeholder assertion block.
 # Future: parse per-test response bodies to propose jsonEquals/jsonContains.
 jq -r '
-  .tests[] | "- [ ] \(.name): add/confirm assertions (e.g.)\n    assert:\n      status: 200\n      maxDurationMs: \(.durationMs // 500)\n"' "$latest"
+  .suites[] | .tests[] |
+  "- [ ] \(.name): add/confirm assertions (e.g.)\n    assert:\n      status: 200\n      maxDurationMs: \(.durationMs // 500)\n"
+' "$latest"
