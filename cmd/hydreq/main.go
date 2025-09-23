@@ -71,6 +71,7 @@ func main() {
 				ui.Summary(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
 			}
 			rs := report.FromRunner(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
+			br := report.BatchReport{RunAt: time.Now(), Summary: rs, Suites: []report.DetailedReport{{Suite: s.Name, Summary: rs, TestCases: cases}}}
 			// If reportDir is set and no explicit report files provided, generate both with timestamped names
 			// If reportDir is set and no explicit report files provided, generate all with timestamped names
 			if reportDir != "" && jsonReport == "" && junitReport == "" && htmlReport == "" {
@@ -96,13 +97,6 @@ func main() {
 			if junitReport != "" {
 				if len(cases) > 0 {
 					if werr := report.WriteJUnitDetailed(junitReport, s.Name, rs, cases); werr != nil {
-			if htmlReport != "" {
-				if len(cases) > 0 {
-					_ = report.WriteHTMLDetailed(htmlReport, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
-				} else {
-					_ = report.WriteHTMLDetailed(htmlReport, report.DetailedReport{Suite: s.Name, Summary: rs})
-				}
-			}
 						fmt.Fprintf(os.Stderr, "report junit error: %v\n", werr)
 					}
 				} else {
@@ -110,6 +104,22 @@ func main() {
 						fmt.Fprintf(os.Stderr, "report junit error: %v\n", werr)
 					}
 				}
+			}
+			if htmlReport != "" {
+				if len(cases) > 0 {
+					_ = report.WriteHTMLDetailed(htmlReport, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
+				} else {
+					_ = report.WriteHTMLDetailed(htmlReport, report.DetailedReport{Suite: s.Name, Summary: rs})
+				}
+			}
+			// If report-dir was used (inferred via auto-populated report paths), also emit run-level summaries alongside
+			if reportDir != "" {
+				// derive a consistent run-<ts> base from one of the generated filenames
+				ts := time.Now().Format("20060102-150405")
+				base := fmt.Sprintf("%s/run-%s", reportDir, ts)
+				_ = report.WriteJSONBatch(base+".json", br)
+				_ = report.WriteJUnitBatchSummary(base+".xml", rs)
+				_ = report.WriteHTMLBatch(base+".html", br)
 			}
 			// Treat test failures as exit code 1 without printing cobra usage/help
 			if err != nil {

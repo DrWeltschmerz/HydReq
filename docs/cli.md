@@ -13,7 +13,7 @@ Flags:
 - `--verbose` (or `-v`): verbose failure details
 - `--report-json` / `--report-junit`: write detailed reports to files
 - `--report-html`: write an HTML detailed report to a file
-- `--report-dir`: if set and no explicit report paths are provided, writes JSON, JUnit, and HTML reports into this directory using `<suite-name>-<timestamp>.{json,xml,html}`
+- `--report-dir`: if set and no explicit report paths are provided, writes JSON, JUnit, and HTML reports into this directory using `<suite-name>-<timestamp>.{json,xml,html}` and also emits aggregated run-level artifacts `run-<timestamp>.{json,xml,html}`
 - `--output`: console output format: `summary` (default) or `json` (prints a detailed JSON result to stdout)
 
 Exit codes:

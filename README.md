@@ -136,7 +136,7 @@ Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.
 ### Using the CLI
 
 - Run a suite: `./hydreq run -f testdata/example.yaml --workers 4 -v`
-- Reports: add `--report-json report.json` and/or `--report-junit report.xml` for detailed outputs.
+- Reports: add `--report-json report.json`, `--report-junit report.xml`, and/or `--report-html report.html` for detailed outputs.
 
 CLI flags
 - `--file` (or `-f`): path to YAML suite (default: `testdata/example.yaml`)
@@ -233,7 +233,8 @@ hydreq import bruno path/to/export.json > suite.yaml
 ```
 
 ### Reports
-- JSON detailed and JUnit detailed reports include per-test entries and suite summaries.
+- JSON, JUnit, and HTML detailed reports include per-test entries and suite summaries.
+- Using `--report-dir` generates timestamped per-suite artifacts and run-level (batch) artifacts: `run-<timestamp>.{json,xml,html}`.
 
 ### Example suites (at a glance)
 - `testdata/example.yaml` — smoke and extraction

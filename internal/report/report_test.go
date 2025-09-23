@@ -2,8 +2,8 @@ package report
 
 import (
 	"os"
-	"testing"
 	"strings"
+	"testing"
 )
 
 func TestWriteJSONSummary(t *testing.T) {
@@ -62,9 +62,14 @@ func TestWriteHTMLDetailed(t *testing.T) {
 	}
 	b, _ := os.ReadFile(f.Name())
 	s := string(b)
-	if !strings.Contains(s, "HydReq Report") || !strings.Contains(s, "<table>") {
-		t.Fatalf("html output missing expected content: %s", s[:min(200,len(s))])
+	if !strings.Contains(s, "HydReq Report") || !strings.Contains(s, "table table-zebra") {
+		t.Fatalf("html output missing expected content: %s", s[:min(200, len(s))])
 	}
 }
 
-func min(a,b int) int { if a<b { return a }; return b }
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

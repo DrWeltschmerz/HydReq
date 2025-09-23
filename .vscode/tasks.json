@@ -27,6 +27,24 @@
 				"$go"
 			],
 			"group": "build"
+		},
+		{
+			"label": "build hydreq (on reapply)",
+			"type": "shell",
+			"command": "go build -o ./bin/hydreq ./cmd/hydreq",
+			"problemMatcher": [
+				"$go"
+			],
+			"group": "build"
+		},
+		{
+			"label": "run tests (pre-release)",
+			"type": "shell",
+			"command": "go test -race ./...",
+			"problemMatcher": [
+				"$go - gcc"
+			],
+			"group": "build"
 		}
 	]
 }

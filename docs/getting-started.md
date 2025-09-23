@@ -22,5 +22,11 @@ Add reports:
 ```
 ./hydreq run -f testdata/example.yaml \
   --report-json report.json \
-  --report-junit report.xml
+  --report-junit report.xml \
+  --report-html report.html
+```
+
+Or generate a full set (JSON/JUnit/HTML) plus run-level artifacts in a directory:
+```
+./hydreq run -f testdata/example.yaml --report-dir reports
 ```

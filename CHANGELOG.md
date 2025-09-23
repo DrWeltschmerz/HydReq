@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.3.0-beta (2025-09-23)
+
+Highlights
+- New HTML reports with a clean, compact UI and donut charts.
+- Run-level (batch) reports across multiple suites in JSON, JUnit, and HTML.
+
+Features
+- Reports
+	- Per-suite HTML report: DaisyUI/Tailwind styling, light/dark toggle, sticky headers, filters (search/status/Only failed), collapsible messages with copy.
+	- Batch/run HTML: top stats + donut, suites table, expandable per-suite sections with their own filters.
+	- New aggregated run outputs when using `--report-dir`: emits `run-<timestamp>.{json,xml,html}` alongside per-suite artifacts.
+- CLI
+	- `--report-html` to write a per-suite HTML report.
+	- `--report-dir` now also generates `.html` files (per-suite and run-level) in addition to JSON and JUnit.
+
+Polish & fixes
+- Compact 2-column layout for stats + chart, reduced whitespace, sticky table headers for readability.
+- Fixed template scoping and structure issues (undefined vars, stray `{{end}}`, unexpected EOF) and added safety helpers.
+
+Docs
+- Updated CLI and Reports documentation to cover HTML and run-level outputs with examples.
+
 ## v0.2.1-beta (2025-09-23)
 
 Highlights
