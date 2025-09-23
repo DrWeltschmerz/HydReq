@@ -37,14 +37,45 @@
     /* Anti-vertical-squish safety: allow flex children to shrink and scroll */
     .flex-col { display:flex; flex-direction:column; min-height:0; }
     .scroll { overflow:auto; min-height:0; }
-    :root { --hdr-bg:#0b1020; --hdr-fg:#c6e2ff; --bd:#eee; --li-hov:#f5f7fb; --li-sel:#e6f2ff; --pill:#eef2ff; --pg-bg:#eee; --txt:#111; --bg:#fff; --btn-bg:#fff; --btn-bd:#ddd; --btn-hov:#f6f9ff; }
-  body.dark { --hdr-bg:#0b0e17; --hdr-fg:#d6e0ff; --bd:#222; --li-hov:#1a2230; --li-sel:#10213a; --pill:#1f2937; --pg-bg:#1f2937; --txt:#e5e7eb; --bg:#0b0e17; --btn-bg:#111827; --btn-bd:#374151; --btn-hov:#1f2937; }
+    /* Theme tokens */
+    :root {
+      --hdr-bg:#0b1020; --hdr-fg:#c6e2ff; --bd:#e5e7eb; --li-hov:#f5f7fb; --li-sel:#e6f2ff; --pill:#eef2ff; --pg-bg:#eee; --txt:#111827; --bg:#ffffff;
+      --btn-bg:#ffffff; --btn-bd:#d1d5db; --btn-hov:#f6f9ff; --link:#2563eb;
+      --input-bg:#ffffff; --input-bd:#d1d5db; --input-fg:#111827; --input-focus:#7aa2ff;
+      --success:#10b981; --error:#ef4444; --warning:#f59e0b; --info:#3b82f6;
+      --grad1:#00d4ff; --grad2:#5bff5b;
+    }
+    body.dark {
+      --hdr-bg:#0b0e17; --hdr-fg:#d6e0ff; --bd:#222; --li-hov:#1a2230; --li-sel:#10213a; --pill:#1f2937; --pg-bg:#1f2937; --txt:#e5e7eb; --bg:#0b0e17;
+      --btn-bg:#111827; --btn-bd:#374151; --btn-hov:#1f2937; --link:#60a5fa;
+      --input-bg:#0f172a; --input-bd:#374151; --input-fg:#e5e7eb; --input-focus:#7aa2ff;
+      --success:#10b981; --error:#ef4444; --warning:#f59e0b; --info:#60a5fa;
+      --grad1:#22d3ee; --grad2:#4ade80;
+    }
   /* Hack theme: neon terminal vibe */
-  body.hack { --hdr-bg:#061108; --hdr-fg:#a6ffb0; --bd:#15331b; --li-hov:#0b1f10; --li-sel:#0f2a16; --pill:#092010; --pg-bg:#0f2a16; --txt:#c8ffd2; --bg:#050d07; --btn-bg:#0a1a0f; --btn-bd:#1a3b24; --btn-hov:#0e2315; }
+    body.hack {
+      --hdr-bg:#061108; --hdr-fg:#a6ffb0; --bd:#15331b; --li-hov:#0b1f10; --li-sel:#0f2a16; --pill:#092010; --pg-bg:#0f2a16; --txt:#c8ffd2; --bg:#050d07;
+      --btn-bg:#0a1a0f; --btn-bd:#1a3b24; --btn-hov:#0e2315; --link:#8affb5;
+      --input-bg:#0b1f10; --input-bd:#1a3b24; --input-fg:#c8ffd2; --input-focus:#30ff7f;
+      --success:#30ff7f; --error:#ff5f5f; --warning:#ffd166; --info:#7dd3fc;
+      --grad1:#19ff93; --grad2:#5bff5b;
+    }
   /* Catppuccin Mocha (dark) */
-  body.catppuccin-mocha { --hdr-bg:#11111b; --hdr-fg:#cdd6f4; --bd:#313244; --li-hov:#1e1e2e; --li-sel:#181825; --pill:#181825; --pg-bg:#181825; --txt:#cdd6f4; --bg:#0b0b13; --btn-bg:#11111b; --btn-bd:#313244; --btn-hov:#1e1e2e; }
+    body.catppuccin-mocha {
+      --hdr-bg:#11111b; --hdr-fg:#cdd6f4; --bd:#313244; --li-hov:#1e1e2e; --li-sel:#181825; --pill:#181825; --pg-bg:#181825; --txt:#cdd6f4; --bg:#0b0b13;
+      --btn-bg:#11111b; --btn-bd:#313244; --btn-hov:#1e1e2e; --link:#89b4fa;
+      --input-bg:#1e1e2e; --input-bd:#313244; --input-fg:#cdd6f4; --input-focus:#89b4fa;
+      --success:#a6e3a1; --error:#f38ba8; --warning:#f9e2af; --info:#89b4fa;
+      --grad1:#89b4fa; --grad2:#a6e3a1;
+    }
   /* Catppuccin Latte (light) */
-  body.catppuccin-latte { --hdr-bg:#eff1f5; --hdr-fg:#4c4f69; --bd:#bcc0cc; --li-hov:#e6e9ef; --li-sel:#dce0e8; --pill:#e6e9ef; --pg-bg:#e6e9ef; --txt:#4c4f69; --bg:#fafafa; --btn-bg:#ffffff; --btn-bd:#ccd0da; --btn-hov:#e6e9ef; }
+    body.catppuccin-latte {
+      --hdr-bg:#eff1f5; --hdr-fg:#4c4f69; --bd:#bcc0cc; --li-hov:#e6e9ef; --li-sel:#dce0e8; --pill:#e6e9ef; --pg-bg:#e6e9ef; --txt:#4c4f69; --bg:#fafafa;
+      --btn-bg:#ffffff; --btn-bd:#ccd0da; --btn-hov:#e6e9ef; --link:#1e66f5;
+      --input-bg:#ffffff; --input-bd:#ccd0da; --input-fg:#4c4f69; --input-focus:#1e66f5;
+      --success:#40a02b; --error:#d20f39; --warning:#df8e1d; --info:#1e66f5;
+      --grad1:#1e66f5; --grad2:#40a02b;
+    }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; background: var(--bg); color: var(--txt); }
     header { background: var(--hdr-bg); color: var(--hdr-fg); padding: 16px; font-weight: 700; display:flex; align-items:center; justify-content:space-between; }
     main { display: grid; grid-template-columns: 360px 1fr; height: calc(100vh - 64px); }
@@ -57,36 +88,36 @@
     .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .pill { background: var(--pill); border-radius: 999px; padding: 2px 8px; font-size: 12px; }
   .progress { height: 10px; background: var(--pg-bg); border-radius: 6px; overflow: hidden; }
-    .progress > div { height: 10px; background: linear-gradient(90deg, #00d4ff, #5bff5b); width: 0%; }
+  .progress > div { height: 10px; background: linear-gradient(90deg, var(--grad1), var(--grad2)); width: 0%; }
     .log { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; white-space: pre-wrap; }
-    .ok { color: #10b981; } .fail { color: #ef4444; } .skip { color: #f59e0b; }
+  .ok { color: var(--success); } .fail { color: var(--error); } .skip { color: var(--warning); }
     .toolbar { display:flex; gap:8px; align-items:center; }
-    button { padding: 6px 10px; border: 1px solid var(--btn-bd); background: var(--btn-bg); border-radius: 6px; cursor: pointer; color: inherit; }
+  button { padding: 6px 10px; border: 1px solid var(--btn-bd); background: var(--btn-bg); border-radius: 6px; cursor: pointer; color: inherit; }
     button:hover { background: var(--btn-hov); }
     .run { color:#3b82f6 }
     /* Ensure the embedded code editor fills its pane */
     .CodeMirror { height: 100%; width: 100%; border: 1px solid var(--bd); border-radius: 6px; }
     body.dark .CodeMirror { background: #0f172a; color: #e5e7eb; }
-    /* Light mode inputs: match select-like appearance for visibility */
-    body:not(.dark) #editorModal input[type="text"],
-    body:not(.dark) #editorModal input[type="number"],
-    body:not(.dark) #editorModal select,
-    body:not(.dark) #editorModal textarea {
-      background: #ffffff;
-      border: 1px solid #d1d5db;
-      color: #111827;
+    /* Inputs/selects themed via variables */
+    #editorModal input[type="text"],
+    #editorModal input[type="number"],
+    #editorModal select,
+    #editorModal textarea {
+      background: var(--input-bg);
+      border: 1px solid var(--input-bd);
+      color: var(--input-fg);
     }
-    body:not(.dark) #editorModal input[type="text"]:focus,
-    body:not(.dark) #editorModal input[type="number"]:focus,
-    body:not(.dark) #editorModal select:focus,
-    body:not(.dark) #editorModal textarea:focus {
-      outline: 2px solid #7aa2ff;
+    #editorModal input[type="text"]:focus,
+    #editorModal input[type="number"]:focus,
+    #editorModal select:focus,
+    #editorModal textarea:focus {
+      outline: 2px solid var(--input-focus);
       outline-offset: 1px;
-      border-color: #7aa2ff;
-      box-shadow: 0 0 0 3px rgba(122, 162, 255, 0.25);
-      background: #ffffff;
+      border-color: var(--input-focus);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--input-focus) 25%, transparent);
+      background: var(--input-bg);
     }
-    body:not(.dark) #editorModal ::placeholder { color: #9aa5b1; }
+    a { color: var(--link); }
     /* Splitter visual feedback */
     #ed_splitter:hover { background: #93c5fd !important; }
     #ed_splitter.dragging { background: #60a5fa !important; }
