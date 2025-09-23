@@ -37,7 +37,7 @@ if jq -e '.suites' "$REPORT_JSON" >/dev/null; then
       elif status == "failed" then "❌"
       else "–"
       end;
-    .suites[] as $s | .tests[] |
+    .suites[] as $s | ($s.tests // [])[] |
     "- \(status_icon(.status)) \(.name)\n  - suite: \($s.suite // "(unknown)")\n  - stage: \(.stage)\n  - durationMs: \(.durationMs // 0)"
   ' "$REPORT_JSON"
 else
@@ -59,7 +59,7 @@ else
       elif status == "failed" then "❌"
       else "–"
       end;
-    .tests[] |
+    (.tests // [])[] |
     "- \(status_icon(.status)) \(.name)\n  - stage: \(.stage)\n  - durationMs: \(.durationMs // 0)"
   ' "$REPORT_JSON"
 fi
