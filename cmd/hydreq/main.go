@@ -36,6 +36,7 @@ func main() {
 	var jsonReport string
 	var junitReport string
 	var reportDir string
+	var htmlReport string
 	var output string
 
 	runCmd := &cobra.Command{
@@ -71,7 +72,8 @@ func main() {
 			}
 			rs := report.FromRunner(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
 			// If reportDir is set and no explicit report files provided, generate both with timestamped names
-			if reportDir != "" && jsonReport == "" && junitReport == "" {
+			// If reportDir is set and no explicit report files provided, generate all with timestamped names
+			if reportDir != "" && jsonReport == "" && junitReport == "" && htmlReport == "" {
 				ts := time.Now().Format("20060102-150405")
 				base := sanitizeFilename(s.Name)
 				jsonReport = fmt.Sprintf("%s/%s-%s.json", reportDir, base, ts)
@@ -80,6 +82,7 @@ func main() {
 				if mkerr := os.MkdirAll(reportDir, 0o755); mkerr != nil {
 					fmt.Fprintf(os.Stderr, "report dir error: %v\n", mkerr)
 				}
+				htmlReport = fmt.Sprintf("%s/%s-%s.html", reportDir, base, ts)
 			}
 			if jsonReport != "" {
 				if len(cases) > 0 {
@@ -93,6 +96,13 @@ func main() {
 			if junitReport != "" {
 				if len(cases) > 0 {
 					if werr := report.WriteJUnitDetailed(junitReport, s.Name, rs, cases); werr != nil {
+			if htmlReport != "" {
+				if len(cases) > 0 {
+					_ = report.WriteHTMLDetailed(htmlReport, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
+				} else {
+					_ = report.WriteHTMLDetailed(htmlReport, report.DetailedReport{Suite: s.Name, Summary: rs})
+				}
+			}
 						fmt.Fprintf(os.Stderr, "report junit error: %v\n", werr)
 					}
 				} else {
@@ -123,7 +133,8 @@ func main() {
 	runCmd.Flags().IntVar(&defaultTimeoutMs, "default-timeout-ms", 30000, "Default per-request timeout when test.timeoutMs is not set")
 	runCmd.Flags().StringVar(&jsonReport, "report-json", "", "Write JSON summary to file path")
 	runCmd.Flags().StringVar(&junitReport, "report-junit", "", "Write JUnit XML summary to file path")
-	runCmd.Flags().StringVar(&reportDir, "report-dir", "", "If set and no explicit report paths provided, write JSON and JUnit to this directory using suite name and timestamp")
+	runCmd.Flags().StringVar(&reportDir, "report-dir", "", "If set and no explicit report paths provided, write JSON, JUnit and HTML to this directory using suite name and timestamp")
+	runCmd.Flags().StringVar(&htmlReport, "report-html", "", "Write HTML detailed report to file path")
 	runCmd.Flags().StringVar(&output, "output", "summary", "Console output: summary|json")
 	rootCmd.AddCommand(runCmd)
 
