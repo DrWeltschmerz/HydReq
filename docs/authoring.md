@@ -64,6 +64,18 @@ Batch runs (end users and contributors)
  - Compare two report JSONs:
    - `scripts/compare-reports.sh old.json new.json`
 
+Local CI helper
+- `scripts/local-ci.sh` will run formatting, tests, examples, and then write `reports/PR_SUMMARY.md` using the most recent JSON report.
+- To automatically post that summary as a PR comment, set `GH_PR_REF` to the PR number or URL and ensure `gh` CLI is installed and authenticated.
+
+Batch runs (end users and contributors)
+- Run many suites and create both batch and latest summaries:
+  - `scripts/run-suites.sh` (defaults to `testdata/*.yaml`)
+  - or `scripts/run-suites.sh suites/*.yaml other/*.yaml`
+- Outputs:
+  - Batch summary: `reports/PR_SUMMARY_ALL.md`
+  - Latest suite summary: `reports/PR_SUMMARY.md` (+ suggestions)
+
 Tips
 - Indentation matters for `request.body`. Ensure nested fields are under `body:`.
 - Use `stage` for coarse ordering; `dependsOn` for precise DAGs.

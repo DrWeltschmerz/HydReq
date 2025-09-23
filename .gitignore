@@ -10,6 +10,12 @@ report.xml
 *.report.json
 *.report.xml
 
+# Release build artifacts
+dist/
+
+# Local environment files
+.env
+
 # Local databases and temp files
 qa.sqlite
 *.sqlite

@@ -10,7 +10,7 @@ Common assertions against HTTP responses.
 
 - jsonEquals: { path: expected }
   - Exact match at a JSON path. Strings/numbers are compared after stringification when needed.
-  - Example: `jsonEquals: { json.id: "42", args.q: foo }`
+  - Example: `jsonEquals: { json.id: "42", args.q: "foo" }`
 
 - jsonContains: { path: expectedSubstrOrValue }
   - Substring or value containment at a JSON path.

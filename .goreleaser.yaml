@@ -20,6 +20,7 @@ archives:
       - LICENSE* 
       - schemas/**
       - docs/cheatsheets/**
+      - scripts/**
       - .vscode/**
       - .copilot/**
       - testdata/**
