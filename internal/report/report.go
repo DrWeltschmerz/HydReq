@@ -33,6 +33,14 @@ type DetailedReport struct {
 	TestCases []TestCase `json:"tests"`
 }
 
+// BatchReport represents an aggregated run across multiple suites.
+// Suites may be empty when only one suite was executed; the Summary reflects the run totals.
+type BatchReport struct {
+	RunAt   time.Time        `json:"runAt"`
+	Summary Summary          `json:"summary"`
+	Suites  []DetailedReport `json:"suites,omitempty"`
+}
+
 func WriteJSONSummary(path string, sum Summary) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -104,4 +112,24 @@ func FromRunner(total, passed, failed, skipped int, d time.Duration) Summary {
 
 func PrintToConsole(sum Summary) {
 	ui.Summary(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
+}
+
+func WriteJSONBatch(path string, br BatchReport) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	return enc.Encode(br)
+}
+
+// Minimal JUnit wrapper for batch: we emit a <testsuite name="batch"> with totals only.
+func WriteJUnitBatchSummary(path string, sum Summary) error {
+	xml := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="batch" tests="%d" failures="%d" skipped="%d" time="%0.3f">
+</testsuite>
+`, sum.Total, sum.Failed, sum.Skipped, sum.Duration.Seconds())
+	return os.WriteFile(path, []byte(xml), 0644)
 }

@@ -21,7 +21,7 @@ Welcome! This is the full documentation for HydReq. Start here and jump to the t
   - ./openapi.md
 - Adapters (import Postman/Insomnia/HAR/OpenAPI/Bruno)
   - ./adapters.md
-- Reports (JSON/JUnit)
+- Reports (JSON/JUnit/HTML)
   - ./reports.md
 - Examples overview (from testdata/)
   - ./examples.md
