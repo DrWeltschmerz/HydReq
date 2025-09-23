@@ -18,36 +18,17 @@ Schema binding
 
 ```jsonc
 "yaml.schemas": {
-	"./schemas/suite.schema.json": [
-		"suite.yaml",
-		"suites/**/*.yaml",
-		"**/hydreq*.yaml"
-	]
+  "./schemas/suite.schema.json": [
+    "suite.yaml",
+    "suites/**/*.yaml",
+    "**/hydreq*.yaml"
+  ]
 }
 ```
 
 Authoring flow
 1) Open your suite YAML next to `.copilot/prompts/suite.prompts.md` so Copilot reads project idioms.
-2) Start with one clean example test; then ask Copilot to generate similar ones (matrix, retries, negative cases).
-3) Use hover on keys to see allowed values; fix squiggles early (the schema powers validation).
-4) Use generators and variables: `${ENV:VAR}`, `${FAKE:uuid}`, `${RANDINT:min:max}`.
-5) For OpenAPI specs, set `openApi: { file, enabled: true }` to get schema-informed suggestions and examples.
-
-Run from VS Code
-- Task: “hydreq: Run current suite” is available (see `.vscode/tasks.json`). Open a YAML suite and run the Task (Terminal → Run Task...).
-- CLI: `./bin/hydreq run -f <path/to/suite.yaml>`
-
-After a run
-- Generate a PR-ready summary from JSON report:
-	- `scripts/pr-summary.sh path/to/report.json`
-- Get a checklist of suggested assertions (starter block):
-	- `scripts/suggest-assertions.sh <reports-dir>` (uses latest `*.json`)
- - Post a PR comment (requires gh):
-	 - `scripts/post-pr-summary.sh <pr-number-or-url> path/to/report.json`
- - Compare two report JSONs:
-	 - `scripts/compare-reports.sh old.json new.json`
-
-Local CI helper
+  - `scripts/pr-summary.sh path/to/report.json`
 - `scripts/local-ci.sh` will run formatting, tests, examples, and then write `reports/PR_SUMMARY.md` using the most recent JSON report.
 - To automatically post that summary as a PR comment, set `GH_PR_REF` to the PR number or URL and ensure `gh` CLI is installed and authenticated.
 
@@ -55,9 +36,35 @@ Batch runs (end users and contributors)
 - Run many suites and create both batch and latest summaries:
 	- `scripts/run-suites.sh` (defaults to `testdata/*.yaml`)
 	- or `scripts/run-suites.sh suites/*.yaml other/*.yaml`
+
+ - Post a PR comment (requires gh):
+   - `scripts/post-pr-summary.sh <pr-number-or-url> path/to/report.json`
+ - Compare two report JSONs:
+   - `scripts/compare-reports.sh old.json new.json`
+
+Local CI helper
+- `scripts/local-ci.sh` will run formatting, tests, examples, and then write `reports/PR_SUMMARY.md` using the most recent JSON report.
+- To automatically post that summary as a PR comment, set `GH_PR_REF` to the PR number or URL and ensure `gh` CLI is installed and authenticated.
+
+Batch runs (end users and contributors)
+- Run many suites and create both batch and latest summaries:
+  - `scripts/run-suites.sh` (defaults to `testdata/*.yaml`)
+  - or `scripts/run-suites.sh suites/*.yaml other/*.yaml`
 - Outputs:
+  - Batch summary: `reports/PR_SUMMARY_ALL.md`
+  - Latest suite summary: `reports/PR_SUMMARY.md` (+ suggestions)
 	- Batch summary: `reports/PR_SUMMARY_ALL.md`
 	- Latest suite summary: `reports/PR_SUMMARY.md` (+ suggestions)
+=======
+  - `scripts/pr-summary.sh path/to/report.json`
+- Get a checklist of suggested assertions (starter block):
+  - `scripts/suggest-assertions.sh <reports-dir>` (uses latest `*.json`)
+
+Tips
+- Indentation matters for `request.body`. Ensure nested fields are under `body:`.
+- Use `stage` for coarse ordering; `dependsOn` for precise DAGs.
+- Prefer matrix to avoid duplicative tests; reuse `${var}` in request/assert.
+>>>>>>> fcde578 (docs: VS Code + Copilot usage guide; README notes on run task and report scripts (#4))
 
 ## Variables and interpolation
 - `${ENV:VAR}` reads environment variables.

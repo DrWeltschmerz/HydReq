@@ -214,6 +214,10 @@ Where things live
 - Prompts: `.copilot/prompts/suite.prompts.md`
 - VS Code how-to: `.copilot/README.md` (includes a ready-to-copy `yaml.schemas` snippet)
 
+VS Code helpers
+- Task: “hydreq: Run current suite” (Terminal → Run Task) runs the active YAML with the built `hydreq`.
+- Scripts: `scripts/pr-summary.sh` (PR markdown from a JSON report), `scripts/suggest-assertions.sh` (checklist of suggested assertions from last report).
+
 ### Data generators
 
 Embed dynamic data anywhere interpolation works:
