@@ -54,7 +54,7 @@
                                                                                 
 ```
 
-Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, run them locally or in CI across Windows, macOS, and Linux. Now with a validator CLI, run-level reports, and a live two‑way Web UI editor.
+Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, run them locally or in CI across Windows, macOS, and Linux. Now with a validator CLI, run-level reports, batch summaries, and a live two‑way Web UI editor.
 
 Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.
 
