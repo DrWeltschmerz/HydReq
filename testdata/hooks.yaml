@@ -1,7 +1,6 @@
 name: hooks demo
 baseUrl: ${ENV:HTTPBIN_BASE_URL}
 vars:
-  HTTPBIN_BASE_URL: https://httpbin.org
   seed: abc
 preSuite:
   - name: init

@@ -5,7 +5,7 @@ Use docker-compose to bring up httpbin, Postgres, and SQL Server:
 ```
 docker-compose up -d
 ```
-Most example suites accept `HTTPBIN_BASE_URL`. If you don’t set it, they default to the public httpbin.
+Most example suites accept `HTTPBIN_BASE_URL`. Set it to target your local httpbin; our scripts export it automatically.
 
 ## Run everything locally (one command)
 ```

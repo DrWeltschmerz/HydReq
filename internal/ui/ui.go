@@ -29,6 +29,17 @@ func Failf(format string, a ...any) {
 	}
 	fmt.Printf(Red+"✗ "+Reset+format+"\n", a...)
 }
+
+// FailWithBoldPrefix prints an error with a bold, red prefix and a normal-colored message.
+// Example: ✗ <bold>load suite testdata/x.yaml:</bold> yaml parse error
+func FailWithBoldPrefix(prefix string, format string, a ...any) {
+	if !Enabled {
+		return
+	}
+	// Red exclamation, bold red prefix, reset, then message
+	fmt.Print(Red + "✗ " + Bold + prefix + ":" + Reset + " ")
+	fmt.Printf(format+"\n", a...)
+}
 func Skipf(format string, a ...any) {
 	if !Enabled {
 		return
@@ -72,6 +83,23 @@ func Summary(total, passed, failed, skipped int, d time.Duration) {
 		fmt.Printf("skipped=%d ", skipped)
 	}
 	fmt.Printf("in %s\n", d.Truncate(time.Millisecond))
+}
+
+// SuiteHeader prints a bold suite title above its tests
+func SuiteHeader(name string) {
+	if !Enabled {
+		return
+	}
+	// One blank line before header is handled by caller when needed
+	fmt.Printf(Bold+"%s"+Reset+"\n", name)
+}
+
+// SuiteSeparator prints a single blank line between suites
+func SuiteSeparator() {
+	if !Enabled {
+		return
+	}
+	fmt.Println()
 }
 
 // IsTTY reports whether stdout is a terminal

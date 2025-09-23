@@ -1,7 +1,6 @@
 name: auth demo
 baseUrl: ${ENV:HTTPBIN_BASE_URL}
-vars:
-  HTTPBIN_BASE_URL: https://httpbin.org
+vars: {}
 auth:
   bearerEnv: DEMO_BEARER
 

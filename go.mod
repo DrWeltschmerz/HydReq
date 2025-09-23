@@ -8,10 +8,12 @@ require (
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/microsoft/go-mssqldb v1.9.3
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/spf13/cobra v1.10.1
 	github.com/tidwall/gjson v1.18.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.39.0
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (

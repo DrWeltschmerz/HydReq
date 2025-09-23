@@ -1,7 +1,6 @@
 name: openapi demo
 baseUrl: ${ENV:HTTPBIN_BASE_URL}
-vars:
-  HTTPBIN_BASE_URL: https://httpbin.org
+vars: {}
 openApi:
   file: testdata/specs/openapi.yaml
   enabled: true

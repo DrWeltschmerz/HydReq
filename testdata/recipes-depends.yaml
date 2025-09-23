@@ -1,7 +1,6 @@
 name: recipes - dependsOn
 baseUrl: ${ENV:HTTPBIN_BASE_URL}
-vars:
-  HTTPBIN_BASE_URL: https://httpbin.org
+vars: {}
 tests:
   - name: create item
     request: { method: POST, url: /anything, body: { id: 1 } }

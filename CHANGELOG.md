@@ -1,26 +1,68 @@
 # Changelog
 
+## v0.3.1-beta (2025-09-23)
+
+Highlights
+- Validator parity: Web UI validation now uses the same JSON Schema as the CLI, so errors match across UI/CLI/CI.
+- New validator CLI and CI checks for example suites.
+- Clear suite load/not‑runnable handling with dedicated exit code and Not Run reporting.
+- Web UI editor: live two‑way YAML⇆Visual sync, editable YAML for malformed files, tab-safe mirroring; tabs auto-convert to spaces.
+- GitHub Releases pull the matching CHANGELOG section as the release body.
+
+Changes
+- Docs
+	- README, CLI, Getting Started, Web UI, Visual editor, Reports refreshed: theme selector, theme-aware HTML, default multi-suite runs, two‑way editor sync.
+	- Validator documented (`cmd/validate`) with usage and flags; exit code semantics clarified (`2` on load/not‑runnable).
+- CLI & Runner
+	- Suites that fail to load or are not runnable (e.g., path URLs with empty `baseUrl`) do not run and produce no per-suite or batch entries; CLI exits with 2 when only such failures occur.
+	- Preflight detects path URLs with empty `baseUrl` and aborts cleanly with a clear error; error surfaced in GUI quick-run and batch stream.
+	- GitHub Actions step summary shows a bullet list of failed-to-load suites.
+- Reports
+	- Added Not Run section in batch JSON/HTML (path, error, optional validationError).
+	- Synthwave theme applied correctly to batch HTML report (colors, backgrounds, donut legend).
+- Web UI editor
+	- YAML tab is always editable; Visual is disabled when YAML is malformed.
+	- Tabs auto-convert hard tabs to spaces; validator now points to offending lines and adds a friendly hint for tabs.
+	- Live two‑way sync: YAML→Visual on parse; Visual→YAML for all controls (headers/query/assert/extract/matrix/hooks, add/remove rows).
+	- Base URL preflight surfaced in quick-run.
+	- Validation matches CLI (JSON Schema). Example fix: ensure request.body is indented correctly (e.g., `body:\n  prev: "${prevId}"`) so keys like `prev` are under body, not at the request level.
+- Scripts
+	- scripts/run-examples.sh prints a real newline before the "Artifacts" section.
+- CI
+	- New `validate` job runs the schema validator over `testdata/`; examples validate before running and upload artifacts.
+	- `scripts/local-ci.sh` supports `SKIP_VALIDATION=1` and `VALIDATION_WARN_ONLY=1` to override strict validation locally.
+- Release automation
+- Repo hygiene
+	- Added a PR template to standardize change summaries, screenshots, tests, and breaking changes.
+- Examples
+	- Example suites now rely on `HTTPBIN_BASE_URL` provided via environment (local or CI); no fallback to the public httpbin.
+
 ## v0.3.0-beta (2025-09-23)
 
 Highlights
-- New HTML reports with a clean, compact UI and donut charts.
+- New HTML reports with a clean, compact UI and donut charts; theme-aware to match the Web UI.
 - Run-level (batch) reports across multiple suites in JSON, JUnit, and HTML.
 
 Features
 - Reports
 	- Per-suite HTML report: DaisyUI/Tailwind styling, light/dark toggle, sticky headers, filters (search/status/Only failed), collapsible messages with copy.
-	- Batch/run HTML: top stats + donut, suites table, expandable per-suite sections with their own filters.
+	- Batch/run HTML: top stats + donut, suites table, expandable per-suite sections with their own filters; colors read from theme tokens for consistency.
 	- New aggregated run outputs when using `--report-dir`: emits `run-<timestamp>.{json,xml,html}` alongside per-suite artifacts.
 - CLI
 	- `--report-html` to write a per-suite HTML report.
 	- `--report-dir` now also generates `.html` files (per-suite and run-level) in addition to JSON and JUnit.
+	- Omit `-f` to run all suites under `testdata/`; clearer CLI output with suite headers and spacing between suites.
 
 Polish & fixes
 - Compact 2-column layout for stats + chart, reduced whitespace, sticky table headers for readability.
 - Fixed template scoping and structure issues (undefined vars, stray `{{end}}`, unexpected EOF) and added safety helpers.
+- Theme selector added to Web UI and HTML reports; chart colors now pulled from CSS variables.
 
 Docs
-- Updated CLI and Reports documentation to cover HTML and run-level outputs with examples.
+- Updated CLI and Reports documentation to cover HTML and run-level outputs, theme-aware visuals, and default multi-suite runs.
+
+Breaking changes
+- Example suites no longer include a baked-in fallback to the public httpbin; set `HTTPBIN_BASE_URL` via environment when running locally/CI.
 
 ## v0.2.1-beta (2025-09-23)
 

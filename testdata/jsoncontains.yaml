@@ -1,7 +1,6 @@
 name: json contains demo
 baseUrl: ${ENV:HTTPBIN_BASE_URL}
-vars:
-  HTTPBIN_BASE_URL: https://httpbin.org
+vars: {}
 tests:
   - name: contains in body and json path
     request:

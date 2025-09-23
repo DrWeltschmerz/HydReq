@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,12 +19,17 @@ import (
 	"github.com/DrWeltschmerz/HydReq/internal/report"
 	"github.com/DrWeltschmerz/HydReq/internal/runner"
 	"github.com/DrWeltschmerz/HydReq/internal/ui"
+	valfmt "github.com/DrWeltschmerz/HydReq/internal/validate"
 	gui "github.com/DrWeltschmerz/HydReq/internal/webui"
+	jsonschema "github.com/santhosh-tekuri/jsonschema/v5"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 func main() {
+	// sentinel error to distinguish load failures from runtime failures
+	var errLoadSuite = errors.New("suite load error")
 	var rootCmd = &cobra.Command{Use: "hydreq", Short: "HydReq (Hydra Request) - Lightweight API test runner"}
 	// Avoid printing usage/help on runtime errors; we'll print concise messages ourselves.
 	rootCmd.SilenceUsage = true
@@ -45,98 +52,226 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 			// Keep CLI output minimal and focused
-			s, err := runner.LoadSuite(file)
-			if err != nil {
-				return fmt.Errorf("load suite: %w", err)
+			// Unified run timestamp for all artifacts in this invocation
+			runTS := time.Now().Format("20060102-150405")
+			// Optional: compile JSON Schema if present, used to annotate not-run items
+			var compiledSchema *jsonschema.Schema
+			if _, err := os.Stat("schemas/suite.schema.json"); err == nil {
+				if abs, aerr := filepath.Abs("schemas/suite.schema.json"); aerr == nil {
+					if sch, cerr := jsonschema.Compile("file://" + abs); cerr == nil {
+						compiledSchema = sch
+					}
+				}
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-			defer cancel()
 			var tagList []string
 			if tags != "" {
 				tagList = strings.Split(tags, ",")
 			}
-			// capture per-test results via callback
-			cases := make([]report.TestCase, 0, 64)
-			sum, err := runner.RunSuite(ctx, s, runner.Options{Verbose: verbose, Tags: tagList, Workers: workers, DefaultTimeoutMs: defaultTimeoutMs, OnResult: func(tr runner.TestResult) {
-				cases = append(cases, report.TestCase{Name: tr.Name, Stage: tr.Stage, Tags: tr.Tags, Status: tr.Status, DurationMs: tr.DurationMs, Messages: tr.Messages})
-			}})
-			// Console output format
-			if output == "json" {
+			// Helper to run a single suite path
+			runOne := func(suitePath string, br *report.BatchReport) (sumFailed int, runErr error) {
+				s, err := runner.LoadSuite(suitePath)
+				if err != nil {
+					return 0, fmt.Errorf("%w: %s: %v", errLoadSuite, suitePath, err)
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+				defer cancel()
+				cases := make([]report.TestCase, 0, 64)
+				// Print header above tests in human mode
+				if output != "json" {
+					ui.SuiteHeader(s.Name)
+				}
+				sum, err := runner.RunSuite(ctx, s, runner.Options{Verbose: verbose, Tags: tagList, Workers: workers, DefaultTimeoutMs: defaultTimeoutMs, OnResult: func(tr runner.TestResult) {
+					cases = append(cases, report.TestCase{Name: tr.Name, Stage: tr.Stage, Tags: tr.Tags, Status: tr.Status, DurationMs: tr.DurationMs, Messages: tr.Messages})
+				}})
+				// If suite is not runnable (e.g., missing baseUrl), don't print or emit artifacts/summary
+				if err != nil && errors.Is(err, runner.ErrSuiteNotRunnable) {
+					return 0, fmt.Errorf("%w: %s: %v", errLoadSuite, suitePath, err)
+				}
 				rs := report.FromRunner(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
-				rep := report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases}
-				enc := json.NewEncoder(os.Stdout)
-				enc.SetIndent("", "  ")
-				_ = enc.Encode(rep)
-			} else {
-				ui.Summary(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
-			}
-			rs := report.FromRunner(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
-			br := report.BatchReport{RunAt: time.Now(), Summary: rs, Suites: []report.DetailedReport{{Suite: s.Name, Summary: rs, TestCases: cases}}}
-			// If reportDir is set and no explicit report files provided, generate both with timestamped names
-			// If reportDir is set and no explicit report files provided, generate all with timestamped names
-			if reportDir != "" && jsonReport == "" && junitReport == "" && htmlReport == "" {
-				ts := time.Now().Format("20060102-150405")
-				base := sanitizeFilename(s.Name)
-				jsonReport = fmt.Sprintf("%s/%s-%s.json", reportDir, base, ts)
-				junitReport = fmt.Sprintf("%s/%s-%s.xml", reportDir, base, ts)
-				// ensure directory exists
-				if mkerr := os.MkdirAll(reportDir, 0o755); mkerr != nil {
-					fmt.Fprintf(os.Stderr, "report dir error: %v\n", mkerr)
-				}
-				htmlReport = fmt.Sprintf("%s/%s-%s.html", reportDir, base, ts)
-			}
-			if jsonReport != "" {
-				if len(cases) > 0 {
-					_ = report.WriteJSONDetailed(jsonReport, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
+				if output == "json" {
+					enc := json.NewEncoder(os.Stdout)
+					enc.SetIndent("", "  ")
+					_ = enc.Encode(report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
 				} else {
-					if werr := report.WriteJSONSummary(jsonReport, rs); werr != nil {
-						fmt.Fprintf(os.Stderr, "report json error: %v\n", werr)
+					ui.Summary(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
+				}
+				// Collect into batch
+				if br != nil {
+					br.Suites = append(br.Suites, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
+					br.Summary.Total += rs.Total
+					br.Summary.Passed += rs.Passed
+					br.Summary.Failed += rs.Failed
+					br.Summary.Skipped += rs.Skipped
+					br.Summary.Duration += rs.Duration
+				}
+				// Per-suite artifacts when using report-dir and no explicit report paths
+				if reportDir != "" && jsonReport == "" && junitReport == "" && htmlReport == "" {
+					if mkerr := os.MkdirAll(reportDir, 0o755); mkerr != nil {
+						fmt.Fprintf(os.Stderr, "report dir error: %v\n", mkerr)
+					}
+					base := fmt.Sprintf("%s/%s-%s", reportDir, sanitizeFilename(s.Name), runTS)
+					if len(cases) > 0 {
+						_ = report.WriteJSONDetailed(base+".json", report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
+					} else {
+						_ = report.WriteJSONSummary(base+".json", rs)
+					}
+					_ = report.WriteJUnitDetailed(base+".xml", s.Name, rs, cases)
+					_ = report.WriteHTMLDetailed(base+".html", report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
+				} else {
+					// Respect explicit report paths for single-suite mode only
+					if jsonReport != "" {
+						if len(cases) > 0 {
+							_ = report.WriteJSONDetailed(jsonReport, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
+						} else {
+							_ = report.WriteJSONSummary(jsonReport, rs)
+						}
+					}
+					if junitReport != "" {
+						_ = report.WriteJUnitDetailed(junitReport, s.Name, rs, cases)
+					}
+					if htmlReport != "" {
+						_ = report.WriteHTMLDetailed(htmlReport, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
 					}
 				}
-			}
-			if junitReport != "" {
-				if len(cases) > 0 {
-					if werr := report.WriteJUnitDetailed(junitReport, s.Name, rs, cases); werr != nil {
-						fmt.Fprintf(os.Stderr, "report junit error: %v\n", werr)
+				if err != nil {
+					// If suite is not runnable (e.g., missing baseUrl), wrap like a load error so callers can classify
+					if errors.Is(err, runner.ErrSuiteNotRunnable) {
+						return sum.Failed, fmt.Errorf("%w: %s: %v", errLoadSuite, suitePath, err)
 					}
-				} else {
-					if werr := report.WriteJUnitSummary(junitReport, rs, s.Name); werr != nil {
-						fmt.Fprintf(os.Stderr, "report junit error: %v\n", werr)
+					return sum.Failed, err
+				}
+				return sum.Failed, nil
+			}
+
+			// Determine whether to run one or all suites
+			failedLoads := make([]string, 0, 8)
+			if strings.TrimSpace(file) == "" {
+				// Discover suites in testdata/*.yaml
+				paths, globErr := filepath.Glob("testdata/*.yaml")
+				if globErr != nil {
+					return globErr
+				}
+				if len(paths) == 0 {
+					return fmt.Errorf("no suites found in testdata/*.yaml; specify -f to run a file")
+				}
+				br := report.BatchReport{RunAt: time.Now()}
+				var totalFailed int
+				for i, p := range paths {
+					if i > 0 && output != "json" {
+						ui.SuiteSeparator()
+					}
+					failed, err := runOne(p, &br)
+					if err != nil {
+						if errors.Is(err, errLoadSuite) {
+							failedLoads = append(failedLoads, p)
+							// Try to validate for a more actionable message
+							var vmsg string
+							if compiledSchema != nil {
+								if data, rerr := os.ReadFile(p); rerr == nil {
+									if jb, jerr := kyaml.YAMLToJSON(data); jerr == nil {
+										var v any
+										if jderr := json.Unmarshal(jb, &v); jderr == nil {
+											if verr := compiledSchema.Validate(v); verr != nil {
+												vmsg = valfmt.FormatValidationError(data, verr)
+											}
+										}
+									}
+								}
+							}
+							br.NotRun = append(br.NotRun, report.NotRunInfo{Path: p, Error: err.Error(), ValidationError: vmsg})
+							if output != "json" {
+								// Pretty-print load error: bold red prefix up to first colon
+								emsg := err.Error()
+								if idx := strings.Index(emsg, ": "); idx > 0 {
+									ui.FailWithBoldPrefix(emsg[:idx], "%s", strings.TrimSpace(emsg[idx+1:]))
+								} else {
+									ui.Failf("%v", err)
+								}
+							} else {
+								fmt.Fprintf(os.Stderr, "load suite %s: %v\n", p, err)
+							}
+						} else {
+							// Runtime error (e.g., preSuite failure). Results were still collected into batch.
+							if output != "json" {
+								ui.Failf("run error: %v", err)
+							} else {
+								fmt.Fprintf(os.Stderr, "run error for %s: %v\n", p, err)
+							}
+						}
+					}
+					totalFailed += failed
+				}
+				// Emit batch/run-level artifacts if requested
+				if reportDir != "" {
+					base := fmt.Sprintf("%s/run-%s", reportDir, runTS)
+					_ = report.WriteJSONBatch(base+".json", br)
+					_ = report.WriteJUnitBatchSummary(base+".xml", br.Summary)
+					_ = report.WriteHTMLBatch(base+".html", br)
+				}
+				if len(failedLoads) > 0 && output != "json" {
+					ui.SuiteSeparator()
+					ui.Failf("%d suite(s) failed to load:", len(failedLoads))
+					for _, fp := range failedLoads {
+						ui.Detail(fp)
+					}
+					if path := os.Getenv("GITHUB_STEP_SUMMARY"); path != "" {
+						_ = appendSummary(path, failedLoads)
 					}
 				}
-			}
-			if htmlReport != "" {
-				if len(cases) > 0 {
-					_ = report.WriteHTMLDetailed(htmlReport, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
-				} else {
-					_ = report.WriteHTMLDetailed(htmlReport, report.DetailedReport{Suite: s.Name, Summary: rs})
-				}
-			}
-			// If report-dir was used (inferred via auto-populated report paths), also emit run-level summaries alongside
-			if reportDir != "" {
-				// derive a consistent run-<ts> base from one of the generated filenames
-				ts := time.Now().Format("20060102-150405")
-				base := fmt.Sprintf("%s/run-%s", reportDir, ts)
-				_ = report.WriteJSONBatch(base+".json", br)
-				_ = report.WriteJUnitBatchSummary(base+".xml", rs)
-				_ = report.WriteHTMLBatch(base+".html", br)
-			}
-			// Treat test failures as exit code 1 without printing cobra usage/help
-			if err != nil {
-				if sum.Failed > 0 {
-					os.Exit(1)
+				if totalFailed > 0 || len(failedLoads) > 0 {
+					// Exit code 2 when only load failures occurred; otherwise 1
+					if totalFailed == 0 && len(failedLoads) > 0 {
+						os.Exit(2)
+					} else {
+						os.Exit(1)
+					}
 					return nil
 				}
-				return err
+				return nil
 			}
-			if sum.Failed > 0 {
+
+			// Single-suite mode
+			brSingle := report.BatchReport{RunAt: time.Now()}
+			failed, err := runOne(file, &brSingle)
+			if reportDir != "" {
+				// Emit batch artifacts reflecting the single suite results, using the same runTS
+				base := fmt.Sprintf("%s/run-%s", reportDir, runTS)
+				_ = report.WriteJSONBatch(base+".json", brSingle)
+				_ = report.WriteJUnitBatchSummary(base+".xml", brSingle.Summary)
+				_ = report.WriteHTMLBatch(base+".html", brSingle)
+			}
+			if err != nil {
+				if output != "json" {
+					// Pretty-print single-suite load error
+					emsg := err.Error()
+					if idx := strings.Index(emsg, ": "); idx > 0 {
+						ui.FailWithBoldPrefix(emsg[:idx], "%s", strings.TrimSpace(emsg[idx+1:]))
+					} else {
+						ui.Failf("%v", err)
+					}
+				} else {
+					if errors.Is(err, errLoadSuite) {
+						fmt.Fprintf(os.Stderr, "load suite %s: %v\n", file, err)
+					} else {
+						fmt.Fprintf(os.Stderr, "run error for %s: %v\n", file, err)
+					}
+				}
+				// Exit code: 2 for load error, 1 for runtime error
+				if errors.Is(err, errLoadSuite) {
+					os.Exit(2)
+					return nil
+				}
+				os.Exit(1)
+				return nil
+			}
+			if failed > 0 {
 				os.Exit(1)
 				return nil
 			}
 			return nil
 		},
 	}
-	runCmd.Flags().StringVarP(&file, "file", "f", "testdata/example.yaml", "Path to YAML test suite")
+	runCmd.Flags().StringVarP(&file, "file", "f", "", "Path to YAML test suite (omit to run all suites in testdata)")
 	runCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
 	runCmd.Flags().StringVar(&tags, "tags", "", "Comma-separated tag filter (any match)")
 	runCmd.Flags().IntVar(&workers, "workers", 4, "Number of concurrent workers per stage")
@@ -315,4 +450,24 @@ func sanitizeFilename(s string) string {
 		return "suite"
 	}
 	return string(out)
+}
+
+// appendSummary appends a small markdown section to the GitHub Actions step summary file
+// to surface suites that failed to load.
+func appendSummary(path string, failedLoads []string) error {
+	if len(failedLoads) == 0 {
+		return nil
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	b := &strings.Builder{}
+	fmt.Fprintln(b, "\n### Suites failed to load")
+	for _, fp := range failedLoads {
+		fmt.Fprintf(b, "- %s\n", fp)
+	}
+	_, err = f.WriteString(b.String())
+	return err
 }
