@@ -41,27 +41,29 @@
 			"label": "run tests (pre-release)",
 			"type": "shell",
 			"command": "go test -race ./...",
-			"problemMatcher": [
-				"$go - gcc"
-			],
+			"problemMatcher": ["$go"],
 			"group": "build"
 		},
 		{
 			"label": "run tests (json error handling)",
 			"type": "shell",
 			"command": "go test -race ./...",
-			"problemMatcher": [
-				"$go - gcc"
-			],
+			"problemMatcher": ["$go"],
 			"group": "build"
 		},
 		{
 			"label": "run tests (dedupe helpers)",
 			"type": "shell",
 			"command": "go test -race ./...",
-			"problemMatcher": [
-				"$go - gcc"
-			],
+			"problemMatcher": ["$go"],
+			"group": "build"
+		}
+		,
+		{
+			"label": "hydreq: Run current suite",
+			"type": "shell",
+			"command": "./bin/hydreq run -f ${file}",
+			"problemMatcher": [],
 			"group": "build"
 		},
 		{

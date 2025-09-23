@@ -19,6 +19,7 @@ archives:
       - README.md
       - LICENSE* 
       - schemas/**
+      - docs/cheatsheets/**
       - .vscode/**
       - .copilot/**
       - testdata/**
