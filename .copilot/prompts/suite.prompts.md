@@ -80,3 +80,6 @@ Additional patterns for Copilot to suggest on demand:
 
 - Matrix promotion
   - Consolidate near-duplicate tests by introducing `matrix:` and replacing literals with `${var}`.
+
+- Adapters (import helpers)
+  - When users have Postman/Insomnia/HAR/OpenAPI/Bruno, suggest using `hydreq import <adapter> <path>` to bootstrap a suite, then refine with assertions and matrix.

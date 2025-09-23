@@ -59,6 +59,10 @@ Batch runs (end users and contributors)
   - `scripts/pr-summary.sh path/to/report.json`
 - Get a checklist of suggested assertions (starter block):
   - `scripts/suggest-assertions.sh <reports-dir>` (uses latest `*.json`)
+ - Post a PR comment (requires gh):
+   - `scripts/post-pr-summary.sh <pr-number-or-url> path/to/report.json`
+ - Compare two report JSONs:
+   - `scripts/compare-reports.sh old.json new.json`
 
 Tips
 - Indentation matters for `request.body`. Ensure nested fields are under `body:`.
