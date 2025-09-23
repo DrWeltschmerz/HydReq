@@ -70,4 +70,3 @@ func TestWriteHTMLDetailed(t *testing.T) {
 		t.Fatalf("html output missing expected content: %s", s)
 	}
 }
-
