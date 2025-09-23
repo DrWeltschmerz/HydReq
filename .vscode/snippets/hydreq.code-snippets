@@ -84,4 +84,113 @@
     ],
     "description": "HydReq hook: sqlite insert with generators"
   }
+  ,
+  "HydReq: Retries": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-retry",
+    "body": [
+      "retry:",
+      "  max: ${1:5}",
+      "  backoffMs: ${2:200}",
+      "  jitterPct: ${3:30}"
+    ],
+    "description": "HydReq retry policy block"
+  },
+  "HydReq: dependsOn": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-depends",
+    "body": [
+      "dependsOn:",
+      "  - ${1:previous test name}"
+    ],
+    "description": "HydReq dependsOn block"
+  },
+  "HydReq: OpenAPI enable": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-openapi-enable",
+    "body": [
+      "openApi:",
+      "  enabled: ${1:true}"
+    ],
+    "description": "Per-test OpenAPI enable/disable"
+  },
+  "HydReq: Suite auth": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-auth",
+    "body": [
+      "auth:",
+      "  bearerEnv: ${1:DEMO_BEARER}",
+      "  basicEnv: ${2:BASIC_B64}"
+    ],
+    "description": "Suite auth environment bindings"
+  },
+  "HydReq: Negative test": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-negative",
+    "body": [
+      "- name: ${1:invalid payload returns 400}",
+      "  request:",
+      "    method: POST",
+      "    url: ${2:/anything}",
+      "    body:",
+      "      id: not-a-number",
+      "  assert:",
+      "    status: 400",
+      "    jsonContains:",
+      "      error: invalid"
+    ],
+    "description": "HydReq negative test example"
+  },
+  "HydReq: Stage": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-stage",
+    "body": [
+      "stage: ${1:1}"
+    ],
+    "description": "HydReq execution stage"
+  },
+  "HydReq: Pre/Post hooks": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-prepost",
+    "body": [
+      "pre:",
+      "  - name: ${1:setup}",
+      "    request:",
+      "      method: GET",
+      "      url: /status/200",
+      "    assert:",
+      "      status: 200",
+      "post:",
+      "  - name: ${2:teardown}",
+      "    request:",
+      "      method: GET",
+      "      url: /status/200",
+      "    assert:",
+      "      status: 200"
+    ],
+    "description": "HydReq pre/post HTTP hooks"
+  },
+  "HydReq: Suite skeleton": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-suite",
+    "body": [
+      "name: ${1:my suite}",
+      "baseUrl: ${2:${ENV:HTTPBIN_BASE_URL}}",
+      "vars:",
+      "  HTTPBIN_BASE_URL: https://httpbin.org",
+      "auth:",
+      "  bearerEnv: DEMO_BEARER",
+      "openApi:",
+      "  file: ${3:testdata/specs/openapi.yaml}",
+      "  enabled: ${4:false}",
+      "tests:",
+      "  - name: ${5:GET example}",
+      "    request:",
+      "      method: GET",
+      "      url: /status/200",
+      "    assert:",
+      "      status: 200"
+    ],
+    "description": "HydReq suite skeleton with auth and OpenAPI"
+  }
 }
