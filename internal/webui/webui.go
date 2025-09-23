@@ -21,11 +21,14 @@ import (
 
 	"github.com/DrWeltschmerz/HydReq/internal/runner"
 	"github.com/DrWeltschmerz/HydReq/internal/ui"
+	valfmt "github.com/DrWeltschmerz/HydReq/internal/validate"
 	"github.com/DrWeltschmerz/HydReq/pkg/models"
 	"github.com/getkin/kin-openapi/openapi3"
 	routers "github.com/getkin/kin-openapi/routers"
 	legacy "github.com/getkin/kin-openapi/routers/legacy"
+	jsonschema "github.com/santhosh-tekuri/jsonschema/v5"
 	"gopkg.in/yaml.v3"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 //go:embed static/*
@@ -38,10 +41,21 @@ type server struct {
 	envMu   sync.Mutex
 	runs    map[string]context.CancelFunc
 	ready   map[string]chan struct{}
+	schema  *jsonschema.Schema
 }
 
 func Run(addr string, openBrowser bool) error {
 	s := &server{mux: http.NewServeMux(), streams: map[string]chan string{}, runs: map[string]context.CancelFunc{}, ready: map[string]chan struct{}{}}
+	// Compile JSON Schema once if present so the UI validator matches CLI validator
+	if _, err := os.Stat("schemas/suite.schema.json"); err == nil {
+		if abs, aerr := filepath.Abs("schemas/suite.schema.json"); aerr == nil {
+			if sch, cerr := jsonschema.Compile("file://" + abs); cerr == nil {
+				s.schema = sch
+			} else {
+				log.Printf("schema compile error: %v", cerr)
+			}
+		}
+	}
 	s.routes()
 	srv := &http.Server{Addr: addr, Handler: s.mux}
 	url := fmt.Sprintf("http://%s", addr)
@@ -245,6 +259,18 @@ func (s *server) handleEditorValidate(w http.ResponseWriter, r *http.Request) {
 			issues = append(issues, map[string]any{"path": "root", "message": msg, "severity": "info"})
 		} else {
 			parsedValid = true
+			// Schema validation (matches CLI): YAML -> JSON -> interface{} -> Validate
+			if s.schema != nil {
+				if jsonBytes, jerr := kyaml.YAMLToJSON([]byte(raw)); jerr == nil {
+					var v any
+					if jerr2 := json.Unmarshal(jsonBytes, &v); jerr2 == nil {
+						if verr := s.schema.Validate(v); verr != nil {
+							msg := valfmt.FormatValidationError([]byte(raw), verr)
+							issues = append(issues, map[string]any{"path": "schema", "message": msg, "severity": "error"})
+						}
+					}
+				}
+			}
 		}
 	} else if vr.Parsed != nil {
 		// re-marshal+unmarshal to models.Suite
@@ -253,6 +279,24 @@ func (s *server) handleEditorValidate(w http.ResponseWriter, r *http.Request) {
 				issues = append(issues, map[string]any{"path": "root", "message": err.Error(), "severity": "error"})
 			} else {
 				parsedValid = true
+				// If we only have parsed, validate the canonical YAML serialization against schema
+				if s.schema != nil {
+					var buf strings.Builder
+					enc := yaml.NewEncoder(&buf)
+					enc.SetIndent(2)
+					_ = enc.Encode(&parsed)
+					_ = enc.Close()
+					yamlText := buf.String()
+					if jsonBytes, jerr := kyaml.YAMLToJSON([]byte(yamlText)); jerr == nil {
+						var v any
+						if jerr2 := json.Unmarshal(jsonBytes, &v); jerr2 == nil {
+							if verr := s.schema.Validate(v); verr != nil {
+								msg := valfmt.FormatValidationError([]byte(yamlText), verr)
+								issues = append(issues, map[string]any{"path": "schema", "message": msg, "severity": "error"})
+							}
+						}
+					}
+				}
 			}
 		} else {
 			issues = append(issues, map[string]any{"path": "root", "message": err.Error(), "severity": "error"})

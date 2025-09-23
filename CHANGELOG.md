@@ -3,6 +3,7 @@
 ## v0.3.1-beta (2025-09-23)
 
 Highlights
+- Validator parity: Web UI validation now uses the same JSON Schema as the CLI, so errors match across UI/CLI/CI.
 - New validator CLI and CI checks for example suites.
 - Clear suite load/not‑runnable handling with dedicated exit code and Not Run reporting.
 - Web UI editor: live two‑way YAML⇆Visual sync, editable YAML for malformed files, tab-safe mirroring; tabs auto-convert to spaces.
@@ -24,6 +25,7 @@ Changes
 	- Tabs auto-convert hard tabs to spaces; validator now points to offending lines and adds a friendly hint for tabs.
 	- Live two‑way sync: YAML→Visual on parse; Visual→YAML for all controls (headers/query/assert/extract/matrix/hooks, add/remove rows).
 	- Base URL preflight surfaced in quick-run.
+	- Validation matches CLI (JSON Schema). Example fix: ensure request.body is indented correctly (e.g., `body:\n  prev: "${prevId}"`) so keys like `prev` are under body, not at the request level.
 - Scripts
 	- scripts/run-examples.sh prints a real newline before the "Artifacts" section.
 - CI
