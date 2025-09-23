@@ -54,7 +54,7 @@
                                                                                 
 ```
 
-Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, run them locally or in CI across Windows, macOS, and Linux. Now with a validator CLI, run-level reports, and a live two‑way Web UI editor.
+Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, run them locally or in CI across Windows, macOS, and Linux. Now with a validator CLI, run-level reports, batch summaries, and a live two‑way Web UI editor.
 
 Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.
 
@@ -279,6 +279,7 @@ Outputs
 
 Optional PR comment
 - Set `GH_PR_REF=<pr-number-or-url>` and install GitHub CLI (`gh`) to auto-post a summary comment.
+- See an example automated summary comment: [GitHub PR Comment](https://github.com/DrWeltschmerz/HydReq/pull/6#issuecomment-3325685621)
 
 ### Example suites (at a glance)
 - `testdata/example.yaml` — smoke and extraction

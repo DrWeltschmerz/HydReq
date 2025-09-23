@@ -46,13 +46,14 @@ if [[ "${START_SERVICES:-0}" == "1" && "${KEEP_SERVICES:-0}" != "1" ]]; then
 fi
 
 printf "\nArtifacts under ./reports (per-suite + run-<ts>.html/json/xml).\n"
-# Hints for quick viewing / screenshots
+# Batch report last, bold and blue
 last_run_html=$(ls -1t reports/run-*.html 2>/dev/null | head -n1 || true)
 if [[ -n "${last_run_html}" ]]; then
-	echo "Batch report: ${last_run_html}"
-fi
-one_suite_html=$(ls -1t reports/*.html 2>/dev/null | grep -v '/run-' | head -n1 || true)
-if [[ -n "${one_suite_html}" ]]; then
-	echo "One suite report: ${one_suite_html}"
+  ts=$(basename "$last_run_html" | sed 's/run-\(.*\)\.html/\1/')
+  # List per-suite reports from this run
+  ls -1 reports/*-"$ts".html 2>/dev/null | grep -v "run-$ts" | while read -r suite_html; do
+    echo "Suite report: $suite_html"
+  done
+  echo -e "\033[1;34mBatch report: ${last_run_html}\033[0m"
 fi
 
