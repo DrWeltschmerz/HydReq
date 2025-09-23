@@ -26,10 +26,6 @@ if jq -e '.suites' "$REPORT_JSON" >/dev/null; then
   echo
   echo "- Total: $total | Passed: $passed | Failed: $failed | Skipped: $skipped | Duration(ns): $duration"
   echo
-  echo "#### Suites"
-  jq -r '
-    .suites[] | "- Suite: \(.suite) | Total: \(.summary.total) | Passed: \(.summary.passed) | Failed: \(.summary.failed) | Skipped: \(.summary.skipped) | Duration(ns): \(.summary.duration)"' "$REPORT_JSON"
-  echo
   echo "#### Tests"
   jq -r '
     def status_icon(status):
@@ -37,8 +33,12 @@ if jq -e '.suites' "$REPORT_JSON" >/dev/null; then
       elif status == "failed" then "❌"
       else "–"
       end;
-    .suites[] as $s | ($s.tests // [])[] |
-    "- \(status_icon(.status)) \(.name)\n  - suite: \($s.suite // "(unknown)")\n  - stage: \(.stage)\n  - durationMs: \(.durationMs // 0)"
+    def unknown_suite: "(unknown suite)";
+    .suites[] as $s |
+    "##### Suite: \($s.suite // unknown_suite)",
+    "Total: \($s.summary.total) | Passed: \($s.summary.passed) | Failed: \($s.summary.failed) | Skipped: \($s.summary.skipped) | Duration(ns): \($s.summary.duration)",
+    (($s.tests // [])[] | "- \(status_icon(.status)) \(.name) (stage: \(.stage), durationMs: \(.durationMs // 0))"),
+    ""
   ' "$REPORT_JSON"
 else
   # Single-suite report

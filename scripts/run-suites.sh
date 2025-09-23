@@ -45,7 +45,7 @@ fi
 # Batch PR summary from batch run report
 batch_report=$(ls -1t ./reports/run-*.json 2>/dev/null | head -n1 || true)
 if [[ -n "$batch_report" && -f "$batch_report" ]]; then
-  scripts/pr-summary-batch.sh "$batch_report" | tee ./reports/PR_SUMMARY_ALL.md
+  scripts/pr-summary.sh "$batch_report" | tee ./reports/PR_SUMMARY_ALL.md
   echo "Wrote batch summary to ./reports/PR_SUMMARY_ALL.md"
 
   # Also generate per-latest summary for convenience
@@ -66,6 +66,19 @@ if [[ -n "$batch_report" && -f "$batch_report" ]]; then
   fi
 else
   echo "No batch run report found; nothing to summarize"
+fi
+
+printf "\nArtifacts under ./reports (per-suite + run-<ts>.json/xml/html).\n"
+if [[ -n "$batch_report" ]]; then
+  ts=$(basename "$batch_report" | sed 's/run-\(.*\)\.json/\1/')
+  # List per-suite artifacts from this run
+  ls -1 reports/*-"$ts".* 2>/dev/null | grep -v "run-$ts" | sort | uniq | while read -r artifact; do
+    echo "Suite artifact: $artifact"
+  done
+  # Batch artifacts
+  ls -1 reports/run-"$ts".* 2>/dev/null | sort | uniq | while read -r artifact; do
+    echo "Batch artifact: $artifact"
+  done
 fi
 
 if (( ${#failures[@]} )); then
