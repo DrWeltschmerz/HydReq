@@ -3,13 +3,31 @@
 > 🚀 **API Testing Simplified**  
 > Write YAML tests, run in CLI/Web UI, generate reports. Supports matrices, hooks, OpenAPI, and CI automation.
 
-| CI | Release | Downloads | License | Go Version | Issues | Stars |
-|----|---------|-----------|---------|------------|--------|-------|
-| [![CI](https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml/badge.svg)](https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml) | [![Release](https://img.shields.io/github/v/release/DrWeltschmerz/HydReq?include_prereleases&sort=semver)](https://github.com/DrWeltschmerz/HydReq/releases) | [![Downloads](https://img.shields.io/github/downloads/DrWeltschmerz/HydReq/total.svg)](https://github.com/DrWeltschmerz/HydReq/releases) | [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE) | [![Go Version](https://img.shields.io/github/go-mod/go-version/DrWeltschmerz/HydReq)](go.mod) | [![Issues](https://img.shields.io/github/issues/DrWeltschmerz/HydReq.svg)](https://github.com/DrWeltschmerz/HydReq/issues) | [![Stars](https://img.shields.io/github/stars/DrWeltschmerz/HydReq?style=social)](https://github.com/DrWeltschmerz/HydReq/stargazers) |
+<table width="100%" border="0" cellpadding="0" cellspacing="0">
+  <tr>
+    <td valign="middle">
+      <a href="https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml"><img src="https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml/badge.svg" alt="CI" height="20"></a>
+      <a href="https://github.com/DrWeltschmerz/HydReq/releases"><img src="https://img.shields.io/github/v/release/DrWeltschmerz/HydReq?include_prereleases&sort=semver&style=flat-square" alt="Release" height="20"></a>
+      <a href="https://github.com/DrWeltschmerz/HydReq/releases"><img src="https://img.shields.io/github/downloads/DrWeltschmerz/HydReq/total.svg?style=flat-square" alt="Downloads" height="20"></a>
+      <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License" height="20"></a>
+      <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/DrWeltschmerz/HydReq?style=flat-square" alt="Go Version" height="20"></a>
+      <a href="https://github.com/DrWeltschmerz/HydReq/issues"><img src="https://img.shields.io/github/issues/DrWeltschmerz/HydReq.svg?style=flat-square" alt="Issues" height="20"></a>
+      <a href="https://github.com/DrWeltschmerz/HydReq/stargazers"><img src="https://img.shields.io/github/stars/DrWeltschmerz/HydReq?style=social" alt="Stars" height="20"></a>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <p align="center">
+        <a href="docs/README.md">📖 Full Docs</a> &nbsp;|&nbsp;
+        <a href="docs/getting-started.md">🚀 Quick Start</a> &nbsp;|&nbsp;
+        <a href="docs/examples.md">🧪 Examples</a> &nbsp;|&nbsp;
+        <a href="#copilot-and-editor-support">🤖 Copilot Setup</a>
+      </p>
+    </td>
+  </tr>
+</table>
 
-[📖 Full Docs](docs/README.md) | [🚀 Quick Start](docs/getting-started.md) | [🧪 Examples](docs/examples.md) | [🤖 Copilot Setup](#copilot-and-editor-support)
-
-<table>
+<table width="100%" border="0" cellpadding="0" cellspacing="0">
   <tr>
     <td width="200" valign="top">
       <img src="logo_notext.svg" alt="HydReq Logo" width="180">
