@@ -59,14 +59,7 @@
   - [Reports](#reports)
   - [Batch run and summaries](#batch-run-and-summaries)
   - [Example suites (at a glance)](#example-suites-at-a-glance)
-  - [Troubleshooting](#troubleshooting)
 - [Contributing & development](#contributing--development)
-  - [Local services](#local-services)
-  - [Run everything locally (one command)](#run-everything-locally-one-command)
-  - [Auth example (local)](#auth-example-local)
-  - [Project layout](#project-layout)
-  - [Editors & Copilot (contributors)](#editors--copilot-contributors)
-  - [Roadmap](#roadmap)
 - [License](#license)
 
 ---
@@ -98,7 +91,7 @@
   --report-junit report.xml
 ```
 
-### 📦 Install
+### Install
 
 - Prebuilt binaries (recommended): download from Releases. Archives include examples (`testdata/`), JSON schema, VS Code mappings, and Copilot prompts.
 - From source:
@@ -155,7 +148,7 @@ Exit codes
 - `1`: tests failed
 - `2`: suite load error
 
-### 🤖 Copilot and editor support
+### Copilot and editor support
 
 HydReq ships with a JSON Schema and Copilot prompts so you get completions, validation, and smarter AI assistance while writing suites.
 
@@ -200,7 +193,7 @@ VS Code helpers
 - Task: “hydreq: Run current suite” (Terminal → Run Task) runs the active YAML with the built `hydreq`.
 - Scripts: `scripts/pr-summary.sh` (PR markdown from a JSON report), `scripts/suggest-assertions.sh` (checklist of suggested assertions from last report).
 
-### 🎲 Data Generators
+### Data Generators
 
 Embed dynamic data anywhere interpolation works:
 - `${FAKE:uuid}` — random UUID v4
@@ -209,7 +202,7 @@ Embed dynamic data anywhere interpolation works:
 - `${NOW+/-offset:<layout>}` — time offset by s/m/h/d/w (e.g., `${NOW+1d:2006-01-02}`)
 - `${RANDINT:min:max}` — random integer in `[min, max]`
 
-### ✨ Features
+### Features
 
 | Feature | Description |
 |---------|-------------|
@@ -223,5 +216,77 @@ Embed dynamic data anywhere interpolation works:
 | 🔐 Auth Helpers | Bearer/Basic via environment variables |
 | 📊 Matrix Expansion | Data-driven test combinations |
 | 🪝 Hooks | Pre/post suite/test
+| 📋 Reports | JSON, JUnit, HTML with summaries and details |
+
+
+### Adapters (import)
+
+- Postman (v2.1 JSON)
+- Insomnia (export JSON)
+- HAR (HTTP Archive)
+- OpenAPI (3.x)
+- Bruno (minimal export)
+
+### CLI examples:
+
+```
+hydreq import postman path/to/collection.json > suite.yaml
+hydreq import insomnia path/to/export.json > suite.yaml
+hydreq import har path/to/archive.har > suite.yaml
+hydreq import openapi path/to/spec.(yaml|json) > suite.yaml
+hydreq import bruno path/to/export.json > suite.yaml
+```
+
+### Reports
+
+- JSON, JUnit, and HTML detailed reports include per-test entries and suite summaries. HTML reports are theme-aware (same palette as the Web UI) and include donut charts, filters, and sticky headers.
+- Using `--report-dir` generates timestamped per-suite artifacts and run-level (batch) artifacts: `run-<timestamp>.{json,xml,html}`.
+
+### Batch run and summaries
+
+- Run multiple suites and generate summaries in one go (works from a release archive):
+
+```
+./scripts/run-suites.sh                 # defaults to testdata/*.yaml
+# or provide your own globs
+./scripts/run-suites.sh suites/*.yaml other/*.yaml
+```
+
+### Outputs
+
+- Per-suite: `reports/<suite>.{json,xml}`
+- Batch Markdown: `reports/PR_SUMMARY_ALL.md` (aggregated totals + failed tests)
+- Latest suite Markdown: `reports/PR_SUMMARY.md` (plus suggested assertions)
+
+Optional PR comment
+
+- CI automatically posts detailed batch run summaries as comments on pull requests (no setup required).
+- For manual posting from local runs, set `GH_PR_REF=<pr-number-or-url>` and install GitHub CLI (`gh`).
+- See an example automated summary comment: [GitHub PR Comment](https://github.com/DrWeltschmerz/HydReq/pull/6#issuecomment-3325685621)
+
+### Example suites (at a glance)
+
+- `testdata/example.yaml` — smoke and extraction
+- `testdata/matrix.yaml` — matrix expansion
+- `testdata/depends.yaml` — DAG scheduling
+- `testdata/hooks.yaml` — HTTP hooks
+- `testdata/sqlite.yaml` — SQL hooks
+- `testdata/openapi.yaml` — OpenAPI validation
+- `testdata/tags.yaml` — tags and slow example
+- `testdata/retries.yaml` — retries with jitter
+- `testdata/jsoncontains.yaml` — JSONContains
+- `testdata/postgres.yaml` / `sqlserver.yaml` — DB examples (env DSNs)
+
+---
+
+## Contributing & development
+
+See `docs/contributing.md` for setup, local development, project layout, and roadmap.
+
+---
+
+## License
+
+GNU GPLv3 © 2025 DrWeltschmerz and contributors. See the LICENSE file for details.
 
 
