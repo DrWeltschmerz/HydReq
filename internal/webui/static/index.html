@@ -38,7 +38,9 @@
     .flex-col { display:flex; flex-direction:column; min-height:0; }
     .scroll { overflow:auto; min-height:0; }
     :root { --hdr-bg:#0b1020; --hdr-fg:#c6e2ff; --bd:#eee; --li-hov:#f5f7fb; --li-sel:#e6f2ff; --pill:#eef2ff; --pg-bg:#eee; --txt:#111; --bg:#fff; --btn-bg:#fff; --btn-bd:#ddd; --btn-hov:#f6f9ff; }
-    body.dark { --hdr-bg:#0b0e17; --hdr-fg:#d6e0ff; --bd:#222; --li-hov:#1a2230; --li-sel:#10213a; --pill:#1f2937; --pg-bg:#1f2937; --txt:#e5e7eb; --bg:#0b0e17; --btn-bg:#111827; --btn-bd:#374151; --btn-hov:#1f2937; }
+  body.dark { --hdr-bg:#0b0e17; --hdr-fg:#d6e0ff; --bd:#222; --li-hov:#1a2230; --li-sel:#10213a; --pill:#1f2937; --pg-bg:#1f2937; --txt:#e5e7eb; --bg:#0b0e17; --btn-bg:#111827; --btn-bd:#374151; --btn-hov:#1f2937; }
+  /* Hack theme: neon terminal vibe */
+  body.hack { --hdr-bg:#061108; --hdr-fg:#a6ffb0; --bd:#15331b; --li-hov:#0b1f10; --li-sel:#0f2a16; --pill:#092010; --pg-bg:#0f2a16; --txt:#c8ffd2; --bg:#050d07; --btn-bg:#0a1a0f; --btn-bd:#1a3b24; --btn-hov:#0e2315; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; background: var(--bg); color: var(--txt); }
     header { background: var(--hdr-bg); color: var(--hdr-fg); padding: 16px; font-weight: 700; display:flex; align-items:center; justify-content:space-between; }
     main { display: grid; grid-template-columns: 360px 1fr; height: calc(100vh - 64px); }
@@ -162,7 +164,14 @@
     <div class="row m-0">
   <label class="row m-0"><input id="onlyFailed" type="checkbox"/> Only failed</label>
   <label class="row m-0"><input id="autoScroll" type="checkbox"/> Auto-scroll</label>
-  <label class="row m-0"><input id="darkToggle" type="checkbox"/> Dark</label>
+  <label class="row m-0" title="Theme"><span style="margin-right:6px">Theme</span>
+    <select id="themeSelect">
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+      <option value="synthwave">Synthwave</option>
+      <option value="hack">Hack</option>
+    </select>
+  </label>
   <button id="cancel" class="btn btn-sm btn-error" title="Cancel current run (s)">Stop</button>
     </div>
   </header>
@@ -216,7 +225,7 @@
     const suiteText = document.getElementById('suiteText');
     const results = document.getElementById('results');
     const stages = document.getElementById('stages');
-  const darkToggle = document.getElementById('darkToggle');
+  const themeSelect = document.getElementById('themeSelect');
   const onlyFailed = document.getElementById('onlyFailed');
   const autoScroll = document.getElementById('autoScroll');
   const cancelBtn = document.getElementById('cancel');
@@ -369,6 +378,32 @@
         if (type === 'done'){ es.close(); currentRunId = null; }
       };
     }
+
+    // Theming system
+    function themeToDaisy(name){
+      switch(name){
+        case 'dark': return 'dark';
+        case 'synthwave': return 'synthwave';
+        case 'hack': return 'forest'; // closest built-in for DaisyUI components
+        default: return 'light';
+      }
+    }
+    function isDocDark(){ return document.body.classList.contains('dark') || document.body.classList.contains('hack'); }
+    function applyTheme(name){
+      const root = document.documentElement;
+      root.setAttribute('data-theme', themeToDaisy(name));
+      document.body.classList.toggle('dark', name === 'dark' || name === 'synthwave');
+      document.body.classList.toggle('hack', name === 'hack');
+      try { localStorage.setItem('hydreq.theme', name); } catch{}
+      // Sync CodeMirror theme
+      try { if (typeof syncEditorTheme === 'function') syncEditorTheme(); } catch{}
+    }
+    (function initTheme(){
+      let saved = 'dark';
+      try { saved = localStorage.getItem('hydreq.theme') || 'dark'; } catch{}
+      if (themeSelect) { themeSelect.value = saved; themeSelect.addEventListener('change', ()=> applyTheme(themeSelect.value)); }
+      applyTheme(saved);
+    })();
 
     document.getElementById('refresh').onclick = refresh;
     document.getElementById('run').onclick = run;
@@ -603,7 +638,7 @@
     let yamlEditor = null;
     function ensureYamlEditor(){
       if (yamlEditor) return yamlEditor;
-      yamlEditor = CodeMirror.fromTextArea(rawEl, { mode: 'yaml', lineNumbers: true, theme: (document.body.classList.contains('dark')?'material-darker':'default') });
+  yamlEditor = CodeMirror.fromTextArea(rawEl, { mode: 'yaml', lineNumbers: true, theme: (isDocDark()?'material-darker':'default') });
       // Resize to fit parent
       setTimeout(()=> yamlEditor.refresh(), 0);
       return yamlEditor;
@@ -1360,28 +1395,15 @@
       if (!dirty) { modal.remove(); refresh(); }
     };
     modal.querySelector('#ed_close').onclick = ()=> attemptClose();
-    // Keep theme of CodeMirror in sync with dark toggle
-    function syncEditorTheme(){ if (yamlEditor){ yamlEditor.setOption('theme', document.body.classList.contains('dark') ? 'material-darker' : 'default'); yamlEditor.refresh(); } }
-    const origDarkChange = darkToggle.onchange;
-    darkToggle.onchange = ()=>{ if (origDarkChange) origDarkChange(); syncEditorTheme(); };
+  // Keep theme of CodeMirror in sync with current theme
+  function syncEditorTheme(){ if (yamlEditor){ yamlEditor.setOption('theme', isDocDark() ? 'material-darker' : 'default'); yamlEditor.refresh(); } }
     // Show the YAML by default so the exact file content is visible first
     switchTab('yaml');
     // Show cached quick run for initial selection (if any)
     if (working.tests && working.tests.length) { try{ renderQuickRunForSelection(); }catch{} }
   }
   document.getElementById('clearLog').onclick = ()=>{ results.textContent=''; };
-  // init preferences from localStorage
-  // Default to dark unless explicitly turned off
-  const darkPref = localStorage.getItem('hydreq.dark');
-  const darkInit = (darkPref === null) || (darkPref === '1');
-  if (darkInit) { document.body.classList.add('dark'); darkToggle.checked = true; document.documentElement.setAttribute('data-theme','dark'); }
-  darkToggle.onchange = ()=>{
-    document.body.classList.toggle('dark', darkToggle.checked);
-    document.documentElement.setAttribute('data-theme', darkToggle.checked ? 'dark' : 'light');
-    localStorage.setItem('hydreq.dark', darkToggle.checked ? '1' : '0');
-    // Sync any active CodeMirror instance in editor modal
-    try{ const ed = document.getElementById('editorModal'); if (ed){ const ta = ed.querySelector('#ed_raw'); const cm = ta && ta.nextSibling && ta.nextSibling.CodeMirror? ta.nextSibling.CodeMirror:null; if (cm){ cm.setOption('theme', (document.body.classList.contains('dark')?'material-darker':'default')); } } }catch{}
-  };
+  // init theme from localStorage (handled in initTheme via applyTheme)
   const ofInit = localStorage.getItem('hydreq.onlyFailed') === '1';
   if (ofInit) { onlyFailed.checked = true; }
   onlyFailed.onchange = ()=>{ localStorage.setItem('hydreq.onlyFailed', onlyFailed.checked ? '1' : '0'); };
@@ -1398,7 +1420,7 @@
     if (e.key === 's') { cancelBtn.click(); e.preventDefault(); }
     if (e.key === 'c') { document.getElementById('clearLog').click(); e.preventDefault(); }
     if (e.key === 'f') { onlyFailed.checked = !onlyFailed.checked; onlyFailed.dispatchEvent(new Event('change')); e.preventDefault(); }
-    if (e.key === 'd') { darkToggle.checked = !darkToggle.checked; darkToggle.dispatchEvent(new Event('change')); e.preventDefault(); }
+  if (e.key === 'd') { const cur = (localStorage.getItem('hydreq.theme')||'dark'); const next = (cur==='dark')?'light':'dark'; if (themeSelect){ themeSelect.value = next; } applyTheme(next); e.preventDefault(); }
   });
   refresh();
   </script>
