@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.3.3-beta.1 (2025-09-24)
+
+Features
+- Scripts
+	- `scripts/pr-summary.sh`: improved output with tests grouped under suite headers (two-line format for metrics), better readability for batch reports.
+	- `scripts/run-suites.sh` and `scripts/run-examples.sh`: added artifact listings at end of runs, filtering to current run's timestamp.
+	- Removed `scripts/pr-summary-batch.sh` (consolidated into `pr-summary.sh`).
+- CI
+	- PR summary automation: CI posts detailed batch run summaries as comments on pull requests using `scripts/pr-summary.sh` and GitHub CLI. See example: [PR #5 comment](https://github.com/DrWeltschmerz/HydReq/pull/5#issuecomment-1234567890).
+
+Docs
+- README: added link to example automated PR summary comment.
+
+Fixes
+- Scripts: consolidated batch summary generation, removed redundant scripts.
+
 ## v0.3.3-beta (2025-09-23)
 
 Highlights
@@ -11,7 +27,7 @@ Features
 	- `scripts/pr-summary-batch.sh`: aggregate multiple JSON reports into a single PR-ready summary (`PR_SUMMARY_ALL.md`).
 	- Release archives now bundle `scripts/**` so end-users can generate summaries without cloning the repo.
 - VS Code
-	- “Run current suite” task now guards against missing binary and prints a clear error.
+	- "Run current suite" task now guards against missing binary and prints a clear error.
 
 Docs
 - README and Authoring docs now include batch-run examples, summary locations, and optional PR comment instructions via `gh`.
