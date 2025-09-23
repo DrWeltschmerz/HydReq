@@ -192,5 +192,24 @@
       "      status: 200"
     ],
     "description": "HydReq suite skeleton with auth and OpenAPI"
+  },
+  "HydReq: Tags": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-tags",
+    "body": [
+      "tags: [${1:smoke}, ${2:slow}]"
+    ],
+    "description": "HydReq test tags for filtering"
+  },
+  "HydReq: Assert jsonContains": {
+    "scope": "yaml,yml",
+    "prefix": "hydreq-assert-jsoncontains",
+    "body": [
+      "assert:",
+      "  status: ${1:200}",
+      "  jsonContains:",
+      "    ${2:key}: ${3:value}"
+    ],
+    "description": "HydReq assertion with jsonContains"
   }
 }
