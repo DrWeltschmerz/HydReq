@@ -7,6 +7,27 @@ import (
 	"time"
 )
 
+// Common template helpers reused by both HTML report generators.
+var (
+  tmplToJSON = func(v any) template.JS {
+    b, err := json.Marshal(v)
+    if err != nil {
+      return template.JS("null")
+    }
+    return template.JS(string(b))
+  }
+  tmplDurationSeconds = func(ms int64) float64 { return float64(ms) / 1000.0 }
+  tmplNowRFC3339      = func() string { return time.Now().Format(time.RFC3339) }
+)
+
+func funcMapCommon() template.FuncMap {
+  return template.FuncMap{
+    "durationSeconds": tmplDurationSeconds,
+    "nowRFC3339":      tmplNowRFC3339,
+    "toJSON":          tmplToJSON,
+  }
+}
+
 // WriteHTMLDetailed renders a standalone HTML report with inline CSS
 // showing the suite summary and per-test results.
 func WriteHTMLDetailed(path string, rep DetailedReport) error {
@@ -145,18 +166,7 @@ func WriteHTMLDetailed(path string, rep DetailedReport) error {
 </body>
 </html>`
 
-	funcMap := template.FuncMap{
-		"durationSeconds": func(ms int64) float64 { return float64(ms) / 1000.0 },
-		"nowRFC3339":      func() string { return time.Now().Format(time.RFC3339) },
-    "toJSON": func(v any) template.JS {
-      b, err := json.Marshal(v)
-      if err != nil {
-        return template.JS("null")
-      }
-      return template.JS(string(b))
-    },
-	}
-	t := template.Must(template.New("report").Funcs(funcMap).Parse(tpl))
+  t := template.Must(template.New("report").Funcs(funcMapCommon()).Parse(tpl))
 	f, err := os.Create(path)
 	if err != nil {
 		return err
@@ -314,11 +324,7 @@ func WriteHTMLBatch(path string, br BatchReport) error {
   </div>
 </body>
 </html>`
-  t := template.Must(template.New("batch").Funcs(template.FuncMap{
-    "nowRFC3339":      func() string { return time.Now().Format(time.RFC3339) },
-    "toJSON":          func(v any) template.JS { b, err := json.Marshal(v); if err != nil { return template.JS("null") }; return template.JS(string(b)) },
-    "durationSeconds": func(ms int64) float64 { return float64(ms) / 1000.0 },
-  }).Parse(tpl))
+  t := template.Must(template.New("batch").Funcs(funcMapCommon()).Parse(tpl))
 	f, err := os.Create(path)
 	if err != nil {
 		return err

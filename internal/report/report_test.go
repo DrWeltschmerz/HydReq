@@ -63,13 +63,11 @@ func TestWriteHTMLDetailed(t *testing.T) {
 	b, _ := os.ReadFile(f.Name())
 	s := string(b)
 	if !strings.Contains(s, "HydReq Report") || !strings.Contains(s, "table table-zebra") {
-		t.Fatalf("html output missing expected content: %s", s[:min(200, len(s))])
+		// Cap preview length safely without relying on custom min helpers.
+		if len(s) > 200 {
+			s = s[:200]
+		}
+		t.Fatalf("html output missing expected content: %s", s)
 	}
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

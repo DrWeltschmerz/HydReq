@@ -54,6 +54,15 @@
 				"$go - gcc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "run tests (dedupe helpers)",
+			"type": "shell",
+			"command": "go test -race ./...",
+			"problemMatcher": [
+				"$go - gcc"
+			],
+			"group": "build"
 		}
 	]
 }
