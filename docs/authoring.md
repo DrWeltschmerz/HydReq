@@ -62,6 +62,9 @@ Tip: Run the validator before committing or wire it into pre‑commit hooks.
 - Compare two report JSONs:
   - `scripts/compare-reports.sh old.json new.json`
 
+### CI integration
+This project's CI automatically posts PR summaries, but you can set up similar automation in your own repo using the bundled scripts. Add a GitHub Actions job that runs batch tests, generates a summary with `scripts/pr-summary.sh`, and posts it via `gh pr comment`. See this project's `.github/workflows/ci.yml` for an example.
+
 ## Tips
 - Indentation matters for `request.body`. Ensure nested fields are under `body:`.
 - Use `stage` for coarse ordering; `dependsOn` for precise DAGs.

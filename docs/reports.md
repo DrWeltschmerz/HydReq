@@ -50,3 +50,8 @@ This keeps console output, per-suite reports, and batch reports consistent.
 - For a one‑liner that produces all artifacts, prefer `--report-dir`.
 - Use `--workers` to speed up runs; the donut chart and stats reflect the final summary.
 - Screenshots: capture the top section (stats + donut) and a few table rows; if helpful, switch to Dark/Light for contrast.
+
+## PR summaries
+Use the bundled scripts to generate Markdown summaries from JSON reports for sharing in PRs or issues:
+- `scripts/pr-summary.sh <report.json>` — formats a single or batch report as grouped, readable Markdown.
+- For CI automation, integrate these scripts to post summaries automatically (see `docs/authoring.md` for setup tips).
