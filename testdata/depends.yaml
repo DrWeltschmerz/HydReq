@@ -14,7 +14,7 @@ tests:
     assert:
       status: 200
       jsonEquals:
-      json.id: "${seedId}"
+        json.id: "${seedId}"
     extract:
       prevId:
         jsonPath: json.id
