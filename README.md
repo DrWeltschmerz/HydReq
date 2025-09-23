@@ -3,39 +3,38 @@
 > 🚀 **API Testing Simplified**  
 > Write YAML tests, run in CLI/Web UI, generate reports. Supports matrices, hooks, OpenAPI, and CI automation.
 
-<table width="100%" border="0" cellpadding="0" cellspacing="0">
+<table width="100%" border="0" cellpadding="6" cellspacing="0">
   <tr>
-    <td valign="middle">
+    <td width="33%" valign="middle" align="left">
       <a href="https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml"><img src="https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml/badge.svg" alt="CI" height="20"></a>
       <a href="https://github.com/DrWeltschmerz/HydReq/releases"><img src="https://img.shields.io/github/v/release/DrWeltschmerz/HydReq?include_prereleases&sort=semver&style=flat-square" alt="Release" height="20"></a>
-      <a href="https://github.com/DrWeltschmerz/HydReq/releases"><img src="https://img.shields.io/github/downloads/DrWeltschmerz/HydReq/total.svg?style=flat-square" alt="Downloads" height="20"></a>
-      <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License" height="20"></a>
+    </td>
+    <td width="34%" valign="middle" align="center">
       <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/DrWeltschmerz/HydReq?style=flat-square" alt="Go Version" height="20"></a>
-      <a href="https://github.com/DrWeltschmerz/HydReq/issues"><img src="https://img.shields.io/github/issues/DrWeltschmerz/HydReq.svg?style=flat-square" alt="Issues" height="20"></a>
-      <a href="https://github.com/DrWeltschmerz/HydReq/stargazers"><img src="https://img.shields.io/github/stars/DrWeltschmerz/HydReq?style=social" alt="Stars" height="20"></a>
+      <a href="https://pkg.go.dev/github.com/DrWeltschmerz/HydReq"><img src="https://pkg.go.dev/badge/github.com/DrWeltschmerz/HydReq.svg" alt="Go Reference" height="20"></a>
+      <a href="https://goreportcard.com/report/github.com/DrWeltschmerz/HydReq"><img src="https://goreportcard.com/badge/github.com/DrWeltschmerz/HydReq" alt="Go Report Card" height="20"></a>
+    </td>
+    <td width="33%" valign="middle" align="right">
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License" height="20"></a>
+    <a href="https://github.com/DrWeltschmerz/HydReq/stargazers"><img src="https://img.shields.io/github/stars/DrWeltschmerz/HydReq?style=social" alt="Stars" height="20"></a>
     </td>
   </tr>
   <tr>
-    <td>
-      <p align="center">
-        <a href="docs/README.md">📖 Full Docs</a> &nbsp;|&nbsp;
-        <a href="docs/getting-started.md">🚀 Quick Start</a> &nbsp;|&nbsp;
-        <a href="docs/examples.md">🧪 Examples</a> &nbsp;|&nbsp;
-        <a href="#copilot-and-editor-support">🤖 Copilot Setup</a>
-      </p>
+    <td valign="top" align="left" width="25%">
+      <img src="logo_notext.svg" alt="HydReq Logo" width="160">
     </td>
-  </tr>
-</table>
-
-<table width="100%" border="0" cellpadding="0" cellspacing="0">
-  <tr>
-    <td width="200" valign="top">
-      <img src="logo_notext.svg" alt="HydReq Logo" width="180">
-    </td>
-    <td valign="top">
+    <td valign="top" align="center" width="50%">
       <p><strong>Lightweight API test runner with a clean Web UI and CLI.</strong></p>
       <p>Author tests in YAML, run them locally or in CI across Windows, macOS, and Linux. Now with a validator CLI, run-level reports, batch summaries, and a live two‑way Web UI editor.</p>
       <p><em>Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.</em></p>
+    </td>
+    <td valign="top" align="right" width="25%">
+      <p style="text-align:right; margin:0;">
+        <a href="docs/README.md">📖 Full Docs</a><br>
+        <a href="docs/getting-started.md">🚀 Quick Start</a><br>
+        <a href="docs/examples.md">🧪 Examples</a><br>
+        <a href="#copilot-and-editor-support">🤖 Copilot Setup</a>
+      </p>
     </td>
   </tr>
 </table>
@@ -223,71 +222,6 @@ Embed dynamic data anywhere interpolation works:
 | 🔁 Retries | With backoff, jitter, and configurable limits |
 | 🔐 Auth Helpers | Bearer/Basic via environment variables |
 | 📊 Matrix Expansion | Data-driven test combinations |
-| 🪝 Hooks | Pre/post suite/test steps (HTTP + SQL + assertions) |
-| 📋 Reports | JSON, JUnit, HTML with summaries and details |
-
-### 🔌 Adapters (import)
-- Postman (v2.1 JSON)
-- Insomnia (export JSON)
-- HAR (HTTP Archive)
-- OpenAPI (3.x)
-- Bruno (minimal export)
-
-CLI examples:
-
-```
-hydreq import postman path/to/collection.json > suite.yaml
-hydreq import insomnia path/to/export.json > suite.yaml
-hydreq import har path/to/archive.har > suite.yaml
-hydreq import openapi path/to/spec.(yaml|json) > suite.yaml
-hydreq import bruno path/to/export.json > suite.yaml
-```
-
-### 📊 Reports
-- JSON, JUnit, and HTML detailed reports include per-test entries and suite summaries. HTML reports are theme-aware (same palette as the Web UI) and include donut charts, filters, and sticky headers.
-- Using `--report-dir` generates timestamped per-suite artifacts and run-level (batch) artifacts: `run-<timestamp>.{json,xml,html}`.
-
-### 🚀 Batch run and summaries
-- Run multiple suites and generate summaries in one go (works from a release archive):
-
-```
-./scripts/run-suites.sh                 # defaults to testdata/*.yaml
-# or provide your own globs
-./scripts/run-suites.sh suites/*.yaml other/*.yaml
-```
-
-Outputs
-- Per-suite: `reports/<suite>.{json,xml}`
-- Batch Markdown: `reports/PR_SUMMARY_ALL.md` (aggregated totals + failed tests)
-- Latest suite Markdown: `reports/PR_SUMMARY.md` (plus suggested assertions)
-
-Optional PR comment
-- CI automatically posts detailed batch run summaries as comments on pull requests (no setup required).
-- For manual posting from local runs, set `GH_PR_REF=<pr-number-or-url>` and install GitHub CLI (`gh`).
-- See an example automated summary comment: [GitHub PR Comment](https://github.com/DrWeltschmerz/HydReq/pull/6#issuecomment-3325685621)
-
-### 👀 Example suites (at a glance)
-- `testdata/example.yaml` — smoke and extraction
-- `testdata/matrix.yaml` — matrix expansion
-- `testdata/depends.yaml` — DAG scheduling
-- `testdata/hooks.yaml` — HTTP hooks
-- `testdata/sqlite.yaml` — SQL hooks
-- `testdata/openapi.yaml` — OpenAPI validation
-- `testdata/tags.yaml` — tags and slow example
-- `testdata/retries.yaml` — retries with jitter
-- `testdata/jsoncontains.yaml` — JSONContains
-- `testdata/postgres.yaml` / `sqlserver.yaml` — DB examples (env DSNs)
-
----
-
-## 🤝 Contributing & development
-
-See `docs/contributing.md` for setup, local development, project layout, and roadmap.
-
----
-
-## 📄 License
-
-GNU GPLv3 © 2025 DrWeltschmerz and contributors. See the LICENSE file for details.
+| 🪝 Hooks | Pre/post suite/test
 
 
