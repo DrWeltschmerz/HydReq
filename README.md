@@ -1,58 +1,15 @@
-# HydReq (Hydra Request)
+# 🐙 HydReq (Hydra Request)
 
-[![CI](https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml/badge.svg)](https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/DrWeltschmerz/HydReq?include_prereleases&sort=semver)](https://github.com/DrWeltschmerz/HydReq/releases)
-[![Downloads](https://img.shields.io/github/downloads/DrWeltschmerz/HydReq/total.svg)](https://github.com/DrWeltschmerz/HydReq/releases)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Go Reference](https://pkg.go.dev/badge/github.com/DrWeltschmerz/HydReq.svg)](https://pkg.go.dev/github.com/DrWeltschmerz/HydReq)
-[![Go Report Card](https://goreportcard.com/badge/github.com/DrWeltschmerz/HydReq)](https://goreportcard.com/report/github.com/DrWeltschmerz/HydReq)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/DrWeltschmerz/HydReq)](go.mod)
-[![Issues](https://img.shields.io/github/issues/DrWeltschmerz/HydReq.svg)](https://github.com/DrWeltschmerz/HydReq/issues)
-[![Stars](https://img.shields.io/github/stars/DrWeltschmerz/HydReq?style=social)](https://github.com/DrWeltschmerz/HydReq/stargazers)
+> 🚀 **API Testing Simplified**  
+> Write YAML tests, run in CLI/Web UI, generate reports. Supports matrices, hooks, OpenAPI, and CI automation.
 
-```
-                           *%%%%%%%%%%%%%%%@:                                   
-                       @%%%%%%%%%%%%%%%%%%%%%%%%*                               
-                    @%%%%%%%                @%%%%%%#                            
-                  %%%%%@      *@%%%%%%*         %%%%%@                          
-                %%%%%     @%%%%%%%@%@%%%%         +%%%%@                        
-              +%%%%    %%%%%%%%%%%%  %%%%%%%%%      +%%%%                       
-             @%%%%   #%%%%%%%%%%%%%%%%%%%%%%%%%       @%%%#                     
-            @%%%    %%%%%%%@   %%%%%%       %%=        *%%%%                    
-           @%%%    %%%%%%      @%%%%%%%@                :%%%#                   
-          :%%%-   %%%%%%           +#*+:        %        *%%%                   
-          %%%@   %%%%%#                   %%%%%%%%%%%@    %%%%                  
-         .%%%    %%%%@                  %%%%%%%%   @%%%@   %%%                  
-         @%%%    %%%%=     #%%%%%%%%%:  @%@%%%%%%%%%%%%%%  %%%%                 
-         @%%@    %%%%    @%%%%%%%%%%%@         %%%%%%%%%%  @%%%                 
-         @%%@    %%%%=  %%%%%%%%@           %%%%%%%%%%%%%  @%%%                 
-         @%%%    %%%%% @%%%%%%%%%%%%           %@@%%%%%%%  @%%%                 
-         *%%%     %%%%%%%%%%                       %%%%%%  %%%#                 
-          %%%+    :%%%%%%%%%                       %%%%%+ #%%%                  
-          %%%%      %%%%%%%%@                     %%%%%@  %%%%                  
-           %%%%      @%%%%%%%@                   %%%%%@  %%%%                   
-            %%%@       %%%%%%%%@               @%%%%%+  @%%%                    
-             %%%%        @%%%%%%%%@+       *%%%%%%%@   %%%%                     
-              %%%%+     @   @%%%%%%%%%%%%%%%%%%%%=   +%%%%                      
-               %%%%%      %@    =@%%%%%%%%%%@*     .%%%%@                       
-                 %%%%%*     +%%%@                #%%%%%                         
-                   @%%%%%#       :*@%@%-      #%%%%%@                           
-                      %%%%%%%@*          *@%%%%%%%-                             
-                         %%%%%%%%%%%%%%%%%%%%%@                                  
-                              :%@%%%%%%@%:                                       
-                                                                                
-                                                                                
-     +%@     :%%                   %%*  @@@@@@%                                  
-     =%%     :%%                   %%*  %%%##@%%%                                
-     =%%     :%%  %%%   -%%  +%%%%@%%#  %%#    %%:  @%%%%@    %%%%%%%%.         
-     =%%%%%%%%%%   %%   %%- @%%   .%%*  %%%--%%%%  %%.   %%  %%%   #%%.         
-     =%%     .%%   =%% @%@  %%.    %%*  %%%%%%%   -%%%%%%%%- %%     %%.         
-     =%%      %%    %%@%%   %%@    %%*  %%#  %%%   %%        %%@    %%.         
-     =%%      %%     @%%     @%%%%%%%*  %%#   #%%   %%%%%%@   %%%%%%%%.         
-                     %%%                                            %%.         
-                   %%%%                                             %%.         
-                                                                                
-```
+| CI | Release | Downloads | License | Go Version | Issues | Stars |
+|----|---------|-----------|---------|------------|--------|-------|
+| [![CI](https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml/badge.svg)](https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml) | [![Release](https://img.shields.io/github/v/release/DrWeltschmerz/HydReq?include_prereleases&sort=semver)](https://github.com/DrWeltschmerz/HydReq/releases) | [![Downloads](https://img.shields.io/github/downloads/DrWeltschmerz/HydReq/total.svg)](https://github.com/DrWeltschmerz/HydReq/releases) | [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE) | [![Go Version](https://img.shields.io/github/go-mod/go-version/DrWeltschmerz/HydReq)](go.mod) | [![Issues](https://img.shields.io/github/issues/DrWeltschmerz/HydReq.svg)](https://github.com/DrWeltschmerz/HydReq/issues) | [![Stars](https://img.shields.io/github/stars/DrWeltschmerz/HydReq?style=social)](https://github.com/DrWeltschmerz/HydReq/stargazers) |
+
+[📖 Full Docs](docs/README.md) | [🚀 Quick Start](docs/getting-started.md) | [🧪 Examples](docs/examples.md) | [🤖 Copilot Setup](#copilot-and-editor-support)
+
+<img src="logo_notext.png" alt="HydReq Logo" width="400">
 
 Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, run them locally or in CI across Windows, macOS, and Linux. Now with a validator CLI, run-level reports, batch summaries, and a live two‑way Web UI editor.
 
@@ -117,7 +74,7 @@ Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.
   --report-junit report.xml
 ```
 
-### Install
+### 📦 Install
 
 - Prebuilt binaries (recommended): download from Releases. Archives include examples (`testdata/`), JSON schema, VS Code mappings, and Copilot prompts.
 - From source:
@@ -174,7 +131,7 @@ Exit codes
 - `1`: tests failed
 - `2`: suite load error
 
-### Copilot and editor support
+### 🤖 Copilot and editor support
 
 HydReq ships with a JSON Schema and Copilot prompts so you get completions, validation, and smarter AI assistance while writing suites.
 
@@ -219,7 +176,7 @@ VS Code helpers
 - Task: “hydreq: Run current suite” (Terminal → Run Task) runs the active YAML with the built `hydreq`.
 - Scripts: `scripts/pr-summary.sh` (PR markdown from a JSON report), `scripts/suggest-assertions.sh` (checklist of suggested assertions from last report).
 
-### Data generators
+### 🎲 Data Generators
 
 Embed dynamic data anywhere interpolation works:
 - `${FAKE:uuid}` — random UUID v4
@@ -228,21 +185,23 @@ Embed dynamic data anywhere interpolation works:
 - `${NOW+/-offset:<layout>}` — time offset by s/m/h/d/w (e.g., `${NOW+1d:2006-01-02}`)
 - `${RANDINT:min:max}` — random integer in `[min, max]`
 
-### Features
-- YAML test suite with variables and environment overrides (${ENV:VAR})
-- HTTP requests (method, URL, headers, query, body)
-- Assertions: status, headers, JSON path equals/contains, body contains, response time
-- Extract variables from responses (JSONPath) and reuse later
-- Colorful CLI with per-stage concurrency and worker pool
-- Tags filter (run subset with --tags)
-- Retries with optional backoff + jitter
-- Auth helpers (Bearer/Basic via env)
-- Data-driven matrix expansion
-- Hooks: preSuite/postSuite and per-test pre/post steps (HTTP + assertions + extract)
-- Summary with pass/fail and non-zero exit on failures
-- JSON and JUnit report outputs (summary and detailed per-test)
+### ✨ Features
 
-### Adapters (import)
+| Feature | Description |
+|---------|-------------|
+| 🧪 YAML Suites | Variables, environment overrides, matrices |
+| 🌐 HTTP Requests | Methods, headers, query, body with full control |
+| ✅ Assertions | Status, headers, JSON paths, body contains, response time |
+| 🔄 Extractions | Pull variables from responses (JSONPath) for reuse |
+| 🎨 Colorful CLI | Per-stage concurrency, worker pools, progress |
+| 🏷️ Tags & Filtering | Run subsets with `--tags` |
+| 🔁 Retries | With backoff, jitter, and configurable limits |
+| 🔐 Auth Helpers | Bearer/Basic via environment variables |
+| 📊 Matrix Expansion | Data-driven test combinations |
+| 🪝 Hooks | Pre/post suite/test steps (HTTP + SQL + assertions) |
+| 📋 Reports | JSON, JUnit, HTML with summaries and details |
+
+### 🔌 Adapters (import)
 - Postman (v2.1 JSON)
 - Insomnia (export JSON)
 - HAR (HTTP Archive)
@@ -259,11 +218,11 @@ hydreq import openapi path/to/spec.(yaml|json) > suite.yaml
 hydreq import bruno path/to/export.json > suite.yaml
 ```
 
-### Reports
+### 📊 Reports
 - JSON, JUnit, and HTML detailed reports include per-test entries and suite summaries. HTML reports are theme-aware (same palette as the Web UI) and include donut charts, filters, and sticky headers.
 - Using `--report-dir` generates timestamped per-suite artifacts and run-level (batch) artifacts: `run-<timestamp>.{json,xml,html}`.
 
-### Batch run and summaries
+### 🚀 Batch run and summaries
 - Run multiple suites and generate summaries in one go (works from a release archive):
 
 ```
@@ -282,7 +241,7 @@ Optional PR comment
 - For manual posting from local runs, set `GH_PR_REF=<pr-number-or-url>` and install GitHub CLI (`gh`).
 - See an example automated summary comment: [GitHub PR Comment](https://github.com/DrWeltschmerz/HydReq/pull/6#issuecomment-3325685621)
 
-### Example suites (at a glance)
+### 👀 Example suites (at a glance)
 - `testdata/example.yaml` — smoke and extraction
 - `testdata/matrix.yaml` — matrix expansion
 - `testdata/depends.yaml` — DAG scheduling
@@ -296,13 +255,13 @@ Optional PR comment
 
 ---
 
-## Contributing & development
+## 🤝 Contributing & development
 
 See `docs/contributing.md` for setup, local development, project layout, and roadmap.
 
 ---
 
-## License
+## 📄 License
 
 GNU GPLv3 © 2025 DrWeltschmerz and contributors. See the LICENSE file for details.
 
