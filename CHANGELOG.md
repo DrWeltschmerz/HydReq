@@ -1,7 +1,6 @@
 # Changelog
 
-## v0.3.1-beta (2025-09-23)
-
+## v0.3.2-beta (2025-09-23)
 Highlights
 - Validator parity: Web UI validation now uses the same JSON Schema as the CLI, so errors match across UI/CLI/CI.
 - New validator CLI and CI checks for example suites.
@@ -36,6 +35,10 @@ Changes
 	- Added a PR template to standardize change summaries, screenshots, tests, and breaking changes.
 - Examples
 	- Example suites now rely on `HTTPBIN_BASE_URL` provided via environment (local or CI); no fallback to the public httpbin.
+
+## v0.3.1-beta (2025-09-23)
+Notes
+- Tag alignment release. Points to the same commit as v0.3.0-beta (commit 615b63f). No code changes since v0.3.0-beta.
 
 ## v0.3.0-beta (2025-09-23)
 
