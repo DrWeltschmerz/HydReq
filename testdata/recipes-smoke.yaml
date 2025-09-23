@@ -1,7 +1,6 @@
 name: recipes - smoke tags
 baseUrl: ${ENV:HTTPBIN_BASE_URL}
-vars:
-  HTTPBIN_BASE_URL: https://httpbin.org
+vars: {}
 tests:
   - name: GET 200 smoke
     tags: [smoke]

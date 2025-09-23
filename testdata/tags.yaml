@@ -1,9 +1,6 @@
 name: tags demo
 baseUrl: ${ENV:HTTPBIN_BASE_URL}
 
-vars:
-  HTTPBIN_BASE_URL: https://httpbin.org
-
 tests:
   - name: smoke headers
     tags: [smoke, headers]

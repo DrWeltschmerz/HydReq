@@ -126,20 +126,30 @@ Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.
 ### Using the Web UI
 
 - Start: run `hydreq` with no arguments (opens the local GUI).
-- Controls: Only failed, Auto-scroll, Dark mode, Stop. Keyboard shortcuts: r=run, s=stop, c=clear, f=only failed, d=dark.
+- Controls: Only failed, Auto-scroll, Theme selector (light/dark and more), Stop. Keyboard shortcuts: r=run, s=stop, c=clear, f=only failed, d=dark.
 - Each test shows a blue “starting” line, then flips to ✓/✗/– when done. Failures include expandable details.
 - A summary appears for every suite and a final batch summary aggregates pass/fail/skip.
 - Editor: Click “Edit” next to a suite for a Visual + YAML editor with validation, Quick Run (with deps), hook editing (HTTP/SQL), and Save vs Save & Close.
-  - Tip: For CI artifacts (JSON/JUnit), prefer the CLI flags `--report-json` / `--report-junit`.
+  - Tip: For CI artifacts (JSON/JUnit/HTML), prefer the CLI flags `--report-json` / `--report-junit` / `--report-html`.
   - Extras: YAML tab mirrors the Visual state live (read‑only); dark theme by default; density toggle (compact/comfortable); resizable preview pane; SQL DSN helper templates and show/hide for DSNs.
 
 ### Using the CLI
 
-- Run a suite: `./hydreq run -f testdata/example.yaml --workers 4 -v`
+- Run all suites: `./hydreq run --workers 4 -v` (when `-f` is omitted, HydReq discovers and runs all suites under `testdata/`).
+- Run a single suite: `./hydreq run -f testdata/example.yaml --workers 4 -v`
 - Reports: add `--report-json report.json`, `--report-junit report.xml`, and/or `--report-html report.html` for detailed outputs.
 
+Auto-generate reports (no per-report flags)
+- Generate JSON, JUnit, and HTML with default names for all suites:
+  - `./hydreq run --report-dir reports`
+- Or for one suite:
+  - `./hydreq run -f testdata/example.yaml --report-dir reports`
+Naming:
+- Per-suite: `<suite>-<timestamp>.{json,xml,html}`
+- Run-level (batch): `run-<timestamp>.{json,xml,html}`
+
 CLI flags
-- `--file` (or `-f`): path to YAML suite (default: `testdata/example.yaml`)
+- `--file` (or `-f`): path to YAML suite (optional; when omitted, all suites in `testdata/` are run)
 - `--workers`: concurrent workers per stage (default 4)
 - `--tags`: comma-separated tag filter (any-of)
 - `--default-timeout-ms`: default per-request timeout when `test.timeoutMs` is not set (default 30000)
@@ -233,7 +243,7 @@ hydreq import bruno path/to/export.json > suite.yaml
 ```
 
 ### Reports
-- JSON, JUnit, and HTML detailed reports include per-test entries and suite summaries.
+- JSON, JUnit, and HTML detailed reports include per-test entries and suite summaries. HTML reports are theme-aware (same palette as the Web UI) and include donut charts, filters, and sticky headers.
 - Using `--report-dir` generates timestamped per-suite artifacts and run-level (batch) artifacts: `run-<timestamp>.{json,xml,html}`.
 
 ### Example suites (at a glance)
@@ -254,7 +264,7 @@ hydreq import bruno path/to/export.json > suite.yaml
 
 ### Local services
 - Use docker-compose to bring up httpbin, Postgres, and SQL Server: `docker-compose up -d`
-- Most example suites accept `HTTPBIN_BASE_URL`. If you don’t set it, they default to the public httpbin.
+- Most example suites require `HTTPBIN_BASE_URL` to be set. Our helper scripts export it for you (defaulting to your local docker httpbin).
 
 ### Run everything locally (one command)
 

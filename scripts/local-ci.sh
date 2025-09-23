@@ -68,8 +68,9 @@ elif [[ ${#COMPOSE[@]} -gt 0 ]]; then
 		services_started=1
 	echo "Waiting for httpbin..."
 		HTTPBIN_URL="http://localhost:8080"
+		# In host-network mode, httpbin listens on port 80
 		if [[ "${HOST_NETWORK:-0}" == "1" ]]; then
-			HTTPBIN_URL="http://localhost:8080"
+			HTTPBIN_URL="http://localhost"
 		fi
 	for i in {1..30}; do
 		curl -sSf "${HTTPBIN_URL}/ip" >/dev/null && break || sleep 2
@@ -77,7 +78,11 @@ elif [[ ${#COMPOSE[@]} -gt 0 ]]; then
 	export HTTPBIN_BASE_URL="$HTTPBIN_URL"
 	echo "Waiting for Postgres..."
 	for i in {1..30}; do
-		docker exec $(docker ps -qf name=postgres) pg_isready -U postgres && break || sleep 2
+		if [[ "${HOST_NETWORK:-0}" == "1" && $(command -v pg_isready) ]]; then
+			pg_isready -U postgres -h localhost && break || sleep 2
+		else
+			docker exec $(docker ps -qf name=postgres) pg_isready -U postgres && break || sleep 2
+		fi
 	done
 	export PG_DSN="postgres://postgres:password@localhost:5432/qa?sslmode=disable"
 	echo "Waiting for MSSQL port..."

@@ -1,12 +1,23 @@
 # CLI
 
-Run a suite:
+Run all suites (default):
+```
+./hydreq run --workers 4 -v
+```
+
+Run a specific suite:
 ```
 ./hydreq run -f testdata/example.yaml --workers 4 -v
 ```
 
+Generate all report types with default names:
+```
+./hydreq run --report-dir reports
+```
+Per-suite: `<suite>-<timestamp>.{json,xml,html}`; batch: `run-<timestamp>.{json,xml,html}`.
+
 Flags:
-- `--file` (or `-f`): path to YAML suite (default: `testdata/example.yaml`)
+- `--file` (or `-f`): path to YAML suite (optional; when omitted, all suites under `testdata/` are run)
 - `--workers`: concurrent workers per stage (default 4)
 - `--tags`: comma-separated tag filter (any-of)
 - `--default-timeout-ms`: default per-request timeout when `test.timeoutMs` is not set (default 30000)

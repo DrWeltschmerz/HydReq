@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -45,98 +46,141 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SilenceUsage = true
 			// Keep CLI output minimal and focused
-			s, err := runner.LoadSuite(file)
-			if err != nil {
-				return fmt.Errorf("load suite: %w", err)
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-			defer cancel()
+			// Unified run timestamp for all artifacts in this invocation
+			runTS := time.Now().Format("20060102-150405")
 			var tagList []string
 			if tags != "" {
 				tagList = strings.Split(tags, ",")
 			}
-			// capture per-test results via callback
-			cases := make([]report.TestCase, 0, 64)
-			sum, err := runner.RunSuite(ctx, s, runner.Options{Verbose: verbose, Tags: tagList, Workers: workers, DefaultTimeoutMs: defaultTimeoutMs, OnResult: func(tr runner.TestResult) {
-				cases = append(cases, report.TestCase{Name: tr.Name, Stage: tr.Stage, Tags: tr.Tags, Status: tr.Status, DurationMs: tr.DurationMs, Messages: tr.Messages})
-			}})
-			// Console output format
-			if output == "json" {
+			// Helper to run a single suite path
+			runOne := func(suitePath string, br *report.BatchReport) (sumFailed int, runErr error) {
+				s, err := runner.LoadSuite(suitePath)
+				if err != nil {
+					return 0, fmt.Errorf("load suite %s: %w", suitePath, err)
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+				defer cancel()
+				cases := make([]report.TestCase, 0, 64)
+				// Print header above tests in human mode
+				if output != "json" {
+					ui.SuiteHeader(s.Name)
+				}
+				sum, err := runner.RunSuite(ctx, s, runner.Options{Verbose: verbose, Tags: tagList, Workers: workers, DefaultTimeoutMs: defaultTimeoutMs, OnResult: func(tr runner.TestResult) {
+					cases = append(cases, report.TestCase{Name: tr.Name, Stage: tr.Stage, Tags: tr.Tags, Status: tr.Status, DurationMs: tr.DurationMs, Messages: tr.Messages})
+				}})
 				rs := report.FromRunner(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
-				rep := report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases}
-				enc := json.NewEncoder(os.Stdout)
-				enc.SetIndent("", "  ")
-				_ = enc.Encode(rep)
-			} else {
-				ui.Summary(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
-			}
-			rs := report.FromRunner(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
-			br := report.BatchReport{RunAt: time.Now(), Summary: rs, Suites: []report.DetailedReport{{Suite: s.Name, Summary: rs, TestCases: cases}}}
-			// If reportDir is set and no explicit report files provided, generate both with timestamped names
-			// If reportDir is set and no explicit report files provided, generate all with timestamped names
-			if reportDir != "" && jsonReport == "" && junitReport == "" && htmlReport == "" {
-				ts := time.Now().Format("20060102-150405")
-				base := sanitizeFilename(s.Name)
-				jsonReport = fmt.Sprintf("%s/%s-%s.json", reportDir, base, ts)
-				junitReport = fmt.Sprintf("%s/%s-%s.xml", reportDir, base, ts)
-				// ensure directory exists
-				if mkerr := os.MkdirAll(reportDir, 0o755); mkerr != nil {
-					fmt.Fprintf(os.Stderr, "report dir error: %v\n", mkerr)
-				}
-				htmlReport = fmt.Sprintf("%s/%s-%s.html", reportDir, base, ts)
-			}
-			if jsonReport != "" {
-				if len(cases) > 0 {
-					_ = report.WriteJSONDetailed(jsonReport, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
+				if output == "json" {
+					enc := json.NewEncoder(os.Stdout)
+					enc.SetIndent("", "  ")
+					_ = enc.Encode(report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
 				} else {
-					if werr := report.WriteJSONSummary(jsonReport, rs); werr != nil {
-						fmt.Fprintf(os.Stderr, "report json error: %v\n", werr)
+					ui.Summary(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
+				}
+				// Collect into batch
+				if br != nil {
+					br.Suites = append(br.Suites, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
+					br.Summary.Total += rs.Total
+					br.Summary.Passed += rs.Passed
+					br.Summary.Failed += rs.Failed
+					br.Summary.Skipped += rs.Skipped
+					br.Summary.Duration += rs.Duration
+				}
+				// Per-suite artifacts when using report-dir and no explicit report paths
+				if reportDir != "" && jsonReport == "" && junitReport == "" && htmlReport == "" {
+					if mkerr := os.MkdirAll(reportDir, 0o755); mkerr != nil {
+						fmt.Fprintf(os.Stderr, "report dir error: %v\n", mkerr)
+					}
+					base := fmt.Sprintf("%s/%s-%s", reportDir, sanitizeFilename(s.Name), runTS)
+					if len(cases) > 0 {
+						_ = report.WriteJSONDetailed(base+".json", report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
+					} else {
+						_ = report.WriteJSONSummary(base+".json", rs)
+					}
+					_ = report.WriteJUnitDetailed(base+".xml", s.Name, rs, cases)
+					_ = report.WriteHTMLDetailed(base+".html", report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
+				} else {
+					// Respect explicit report paths for single-suite mode only
+					if jsonReport != "" {
+						if len(cases) > 0 {
+							_ = report.WriteJSONDetailed(jsonReport, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
+						} else {
+							_ = report.WriteJSONSummary(jsonReport, rs)
+						}
+					}
+					if junitReport != "" {
+						_ = report.WriteJUnitDetailed(junitReport, s.Name, rs, cases)
+					}
+					if htmlReport != "" {
+						_ = report.WriteHTMLDetailed(htmlReport, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
 					}
 				}
-			}
-			if junitReport != "" {
-				if len(cases) > 0 {
-					if werr := report.WriteJUnitDetailed(junitReport, s.Name, rs, cases); werr != nil {
-						fmt.Fprintf(os.Stderr, "report junit error: %v\n", werr)
-					}
-				} else {
-					if werr := report.WriteJUnitSummary(junitReport, rs, s.Name); werr != nil {
-						fmt.Fprintf(os.Stderr, "report junit error: %v\n", werr)
-					}
+				if err != nil {
+					return sum.Failed, err
 				}
+				return sum.Failed, nil
 			}
-			if htmlReport != "" {
-				if len(cases) > 0 {
-					_ = report.WriteHTMLDetailed(htmlReport, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
-				} else {
-					_ = report.WriteHTMLDetailed(htmlReport, report.DetailedReport{Suite: s.Name, Summary: rs})
+
+			// Determine whether to run one or all suites
+			if strings.TrimSpace(file) == "" {
+				// Discover suites in testdata/*.yaml
+				paths, globErr := filepath.Glob("testdata/*.yaml")
+				if globErr != nil {
+					return globErr
 				}
+				if len(paths) == 0 {
+					return fmt.Errorf("no suites found in testdata/*.yaml; specify -f to run a file")
+				}
+				br := report.BatchReport{RunAt: time.Now()}
+				var totalFailed int
+				for i, p := range paths {
+					if i > 0 && output != "json" {
+						ui.SuiteSeparator()
+					}
+					failed, err := runOne(p, &br)
+					if err != nil {
+						fmt.Fprintln(os.Stderr, err)
+					}
+					totalFailed += failed
+				}
+				// Emit batch/run-level artifacts if requested
+				if reportDir != "" {
+					base := fmt.Sprintf("%s/run-%s", reportDir, runTS)
+					_ = report.WriteJSONBatch(base+".json", br)
+					_ = report.WriteJUnitBatchSummary(base+".xml", br.Summary)
+					_ = report.WriteHTMLBatch(base+".html", br)
+				}
+				if totalFailed > 0 {
+					os.Exit(1)
+					return nil
+				}
+				return nil
 			}
-			// If report-dir was used (inferred via auto-populated report paths), also emit run-level summaries alongside
+
+			// Single-suite mode
+			brSingle := report.BatchReport{RunAt: time.Now()}
+			failed, err := runOne(file, &brSingle)
 			if reportDir != "" {
-				// derive a consistent run-<ts> base from one of the generated filenames
-				ts := time.Now().Format("20060102-150405")
-				base := fmt.Sprintf("%s/run-%s", reportDir, ts)
-				_ = report.WriteJSONBatch(base+".json", br)
-				_ = report.WriteJUnitBatchSummary(base+".xml", rs)
-				_ = report.WriteHTMLBatch(base+".html", br)
+				// Emit batch artifacts reflecting the single suite results, using the same runTS
+				base := fmt.Sprintf("%s/run-%s", reportDir, runTS)
+				_ = report.WriteJSONBatch(base+".json", brSingle)
+				_ = report.WriteJUnitBatchSummary(base+".xml", brSingle.Summary)
+				_ = report.WriteHTMLBatch(base+".html", brSingle)
 			}
-			// Treat test failures as exit code 1 without printing cobra usage/help
 			if err != nil {
-				if sum.Failed > 0 {
+				if failed > 0 {
 					os.Exit(1)
 					return nil
 				}
 				return err
 			}
-			if sum.Failed > 0 {
+			if failed > 0 {
 				os.Exit(1)
 				return nil
 			}
 			return nil
 		},
 	}
-	runCmd.Flags().StringVarP(&file, "file", "f", "testdata/example.yaml", "Path to YAML test suite")
+	runCmd.Flags().StringVarP(&file, "file", "f", "", "Path to YAML test suite (omit to run all suites in testdata)")
 	runCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
 	runCmd.Flags().StringVar(&tags, "tags", "", "Comma-separated tag filter (any match)")
 	runCmd.Flags().IntVar(&workers, "workers", 4, "Number of concurrent workers per stage")

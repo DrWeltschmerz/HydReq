@@ -1,7 +1,6 @@
 name: recipes - retries
 baseUrl: ${ENV:HTTPBIN_BASE_URL}
-vars:
-  HTTPBIN_BASE_URL: https://httpbin.org
+vars: {}
 tests:
   - name: GET retried
     request: { method: GET, url: /status/200 }

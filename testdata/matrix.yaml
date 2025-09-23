@@ -3,7 +3,6 @@ baseUrl: ${ENV:HTTPBIN_BASE_URL}
 
 vars:
   commonHeader: qa-matrix-demo
-  HTTPBIN_BASE_URL: https://httpbin.org
 
 tests:
   - name: POST echoes matrix json

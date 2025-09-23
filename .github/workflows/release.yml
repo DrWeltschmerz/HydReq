@@ -26,3 +26,22 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate release notes from CHANGELOG
+        id: changelog
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          sed -n "/^## ${TAG//\./\.}/,/^## /p" CHANGELOG.md | sed '$d' > RELEASE_NOTES.md || true
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "No matching section for $TAG in CHANGELOG.md; using fallback." > RELEASE_NOTES.md
+            echo "See CHANGELOG.md for details." >> RELEASE_NOTES.md
+          fi
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          cat RELEASE_NOTES.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      - name: Create/update GitHub Release with notes
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.notes }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,4 +1,5 @@
 name: sqlserver example
+baseUrl: ${ENV:HTTPBIN_BASE_URL}
 vars:
   MSSQL_DSN: "${ENV:MSSQL_DSN}"
 tests:
@@ -14,5 +15,5 @@ tests:
               id INT IDENTITY(1,1) PRIMARY KEY,
               name NVARCHAR(100)
             );
-    request: { method: GET, url: https://httpbin.org/status/200 }
+  request: { method: GET, url: /status/200 }
     assert: { status: 200 }

@@ -74,6 +74,23 @@ func Summary(total, passed, failed, skipped int, d time.Duration) {
 	fmt.Printf("in %s\n", d.Truncate(time.Millisecond))
 }
 
+// SuiteHeader prints a bold suite title above its tests
+func SuiteHeader(name string) {
+	if !Enabled {
+		return
+	}
+	// One blank line before header is handled by caller when needed
+	fmt.Printf(Bold+"%s"+Reset+"\n", name)
+}
+
+// SuiteSeparator prints a single blank line between suites
+func SuiteSeparator() {
+	if !Enabled {
+		return
+	}
+	fmt.Println()
+}
+
 // IsTTY reports whether stdout is a terminal
 func IsTTY() bool {
 	fi, err := os.Stdout.Stat()

@@ -39,24 +39,56 @@ func WriteHTMLDetailed(path string, rep DetailedReport) error {
   <title>{{.Suite}} — HydReq Report</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css">
   <style>
+    /* Theme tokens aligned with Web UI */
+    :root {
+      --hdr-bg:#0b1020; --hdr-fg:#c6e2ff; --bd:#e5e7eb; --li-hov:#f5f7fb; --li-sel:#e6f2ff; --pill:#eef2ff; --pg-bg:#eee; --txt:#111827; --bg:#ffffff;
+      --btn-bg:#ffffff; --btn-bd:#d1d5db; --btn-hov:#f6f9ff; --link:#2563eb;
+      --input-bg:#ffffff; --input-bd:#d1d5db; --input-fg:#111827; --input-focus:#7aa2ff;
+      --success:#10b981; --error:#ef4444; --warning:#f59e0b; --info:#3b82f6;
+      --grad1:#00d4ff; --grad2:#5bff5b;
+    }
+    body.dark {
+      --hdr-bg:#0b0e17; --hdr-fg:#d6e0ff; --bd:#222; --li-hov:#1a2230; --li-sel:#10213a; --pill:#1f2937; --pg-bg:#1f2937; --txt:#e5e7eb; --bg:#0b0e17;
+      --btn-bg:#111827; --btn-bd:#374151; --btn-hov:#1f2937; --link:#60a5fa;
+      --input-bg:#0f172a; --input-bd:#374151; --input-fg:#e5e7eb; --input-focus:#7aa2ff;
+      --success:#10b981; --error:#ef4444; --warning:#f59e0b; --info:#60a5fa;
+      --grad1:#22d3ee; --grad2:#4ade80;
+    }
     .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .msgs{ white-space: pre-wrap; }
     .stats-grid{ display:grid; grid-template-columns: 1fr 320px; gap:12px; align-items:start; }
     .big-chart{ display:flex; align-items:center; justify-content:center; height:260px; }
     .big-chart canvas{ max-height:260px !important; max-width:260px !important; }
     .stats-bar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .stat{ padding:8px 10px; border:1px solid var(--fallback-bc, #2a2a2a); border-radius:8px; background: var(--fallback-b1, #1a1a1a); min-width:120px; }
+    .stat{ padding:8px 10px; border:1px solid var(--bd); border-radius:8px; background: color-mix(in srgb, var(--bg) 92%, var(--txt) 8%); min-width:120px; }
     .stat .k{ font-size:11px; opacity:.7 }
     .stat .v{ font-size:18px; font-weight:600 }
     .page{ padding:12px 12px 24px; max-width:1200px; margin:0 auto; }
-    thead.sticky th{ position: sticky; top: 56px; background: var(--fallback-b1, #111); z-index: 1; }
-    /* Custom themes for reports */
-    body.hack { --txt:#c8ffd2; --bg:#050d07; --su:#16a34a; --er:#dc2626; --wa:#ca8a04; }
-    body.catppuccin-mocha { --txt:#cdd6f4; --bg:#0b0b13; --su:#a6e3a1; --er:#f38ba8; --wa:#f9e2af; }
-    body.catppuccin-latte { --txt:#4c4f69; --bg:#fafafa; --su:#40a02b; --er:#d20f39; --wa:#df8e1d; }
-    body.hack { --su:#16a34a; --er:#dc2626; --wa:#ca8a04; }
-    body.catppuccin-mocha { --su:#a6e3a1; --er:#f38ba8; --wa:#f9e2af; }
-    body.catppuccin-latte { --su:#40a02b; --er:#d20f39; --wa:#df8e1d; }
+    thead.sticky th{ position: sticky; top: 56px; background: var(--bg); z-index: 1; }
+    /* Custom themes for reports matching Web UI */
+    body.hack {
+      --hdr-bg:#061108; --hdr-fg:#a6ffb0; --bd:#15331b; --li-hov:#0b1f10; --li-sel:#0f2a16; --pill:#092010; --pg-bg:#0f2a16; --txt:#c8ffd2; --bg:#050d07;
+      --btn-bg:#0a1a0f; --btn-bd:#1a3b24; --btn-hov:#0e2315; --link:#8affb5;
+      --input-bg:#0b1f10; --input-bd:#1a3b24; --input-fg:#c8ffd2; --input-focus:#30ff7f;
+      --success:#30ff7f; --error:#ff5f5f; --warning:#ffd166; --info:#7dd3fc;
+      --grad1:#19ff93; --grad2:#5bff5b;
+    }
+    body.catppuccin-mocha {
+      --hdr-bg:#11111b; --hdr-fg:#cdd6f4; --bd:#313244; --li-hov:#1e1e2e; --li-sel:#181825; --pill:#181825; --pg-bg:#181825; --txt:#cdd6f4; --bg:#0b0b13;
+      --btn-bg:#11111b; --btn-bd:#313244; --btn-hov:#1e1e2e; --link:#89b4fa;
+      --input-bg:#1e1e2e; --input-bd:#313244; --input-fg:#cdd6f4; --input-focus:#89b4fa;
+      --success:#a6e3a1; --error:#f38ba8; --warning:#f9e2af; --info:#89b4fa;
+      --grad1:#89b4fa; --grad2:#a6e3a1;
+    }
+    body.catppuccin-latte {
+      --hdr-bg:#eff1f5; --hdr-fg:#4c4f69; --bd:#bcc0cc; --li-hov:#e6e9ef; --li-sel:#dce0e8; --pill:#e6e9ef; --pg-bg:#e6e9ef; --txt:#4c4f69; --bg:#fafafa;
+      --btn-bg:#ffffff; --btn-bd:#ccd0da; --btn-hov:#e6e9ef; --link:#1e66f5;
+      --input-bg:#ffffff; --input-bd:#ccd0da; --input-fg:#4c4f69; --input-focus:#1e66f5;
+      --success:#40a02b; --error:#d20f39; --warning:#df8e1d; --info:#1e66f5;
+      --grad1:#1e66f5; --grad2:#40a02b;
+    }
+    body { background: var(--bg); color: var(--txt); }
+    .navbar { background: var(--hdr-bg) !important; color: var(--hdr-fg) !important; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
@@ -89,6 +121,23 @@ func WriteHTMLDetailed(path string, rep DetailedReport) error {
         tr.style.display = (okSt && okQ) ? '' : 'none';
       });
     }
+    // Resolve a color from CSS custom property or DaisyUI HSL var
+    function resolveColor(primaryVar, fallbackHex, daisyVar){
+      try{
+        const css = getComputedStyle(document.body);
+        let v = css.getPropertyValue(primaryVar).trim();
+        if (v) {
+          if (v.startsWith('#') || v.startsWith('rgb') || v.startsWith('hsl')) return v;
+          const tmp = document.createElement('span'); tmp.style.display='none'; tmp.style.color = 'hsl(' + v + ')'; document.body.appendChild(tmp);
+          const col = getComputedStyle(tmp).color; tmp.remove(); if (col) return col;
+        }
+        if (daisyVar){
+          const tmp = document.createElement('span'); tmp.style.display='none'; tmp.style.color = 'hsl(var(' + daisyVar + '))'; document.body.appendChild(tmp);
+          const col = getComputedStyle(tmp).color; tmp.remove(); if (col) return col;
+        }
+      }catch{}
+      return fallbackHex;
+    }
   </script>
   </head>
 <body class="min-h-screen">
@@ -111,9 +160,9 @@ func WriteHTMLDetailed(path string, rep DetailedReport) error {
       <div>
         <div class="stats-bar">
           <div class="stat"><div class="k">Total</div><div class="v">{{.Summary.Total}}</div></div>
-          <div class="stat"><div class="k">Passed</div><div class="v text-success">{{.Summary.Passed}}</div></div>
-          <div class="stat"><div class="k">Failed</div><div class="v text-error">{{.Summary.Failed}}</div></div>
-          <div class="stat"><div class="k">Skipped</div><div class="v text-warning">{{.Summary.Skipped}}</div></div>
+          <div class="stat"><div class="k">Passed</div><div class="v" style="color: var(--success)">{{.Summary.Passed}}</div></div>
+          <div class="stat"><div class="k">Failed</div><div class="v" style="color: var(--error)">{{.Summary.Failed}}</div></div>
+          <div class="stat"><div class="k">Skipped</div><div class="v" style="color: var(--warning)">{{.Summary.Skipped}}</div></div>
           <div class="stat"><div class="k">Duration</div><div class="v">{{printf "%.3fs" .Summary.Duration.Seconds}}</div></div>
         </div>
         <div class="mt-2">
@@ -177,7 +226,9 @@ func WriteHTMLDetailed(path string, rep DetailedReport) error {
       const REP = {{ toJSON . }};
       const ctx = document.getElementById('pfChart');
       if (ctx && window.Chart){
-        const css=getComputedStyle(document.body); const pass=css.getPropertyValue('--su').trim()||'#16a34a'; const fail=css.getPropertyValue('--er').trim()||'#dc2626'; const skip=css.getPropertyValue('--wa').trim()||'#ca8a04';
+        const pass = resolveColor('--success', '#16a34a', '--su');
+        const fail = resolveColor('--error',   '#dc2626', '--er');
+        const skip = resolveColor('--warning', '#ca8a04', '--wa');
         new Chart(ctx, { type:'doughnut', data:{ labels:['Passed','Failed','Skipped'], datasets:[{ data:[REP.summary.passed, REP.summary.failed, REP.summary.skipped], backgroundColor:[pass,fail,skip] }]}, options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{ legend:{ position:'bottom' }}}});
       }
     </script>
@@ -204,18 +255,57 @@ func WriteHTMLBatch(path string, br BatchReport) error {
   <title>HydReq Batch Report</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css">
   <style>
+    /* Theme tokens aligned with Web UI */
+    :root {
+      --hdr-bg:#0b1020; --hdr-fg:#c6e2ff; --bd:#e5e7eb; --li-hov:#f5f7fb; --li-sel:#e6f2ff; --pill:#eef2ff; --pg-bg:#eee; --txt:#111827; --bg:#ffffff;
+      --btn-bg:#ffffff; --btn-bd:#d1d5db; --btn-hov:#f6f9ff; --link:#2563eb;
+      --input-bg:#ffffff; --input-bd:#d1d5db; --input-fg:#111827; --input-focus:#7aa2ff;
+      --success:#10b981; --error:#ef4444; --warning:#f59e0b; --info:#3b82f6;
+      --grad1:#00d4ff; --grad2:#5bff5b;
+    }
+    body.dark {
+      --hdr-bg:#0b0e17; --hdr-fg:#d6e0ff; --bd:#222; --li-hov:#1a2230; --li-sel:#10213a; --pill:#1f2937; --pg-bg:#1f2937; --txt:#e5e7eb; --bg:#0b0e17;
+      --btn-bg:#111827; --btn-bd:#374151; --btn-hov:#1f2937; --link:#60a5fa;
+      --input-bg:#0f172a; --input-bd:#374151; --input-fg:#e5e7eb; --input-focus:#7aa2ff;
+      --success:#10b981; --error:#ef4444; --warning:#f59e0b; --info:#60a5fa;
+      --grad1:#22d3ee; --grad2:#4ade80;
+    }
     .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .stats-grid{ display:grid; grid-template-columns: 1fr 320px; gap:12px; align-items:start; }
     .big-chart{ display:flex; align-items:center; justify-content:center; height:260px; }
     .big-chart canvas{ max-height:260px !important; max-width:260px !important; }
     .controls{ display:grid; grid-template-columns: 1fr auto auto; gap:8px; }
     .stats-bar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .stat{ padding:8px 10px; border:1px solid var(--fallback-bc, #2a2a2a); border-radius:8px; background: var(--fallback-b1, #1a1a1a); min-width:120px; }
+    .stat{ padding:8px 10px; border:1px solid var(--bd); border-radius:8px; background: color-mix(in srgb, var(--bg) 92%, var(--txt) 8%); min-width:120px; }
     .stat .k{ font-size:11px; opacity:.7 }
     .stat .v{ font-size:18px; font-weight:600 }
     .page{ padding:12px 12px 24px; max-width:1200px; margin:0 auto; }
-    thead.sticky th{ position: sticky; top: 56px; background: var(--fallback-b1, #111); z-index: 1; }
+    thead.sticky th{ position: sticky; top: 56px; background: var(--bg); z-index: 1; }
     .section-title{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    /* Custom themes for reports matching Web UI */
+    body.hack {
+      --hdr-bg:#061108; --hdr-fg:#a6ffb0; --bd:#15331b; --li-hov:#0b1f10; --li-sel:#0f2a16; --pill:#092010; --pg-bg:#0f2a16; --txt:#c8ffd2; --bg:#050d07;
+      --btn-bg:#0a1a0f; --btn-bd:#1a3b24; --btn-hov:#0e2315; --link:#8affb5;
+      --input-bg:#0b1f10; --input-bd:#1a3b24; --input-fg:#c8ffd2; --input-focus:#30ff7f;
+      --success:#30ff7f; --error:#ff5f5f; --warning:#ffd166; --info:#7dd3fc;
+      --grad1:#19ff93; --grad2:#5bff5b;
+    }
+    body.catppuccin-mocha {
+      --hdr-bg:#11111b; --hdr-fg:#cdd6f4; --bd:#313244; --li-hov:#1e1e2e; --li-sel:#181825; --pill:#181825; --pg-bg:#181825; --txt:#cdd6f4; --bg:#0b0b13;
+      --btn-bg:#11111b; --btn-bd:#313244; --btn-hov:#1e1e2e; --link:#89b4fa;
+      --input-bg:#1e1e2e; --input-bd:#313244; --input-fg:#cdd6f4; --input-focus:#89b4fa;
+      --success:#a6e3a1; --error:#f38ba8; --warning:#f9e2af; --info:#89b4fa;
+      --grad1:#89b4fa; --grad2:#a6e3a1;
+    }
+    body.catppuccin-latte {
+      --hdr-bg:#eff1f5; --hdr-fg:#4c4f69; --bd:#bcc0cc; --li-hov:#e6e9ef; --li-sel:#dce0e8; --pill:#e6e9ef; --pg-bg:#e6e9ef; --txt:#4c4f69; --bg:#fafafa;
+      --btn-bg:#ffffff; --btn-bd:#ccd0da; --btn-hov:#e6e9ef; --link:#1e66f5;
+      --input-bg:#ffffff; --input-bd:#ccd0da; --input-fg:#4c4f69; --input-focus:#1e66f5;
+      --success:#40a02b; --error:#d20f39; --warning:#df8e1d; --info:#1e66f5;
+      --grad1:#1e66f5; --grad2:#40a02b;
+    }
+    body { background: var(--bg); color: var(--txt); }
+    .navbar { background: var(--hdr-bg) !important; color: var(--hdr-fg) !important; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
@@ -241,6 +331,23 @@ func WriteHTMLBatch(path string, br BatchReport) error {
       const on = btn.dataset.on==='1'; btn.dataset.on = on?'0':'1'; btn.textContent = on?'Only failed':'Show all';
       suiteFilter(containerId);
     }
+    // Resolve a color from CSS custom property or DaisyUI HSL var
+    function resolveColor(primaryVar, fallbackHex, daisyVar){
+      try{
+        const css = getComputedStyle(document.body);
+        let v = css.getPropertyValue(primaryVar).trim();
+        if (v) {
+          if (v.startsWith('#') || v.startsWith('rgb') || v.startsWith('hsl')) return v;
+          const tmp = document.createElement('span'); tmp.style.display='none'; tmp.style.color = 'hsl(' + v + ')'; document.body.appendChild(tmp);
+          const col = getComputedStyle(tmp).color; tmp.remove(); if (col) return col;
+        }
+        if (daisyVar){
+          const tmp = document.createElement('span'); tmp.style.display='none'; tmp.style.color = 'hsl(var(' + daisyVar + '))'; document.body.appendChild(tmp);
+          const col = getComputedStyle(tmp).color; tmp.remove(); if (col) return col;
+        }
+      }catch{}
+      return fallbackHex;
+    }
   </script>
   </head>
 <body class="min-h-screen">
@@ -262,9 +369,9 @@ func WriteHTMLBatch(path string, br BatchReport) error {
       <div>
         <div class="stats-bar">
           <div class="stat"><div class="k">Total</div><div class="v">{{.Summary.Total}}</div></div>
-          <div class="stat"><div class="k">Passed</div><div class="v text-success">{{.Summary.Passed}}</div></div>
-          <div class="stat"><div class="k">Failed</div><div class="v text-error">{{.Summary.Failed}}</div></div>
-          <div class="stat"><div class="k">Skipped</div><div class="v text-warning">{{.Summary.Skipped}}</div></div>
+          <div class="stat"><div class="k">Passed</div><div class="v" style="color: var(--success)">{{.Summary.Passed}}</div></div>
+          <div class="stat"><div class="k">Failed</div><div class="v" style="color: var(--error)">{{.Summary.Failed}}</div></div>
+          <div class="stat"><div class="k">Skipped</div><div class="v" style="color: var(--warning)">{{.Summary.Skipped}}</div></div>
           <div class="stat"><div class="k">Duration</div><div class="v">{{printf "%.3fs" .Summary.Duration.Seconds}}</div></div>
         </div>
       </div>
@@ -282,7 +389,7 @@ func WriteHTMLBatch(path string, br BatchReport) error {
     </div>
     <div class="mt-2 overflow-x-auto">
       <table class="table table-zebra">
-        <thead class="sticky"><tr><th>Suite</th><th class="text-right">Total</th><th class="text-success text-right">Passed</th><th class="text-error text-right">Failed</th><th class="text-right">Skipped</th><th class="text-right">Duration</th></tr></thead>
+  <thead class="sticky"><tr><th>Suite</th><th class="text-right">Total</th><th class="text-right" style="color: var(--success)">Passed</th><th class="text-right" style="color: var(--error)">Failed</th><th class="text-right" style="color: var(--warning)">Skipped</th><th class="text-right">Duration</th></tr></thead>
         <tbody>
           {{range $idx, $s := .Suites}}
             <tr>
@@ -315,8 +422,8 @@ func WriteHTMLBatch(path string, br BatchReport) error {
                             <td>{{.Stage}}</td>
                             <td>{{range .Tags}}<span class="badge badge-ghost mr-1">{{.}}</span>{{end}}</td>
                             <td>
-                              {{if eq .Status "passed"}}<span class="badge badge-success">passed</span>{{end}}
-                              {{if eq .Status "failed"}}<span class="badge badge-error">failed</span>{{end}}
+                              {{if eq .Status "passed"}}<span class="badge" style="background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success)">passed</span>{{end}}
+                              {{if eq .Status "failed"}}<span class="badge" style="background: color-mix(in srgb, var(--error) 15%, transparent); color: var(--error)">failed</span>{{end}}
                               {{if eq .Status "skipped"}}<span class="badge">skipped</span>{{end}}
                             </td>
                             <td>{{printf "%.3fs" (durationSeconds .DurationMs)}}</td>
@@ -348,7 +455,9 @@ func WriteHTMLBatch(path string, br BatchReport) error {
       const BATCH = {{ toJSON . }};
       const ctx = document.getElementById('pfChart');
       if (ctx && window.Chart){
-        const css=getComputedStyle(document.body); const pass=css.getPropertyValue('--su').trim()||'#16a34a'; const fail=css.getPropertyValue('--er').trim()||'#dc2626'; const skip=css.getPropertyValue('--wa').trim()||'#ca8a04';
+        const pass = resolveColor('--success', '#16a34a', '--su');
+        const fail = resolveColor('--error',   '#dc2626', '--er');
+        const skip = resolveColor('--warning', '#ca8a04', '--wa');
         new Chart(ctx, { type:'doughnut', data:{ labels:['Passed','Failed','Skipped'], datasets:[{ data:[BATCH.summary.passed, BATCH.summary.failed, BATCH.summary.skipped], backgroundColor:[pass,fail,skip] }]}, options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{ legend:{ position:'bottom' }}}});
       }
     </script>

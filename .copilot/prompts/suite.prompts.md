@@ -5,7 +5,7 @@ You are helping write YAML API test suites for the `hydreq` tool.
 Keep these rules in mind:
 
 - Top-level keys: `name`, `baseUrl`, `vars`, `auth`, `openApi`, `preSuite`, `postSuite`, `tests`.
-- Use env-configurable base URL: `baseUrl: ${ENV:HTTPBIN_BASE_URL}` and include a fallback in `vars` like `HTTPBIN_BASE_URL: https://httpbin.org`.
+- Use env-configurable base URL: `baseUrl: ${ENV:HTTPBIN_BASE_URL}` (no baked-in public fallback).
 - Each test has: `name`, `request`, `assert`, optional `extract`, `skip|only`, `timeoutMs`, `repeat`, `tags`, `retry`, `stage`, `matrix`, `vars`, `dependsOn`, `pre`, `post`, `openApi`.
 - Request: `method`, `url` (path, not full URL—runner joins with baseUrl), optional `headers`, `query`, `body` (object/string/array).
 - Assertions include any of:
@@ -31,8 +31,6 @@ Examples:
 ```yaml
 name: httpbin smoke
 baseUrl: ${ENV:HTTPBIN_BASE_URL}
-vars:
-  HTTPBIN_BASE_URL: https://httpbin.org
   token: demo123
 
 tests:

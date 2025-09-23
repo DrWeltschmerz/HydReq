@@ -14,6 +14,10 @@ HydReq is a lightweight API test runner with a Web UI and CLI. Author tests in Y
 3) Select suites from `testdata`, set Workers, optionally provide KEY=VALUE env overrides, click Run.
 
 ## Quick start (CLI)
+Run all suites (default):
+```
+./hydreq run --workers 4 -v
+```
 Run a suite:
 ```
 ./hydreq run -f testdata/example.yaml --workers 4 -v
@@ -30,3 +34,9 @@ Or generate a full set (JSON/JUnit/HTML) plus run-level artifacts in a directory
 ```
 ./hydreq run -f testdata/example.yaml --report-dir reports
 ```
+
+Run all suites and auto-generate all report types (default names):
+```
+./hydreq run --report-dir reports
+```
+This writes per-suite `<suite>-<timestamp>.{json,xml,html}` and a batch `run-<timestamp>.{json,xml,html}`. You don’t need to pass individual `--report-*` flags when using `--report-dir`.

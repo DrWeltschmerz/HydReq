@@ -1,8 +1,6 @@
 name: sqlite hooks demo
 baseUrl: ${ENV:HTTPBIN_BASE_URL}
-
-vars:
-  HTTPBIN_BASE_URL: https://httpbin.org
+vars: {}
 
 preSuite:
   - name: create table

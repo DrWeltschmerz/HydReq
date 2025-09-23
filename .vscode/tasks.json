@@ -63,6 +63,33 @@
 				"$go - gcc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "run tests (themes)",
+			"type": "shell",
+			"command": "go test -race ./...",
+			"problemMatcher": [
+				"$go - gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "run tests (themes extended)",
+			"type": "shell",
+			"command": "go test -race ./...",
+			"problemMatcher": [
+				"$go - gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "run tests (theming polish)",
+			"type": "shell",
+			"command": "go test -race ./...",
+			"problemMatcher": [
+				"$go - gcc"
+			],
+			"group": "build"
 		}
 	]
 }
