@@ -5,30 +5,30 @@
 
 <table width="100%" border="0" cellpadding="6" cellspacing="0">
   <tr>
-    <td width="20%" valign="middle" align="left">
+    <td width="15%" valign="middle" align="left">
       <a href="https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml"><img src="https://github.com/DrWeltschmerz/HydReq/actions/workflows/ci.yml/badge.svg" alt="CI" height="20"></a></br>
       <a href="https://github.com/DrWeltschmerz/HydReq/releases"><img src="https://img.shields.io/github/v/release/DrWeltschmerz/HydReq?include_prereleases&sort=semver&style=flat-square" alt="Release" height="20"></a>
     </td>
-    <td width="60%" valign="middle" align="center">
+    <td width="70%" valign="middle" align="center">
       <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/DrWeltschmerz/HydReq?style=flat-square" alt="Go Version" height="20"></a>
       <a href="https://pkg.go.dev/github.com/DrWeltschmerz/HydReq"><img src="https://pkg.go.dev/badge/github.com/DrWeltschmerz/HydReq.svg" alt="Go Reference" height="20"></a>
       <a href="https://goreportcard.com/report/github.com/DrWeltschmerz/HydReq"><img src="https://goreportcard.com/badge/github.com/DrWeltschmerz/HydReq" alt="Go Report Card" height="20"></a>
     </td>
-    <td width="20%" valign="middle" align="right">
+    <td width="15%" valign="middle" align="right">
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License" height="20"></a>
     <a href="https://github.com/DrWeltschmerz/HydReq/stargazers"><img src="https://img.shields.io/github/stars/DrWeltschmerz/HydReq?style=social" alt="Stars" height="20"></a>
     </td>
   </tr>
   <tr>
-    <td valign="top" align="left" width="25%">
+    <td valign="top" align="left" width="15%">
       <img src="logo_notext.svg" alt="HydReq Logo" width="160">
     </td>
-    <td valign="top" align="center" width="50%">
+    <td valign="top" align="center" width="70%">
       <p><strong>Lightweight API test runner with a clean Web UI and CLI.</strong></p>
       <p>Author tests in YAML, run them locally or in CI across Windows, macOS, and Linux. Now with a validator CLI, run-level reports, batch summaries, and a live two‑way Web UI editor.</p>
       <p><em>Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.</em></p>
     </td>
-    <td valign="top" align="right" width="25%">
+    <td valign="top" align="right" width="15%">
       <p style="text-align:right; margin:0;">
         <a href="docs/README.md">📖 Full Docs</a><br>
         <a href="docs/getting-started.md">🚀 Quick Start</a><br>
