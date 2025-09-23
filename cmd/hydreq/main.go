@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -34,6 +35,8 @@ func main() {
 	var defaultTimeoutMs int
 	var jsonReport string
 	var junitReport string
+	var reportDir string
+	var output string
 
 	runCmd := &cobra.Command{
 		Use:   "run",
@@ -56,8 +59,28 @@ func main() {
 			sum, err := runner.RunSuite(ctx, s, runner.Options{Verbose: verbose, Tags: tagList, Workers: workers, DefaultTimeoutMs: defaultTimeoutMs, OnResult: func(tr runner.TestResult) {
 				cases = append(cases, report.TestCase{Name: tr.Name, Stage: tr.Stage, Tags: tr.Tags, Status: tr.Status, DurationMs: tr.DurationMs, Messages: tr.Messages})
 			}})
-			ui.Summary(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
+			// Console output format
+			if output == "json" {
+				rs := report.FromRunner(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
+				rep := report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases}
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				_ = enc.Encode(rep)
+			} else {
+				ui.Summary(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
+			}
 			rs := report.FromRunner(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration)
+			// If reportDir is set and no explicit report files provided, generate both with timestamped names
+			if reportDir != "" && jsonReport == "" && junitReport == "" {
+				ts := time.Now().Format("20060102-150405")
+				base := sanitizeFilename(s.Name)
+				jsonReport = fmt.Sprintf("%s/%s-%s.json", reportDir, base, ts)
+				junitReport = fmt.Sprintf("%s/%s-%s.xml", reportDir, base, ts)
+				// ensure directory exists
+				if mkerr := os.MkdirAll(reportDir, 0o755); mkerr != nil {
+					fmt.Fprintf(os.Stderr, "report dir error: %v\n", mkerr)
+				}
+			}
 			if jsonReport != "" {
 				if len(cases) > 0 {
 					_ = report.WriteJSONDetailed(jsonReport, report.DetailedReport{Suite: s.Name, Summary: rs, TestCases: cases})
@@ -100,6 +123,8 @@ func main() {
 	runCmd.Flags().IntVar(&defaultTimeoutMs, "default-timeout-ms", 30000, "Default per-request timeout when test.timeoutMs is not set")
 	runCmd.Flags().StringVar(&jsonReport, "report-json", "", "Write JSON summary to file path")
 	runCmd.Flags().StringVar(&junitReport, "report-junit", "", "Write JUnit XML summary to file path")
+	runCmd.Flags().StringVar(&reportDir, "report-dir", "", "If set and no explicit report paths provided, write JSON and JUnit to this directory using suite name and timestamp")
+	runCmd.Flags().StringVar(&output, "output", "summary", "Console output: summary|json")
 	rootCmd.AddCommand(runCmd)
 
 	// import command and subcommands
@@ -232,4 +257,41 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// sanitizeFilename makes a safe-ish file base name from a suite name
+func sanitizeFilename(s string) string {
+	if s == "" {
+		return "suite"
+	}
+	// replace path separators and spaces; drop other problematic chars
+	repl := strings.NewReplacer("/", "-", "\\", "-", " ", "-")
+	s = repl.Replace(s)
+	// keep alnum, dash, underscore, dot
+	b := make([]rune, 0, len(s))
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			b = append(b, r)
+		} else {
+			b = append(b, '-')
+		}
+	}
+	// collapse multiple dashes
+	out := make([]rune, 0, len(b))
+	var lastDash bool
+	for _, r := range b {
+		if r == '-' {
+			if lastDash {
+				continue
+			}
+			lastDash = true
+		} else {
+			lastDash = false
+		}
+		out = append(out, r)
+	}
+	if len(out) == 0 {
+		return "suite"
+	}
+	return string(out)
 }

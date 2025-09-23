@@ -1,8 +1,41 @@
 # Changelog
 
+## v0.2.1-beta (2025-09-23)
+
+Highlights
+- Cleanup and quality-of-life improvements across CLI, CI, and docs.
+- New reporting conveniences and console JSON output.
+
+Changes
+- CLI
+	- Added `--report-dir` to auto-generate timestamped JSON/JUnit reports (creates directory if needed).
+	- Added `--output json` to print a detailed JSON result to stdout; default remains summary output.
+	- Deprecated `qa` entrypoint; use `hydreq` for all commands.
+- Docs & README
+	- Documented new CLI flags in `docs/cli.md`.
+	- Added badges (Go Reference, Go Report Card, Go Version, Issues, Stars) to `README.md`.
+	- Note about `qa` deprecation.
+- Build & deps
+	- go.mod: normalized Go version (`go 1.25`) and pinned `toolchain go1.25.1`.
+	- Upgraded safe dev/test deps: `testify` to v1.11.1, `pflag` to v1.0.10.
+	- Removed unused UI deps via `go mod tidy`.
+- Local CI
+	- `scripts/local-ci.sh`: gofmt check, `go vet`, `go mod tidy` check, `go test -race`.
+	- Compose auto-detection, `SKIP_SERVICES=1` to skip services.
+	- Added `HOST_NETWORK=1` mode with `docker-compose.hostnet.yml` for environments where bridged networking is restricted; standardized httpbin on port 8080.
+	- Ensures clean shutdown only when services actually started.
+	- Removed obsolete `version` in `docker-compose.yml` to silence warnings.
+- GitHub CI
+	- Added `lint` job (gofmt/vet/tidy check) and made `test` run with `-race`.
+	- Kept service jobs for Postgres/MSSQL/examples; examples wait for readiness and upload reports.
+
+Notes
+- Pushing tag `v0.2.1-beta` triggers the release workflow.
+
 ## v0.2.0-beta (2025-09-22)
 
 Highlights
+- This update is focused almost purely on UI updates, I've added new editor mode that should make it easier to work with the tool.
 - Visual YAML editor (beta) with Visual/YAML tabs, validation preview, and Quick Run.
 - Hook editing: per-row mode (HTTP/SQL/Empty), collapsible rows, type badges, inline Run, and SQL DSN helpers.
 - Per-test “Run with deps” and dependency-closure execution from the editor.

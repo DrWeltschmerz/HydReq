@@ -4,6 +4,11 @@
 [![Release](https://img.shields.io/github/v/release/DrWeltschmerz/HydReq?include_prereleases&sort=semver)](https://github.com/DrWeltschmerz/HydReq/releases)
 [![Downloads](https://img.shields.io/github/downloads/DrWeltschmerz/HydReq/total.svg)](https://github.com/DrWeltschmerz/HydReq/releases)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/DrWeltschmerz/HydReq.svg)](https://pkg.go.dev/github.com/DrWeltschmerz/HydReq)
+[![Go Report Card](https://goreportcard.com/badge/github.com/DrWeltschmerz/HydReq)](https://goreportcard.com/report/github.com/DrWeltschmerz/HydReq)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/DrWeltschmerz/HydReq)](go.mod)
+[![Issues](https://img.shields.io/github/issues/DrWeltschmerz/HydReq.svg)](https://github.com/DrWeltschmerz/HydReq/issues)
+[![Stars](https://img.shields.io/github/stars/DrWeltschmerz/HydReq?style=social)](https://github.com/DrWeltschmerz/HydReq/stargazers)
 
 ```
                            *%%%%%%%%%%%%%%%@:                                   
@@ -50,6 +55,8 @@
 ```
 
 Lightweight API test runner with a clean Web UI and CLI. Author tests in YAML, run them locally or in CI across Windows, macOS, and Linux.
+
+Note: The `qa` CLI entrypoint has been deprecated; use `hydreq`.
 
 ## Documentation
 

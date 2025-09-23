@@ -7,8 +7,38 @@ on:
     branches: [ main ]
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+      - name: gofmt check
+        run: |
+          fmt_out=$(gofmt -l . | grep -v '^$' || true)
+          if [ -n "$fmt_out" ]; then
+            echo "The following files are not gofmt'ed:" >&2
+            echo "$fmt_out" >&2
+            exit 1
+          fi
+      - name: go vet
+        run: go vet ./...
+      - name: go mod tidy check
+        run: |
+          cp go.mod go.mod.ci.bak
+          cp go.sum go.sum.ci.bak
+          go mod tidy
+          if ! diff -q go.mod go.mod.ci.bak >/dev/null || ! diff -q go.sum go.sum.ci.bak >/dev/null; then
+            echo 'go.mod/go.sum changed after go mod tidy. Run it locally and commit.' >&2
+            diff -u go.mod.ci.bak go.mod || true
+            diff -u go.sum.ci.bak go.sum || true
+            exit 1
+          fi
+      
   test:
     runs-on: ubuntu-latest
+    needs: [lint]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -23,8 +53,8 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Run unit tests
-        run: go test ./...
+      - name: Run unit tests (race)
+        run: go test -race ./...
 
   pg-tests:
     runs-on: ubuntu-latest
