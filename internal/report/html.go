@@ -148,10 +148,13 @@ func WriteHTMLDetailed(path string, rep DetailedReport) error {
 	funcMap := template.FuncMap{
 		"durationSeconds": func(ms int64) float64 { return float64(ms) / 1000.0 },
 		"nowRFC3339":      func() string { return time.Now().Format(time.RFC3339) },
-		"toJSON": func(v any) template.JS {
-			b, _ := json.Marshal(v)
-			return template.JS(string(b))
-		},
+    "toJSON": func(v any) template.JS {
+      b, err := json.Marshal(v)
+      if err != nil {
+        return template.JS("null")
+      }
+      return template.JS(string(b))
+    },
 	}
 	t := template.Must(template.New("report").Funcs(funcMap).Parse(tpl))
 	f, err := os.Create(path)
@@ -311,11 +314,11 @@ func WriteHTMLBatch(path string, br BatchReport) error {
   </div>
 </body>
 </html>`
-	t := template.Must(template.New("batch").Funcs(template.FuncMap{
-		"nowRFC3339":      func() string { return time.Now().Format(time.RFC3339) },
-		"toJSON":          func(v any) template.JS { b, _ := json.Marshal(v); return template.JS(string(b)) },
-		"durationSeconds": func(ms int64) float64 { return float64(ms) / 1000.0 },
-	}).Parse(tpl))
+  t := template.Must(template.New("batch").Funcs(template.FuncMap{
+    "nowRFC3339":      func() string { return time.Now().Format(time.RFC3339) },
+    "toJSON":          func(v any) template.JS { b, err := json.Marshal(v); if err != nil { return template.JS("null") }; return template.JS(string(b)) },
+    "durationSeconds": func(ms int64) float64 { return float64(ms) / 1000.0 },
+  }).Parse(tpl))
 	f, err := os.Create(path)
 	if err != nil {
 		return err

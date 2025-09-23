@@ -45,6 +45,15 @@
 				"$go - gcc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "run tests (json error handling)",
+			"type": "shell",
+			"command": "go test -race ./...",
+			"problemMatcher": [
+				"$go - gcc"
+			],
+			"group": "build"
 		}
 	]
 }
