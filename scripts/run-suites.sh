@@ -26,31 +26,6 @@ fi
 
 mkdir -p reports
 
-# Resolve suite list
-suites=("$@")
-if (( ${#suites[@]} == 0 )); then
-  shopt -s nullglob
-  suites=(testdata/*.yaml)
-  shopt -u nullglob
-fi
-
-failures=()
-run_suite() {
-  local suite="$1"
-  local name
-  name=$(basename "$suite" .yaml)
-  printf "\n=== Running suite: %s ===\n" "$suite"
-  local runner=(./hydreq run -f "$suite" --workers 4 --report-json "reports/${name}.json" --report-junit "reports/${name}.xml")
-  if command -v timeout >/dev/null 2>&1; then
-    runner=(timeout 120s "${runner[@]}")
-  fi
-  if "${runner[@]}"; then
-    echo "✅ ${suite}"
-  else
-    echo "❌ ${suite}"
-    failures+=("$suite")
-  fi
-}
 
 # Optional demo auth
 if [[ "${ENABLE_DEMO_AUTH:-}" == "1" ]]; then
@@ -60,51 +35,37 @@ if [[ "${ENABLE_DEMO_AUTH:-}" == "1" ]]; then
   fi
 fi
 
-# Filter suites that require env if not present
-filtered=()
-for suite in "${suites[@]}"; do
-  case "$(basename "$suite")" in
-    auth.yaml)
-      if [[ -z "${DEMO_BEARER:-}" && -z "${BASIC_B64:-}" ]]; then
-        echo "Skipping $suite (requires DEMO_BEARER or BASIC_B64)"; continue
-      fi
-      ;;
-    postgres.yaml)
-      if [[ -z "${PG_DSN:-}" ]]; then
-        echo "Skipping $suite (PG_DSN not set)"; continue
-      fi
-      ;;
-    sqlserver.yaml)
-      if [[ -z "${MSSQL_DSN:-}" ]]; then
-        echo "Skipping $suite (MSSQL_DSN not set)"; continue
-      fi
-      ;;
-  esac
-  filtered+=("$suite")
-  run_suite "$suite"
-done
+# Run all suites in batch mode (single run command)
+if command -v timeout >/dev/null 2>&1; then
+  timeout 300s ./bin/hydreq run --workers 4 --report-dir reports
+else
+  ./bin/hydreq run --workers 4 --report-dir reports
+fi
 
-# Batch PR summary across all JSONs
-if ls -1 ./reports/*.json >/dev/null 2>&1; then
-  scripts/pr-summary-batch.sh ./reports | tee ./reports/PR_SUMMARY_ALL.md
+# Batch PR summary from batch run report
+batch_report=$(ls -1t ./reports/run-*.json 2>/dev/null | head -n1 || true)
+if [[ -n "$batch_report" && -f "$batch_report" ]]; then
+  scripts/pr-summary-batch.sh "$batch_report" | tee ./reports/PR_SUMMARY_ALL.md
   echo "Wrote batch summary to ./reports/PR_SUMMARY_ALL.md"
 
   # Also generate per-latest summary for convenience
-  latest_report=$(ls -t ./reports/*.json | head -n1)
-  {
-    scripts/pr-summary.sh "$latest_report" || true
-    echo
-    echo "#### Suggested assertions"
-    scripts/suggest-assertions.sh ./reports || true
-  } | tee ./reports/PR_SUMMARY.md
-  echo "Wrote latest summary to ./reports/PR_SUMMARY.md"
+  latest_report=$(ls -t ./reports/*.json | grep -v '/run-' | head -n1)
+  if [[ -n "$latest_report" && -f "$latest_report" ]]; then
+    {
+      scripts/pr-summary.sh "$latest_report" || true
+      echo
+      echo "#### Suggested assertions"
+      scripts/suggest-assertions.sh ./reports || true
+    } | tee ./reports/PR_SUMMARY.md
+    echo "Wrote latest summary to ./reports/PR_SUMMARY.md"
 
-  if [[ -n "${GH_PR_REF:-}" ]] && command -v gh >/dev/null 2>&1; then
-    echo "Posting latest summary to PR: $GH_PR_REF"
-    scripts/post-pr-summary.sh "$GH_PR_REF" "$latest_report" || echo "WARN: Failed to post summary (continuing)"
+    if [[ -n "${GH_PR_REF:-}" ]] && command -v gh >/dev/null 2>&1; then
+      echo "Posting latest summary to PR: $GH_PR_REF"
+      scripts/post-pr-summary.sh "$GH_PR_REF" "$latest_report" || echo "WARN: Failed to post summary (continuing)"
+    fi
   fi
 else
-  echo "No JSON reports found; nothing to summarize"
+  echo "No batch run report found; nothing to summarize"
 fi
 
 if (( ${#failures[@]} )); then
