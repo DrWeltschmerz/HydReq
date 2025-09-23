@@ -50,9 +50,19 @@ func WriteHTMLDetailed(path string, rep DetailedReport) error {
     .stat .v{ font-size:18px; font-weight:600 }
     .page{ padding:12px 12px 24px; max-width:1200px; margin:0 auto; }
     thead.sticky th{ position: sticky; top: 56px; background: var(--fallback-b1, #111); z-index: 1; }
+    /* Custom themes for reports */
+    body.hack { --txt:#c8ffd2; --bg:#050d07; --su:#16a34a; --er:#dc2626; --wa:#ca8a04; }
+    body.catppuccin-mocha { --txt:#cdd6f4; --bg:#0b0b13; --su:#a6e3a1; --er:#f38ba8; --wa:#f9e2af; }
+    body.catppuccin-latte { --txt:#4c4f69; --bg:#fafafa; --su:#40a02b; --er:#d20f39; --wa:#df8e1d; }
+    body.hack { --su:#16a34a; --er:#dc2626; --wa:#ca8a04; }
+    body.catppuccin-mocha { --su:#a6e3a1; --er:#f38ba8; --wa:#f9e2af; }
+    body.catppuccin-latte { --su:#40a02b; --er:#d20f39; --wa:#df8e1d; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
+    function getTheme(){ try{ return localStorage.getItem('hydreq.theme')||'dark'; }catch{return 'dark'} }
+    function themeToDaisy(name){ switch(name){ case 'dark': return 'dark'; case 'synthwave': return 'synthwave'; case 'hack': return 'forest'; case 'catppuccin-mocha': return 'dracula'; case 'catppuccin-latte': return 'cupcake'; default: return 'light'; } }
+    function applyTheme(name){ const root=document.documentElement; root.setAttribute('data-theme', themeToDaisy(name)); document.body.classList.toggle('dark', name==='dark'||name==='synthwave'); document.body.classList.toggle('hack', name==='hack'); document.body.classList.toggle('catppuccin-mocha', name==='catppuccin-mocha'); document.body.classList.toggle('catppuccin-latte', name==='catppuccin-latte'); try{ localStorage.setItem('hydreq.theme', name);}catch{} }
     function toggleFailed(el){
       const on = el.dataset.on === '1';
       el.dataset.on = on ? '0' : '1';
@@ -86,7 +96,14 @@ func WriteHTMLDetailed(path string, rep DetailedReport) error {
     <div class="flex-1 px-2 text-lg font-semibold">HydReq Report — <span class="opacity-70">{{.Suite}}</span></div>
     <div class="flex-none gap-2 pr-2">
       <button class="btn btn-sm" onclick="toggleFailed(this)" data-on="0">Only failed</button>
-      <button class="btn btn-sm" onclick="toggleTheme(this)">Light</button>
+      <select id="themeSel" class="select select-sm">
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+        <option value="synthwave">Synthwave</option>
+        <option value="hack">Hack</option>
+        <option value="catppuccin-mocha">Catppuccin Mocha</option>
+        <option value="catppuccin-latte">Catppuccin Latte</option>
+      </select>
     </div>
   </div>
   <div class="page">
@@ -156,10 +173,12 @@ func WriteHTMLDetailed(path string, rep DetailedReport) error {
       </table>
     </div>
     <script>
+      (function(){ const saved=getTheme(); const sel=document.getElementById('themeSel'); if(sel){ sel.value=saved; sel.addEventListener('change', ()=>applyTheme(sel.value)); } applyTheme(saved); })();
       const REP = {{ toJSON . }};
       const ctx = document.getElementById('pfChart');
       if (ctx && window.Chart){
-        new Chart(ctx, { type:'doughnut', data:{ labels:['Passed','Failed','Skipped'], datasets:[{ data:[REP.summary.passed, REP.summary.failed, REP.summary.skipped], backgroundColor:['#16a34a','#dc2626','#ca8a04'] }]}, options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{ legend:{ position:'bottom' }}}});
+        const css=getComputedStyle(document.body); const pass=css.getPropertyValue('--su').trim()||'#16a34a'; const fail=css.getPropertyValue('--er').trim()||'#dc2626'; const skip=css.getPropertyValue('--wa').trim()||'#ca8a04';
+        new Chart(ctx, { type:'doughnut', data:{ labels:['Passed','Failed','Skipped'], datasets:[{ data:[REP.summary.passed, REP.summary.failed, REP.summary.skipped], backgroundColor:[pass,fail,skip] }]}, options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{ legend:{ position:'bottom' }}}});
       }
     </script>
   </div>
@@ -200,6 +219,9 @@ func WriteHTMLBatch(path string, br BatchReport) error {
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
+    function getTheme(){ try{ return localStorage.getItem('hydreq.theme')||'dark'; }catch{return 'dark'} }
+    function themeToDaisy(name){ switch(name){ case 'dark': return 'dark'; case 'synthwave': return 'synthwave'; case 'hack': return 'forest'; case 'catppuccin-mocha': return 'dracula'; case 'catppuccin-latte': return 'cupcake'; default: return 'light'; } }
+    function applyTheme(name){ const root=document.documentElement; root.setAttribute('data-theme', themeToDaisy(name)); document.body.classList.toggle('dark', name==='dark'||name==='synthwave'); document.body.classList.toggle('hack', name==='hack'); document.body.classList.toggle('catppuccin-mocha', name==='catppuccin-mocha'); document.body.classList.toggle('catppuccin-latte', name==='catppuccin-latte'); try{ localStorage.setItem('hydreq.theme', name);}catch{} }
     function toggleTheme(btn){ const r=document.documentElement; const dark=r.getAttribute('data-theme')==='dark'; r.setAttribute('data-theme', dark?'light':'dark'); btn.textContent=dark?'Dark':'Light'; }
     function suiteFilter(containerId){
       const root = document.getElementById(containerId);
@@ -225,7 +247,14 @@ func WriteHTMLBatch(path string, br BatchReport) error {
   <div class="navbar bg-base-200 sticky top-0 z-10">
     <div class="flex-1 px-2 text-lg font-semibold">HydReq Batch Report</div>
     <div class="flex-none gap-2 pr-2">
-      <button class="btn btn-sm" onclick="toggleTheme(this)">Light</button>
+      <select id="themeSel" class="select select-sm">
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+        <option value="synthwave">Synthwave</option>
+        <option value="hack">Hack</option>
+        <option value="catppuccin-mocha">Catppuccin Mocha</option>
+        <option value="catppuccin-latte">Catppuccin Latte</option>
+      </select>
     </div>
   </div>
   <div class="page">
@@ -315,10 +344,12 @@ func WriteHTMLBatch(path string, br BatchReport) error {
     </div>
     <div class="text-xs opacity-70 mt-4">Generated {{ nowRFC3339 }}</div>
     <script>
+      (function(){ const saved=getTheme(); const sel=document.getElementById('themeSel'); if(sel){ sel.value=saved; sel.addEventListener('change', ()=>applyTheme(sel.value)); } applyTheme(saved); })();
       const BATCH = {{ toJSON . }};
       const ctx = document.getElementById('pfChart');
       if (ctx && window.Chart){
-        new Chart(ctx, { type:'doughnut', data:{ labels:['Passed','Failed','Skipped'], datasets:[{ data:[BATCH.summary.passed, BATCH.summary.failed, BATCH.summary.skipped], backgroundColor:['#16a34a','#dc2626','#ca8a04'] }]}, options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{ legend:{ position:'bottom' }}}});
+        const css=getComputedStyle(document.body); const pass=css.getPropertyValue('--su').trim()||'#16a34a'; const fail=css.getPropertyValue('--er').trim()||'#dc2626'; const skip=css.getPropertyValue('--wa').trim()||'#ca8a04';
+        new Chart(ctx, { type:'doughnut', data:{ labels:['Passed','Failed','Skipped'], datasets:[{ data:[BATCH.summary.passed, BATCH.summary.failed, BATCH.summary.skipped], backgroundColor:[pass,fail,skip] }]}, options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{ legend:{ position:'bottom' }}}});
       }
     </script>
   </div>

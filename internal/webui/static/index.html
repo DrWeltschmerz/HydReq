@@ -41,6 +41,10 @@
   body.dark { --hdr-bg:#0b0e17; --hdr-fg:#d6e0ff; --bd:#222; --li-hov:#1a2230; --li-sel:#10213a; --pill:#1f2937; --pg-bg:#1f2937; --txt:#e5e7eb; --bg:#0b0e17; --btn-bg:#111827; --btn-bd:#374151; --btn-hov:#1f2937; }
   /* Hack theme: neon terminal vibe */
   body.hack { --hdr-bg:#061108; --hdr-fg:#a6ffb0; --bd:#15331b; --li-hov:#0b1f10; --li-sel:#0f2a16; --pill:#092010; --pg-bg:#0f2a16; --txt:#c8ffd2; --bg:#050d07; --btn-bg:#0a1a0f; --btn-bd:#1a3b24; --btn-hov:#0e2315; }
+  /* Catppuccin Mocha (dark) */
+  body.catppuccin-mocha { --hdr-bg:#11111b; --hdr-fg:#cdd6f4; --bd:#313244; --li-hov:#1e1e2e; --li-sel:#181825; --pill:#181825; --pg-bg:#181825; --txt:#cdd6f4; --bg:#0b0b13; --btn-bg:#11111b; --btn-bd:#313244; --btn-hov:#1e1e2e; }
+  /* Catppuccin Latte (light) */
+  body.catppuccin-latte { --hdr-bg:#eff1f5; --hdr-fg:#4c4f69; --bd:#bcc0cc; --li-hov:#e6e9ef; --li-sel:#dce0e8; --pill:#e6e9ef; --pg-bg:#e6e9ef; --txt:#4c4f69; --bg:#fafafa; --btn-bg:#ffffff; --btn-bd:#ccd0da; --btn-hov:#e6e9ef; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; background: var(--bg); color: var(--txt); }
     header { background: var(--hdr-bg); color: var(--hdr-fg); padding: 16px; font-weight: 700; display:flex; align-items:center; justify-content:space-between; }
     main { display: grid; grid-template-columns: 360px 1fr; height: calc(100vh - 64px); }
@@ -170,6 +174,8 @@
       <option value="dark">Dark</option>
       <option value="synthwave">Synthwave</option>
       <option value="hack">Hack</option>
+      <option value="catppuccin-mocha">Catppuccin Mocha</option>
+      <option value="catppuccin-latte">Catppuccin Latte</option>
     </select>
   </label>
   <button id="cancel" class="btn btn-sm btn-error" title="Cancel current run (s)">Stop</button>
@@ -385,15 +391,23 @@
         case 'dark': return 'dark';
         case 'synthwave': return 'synthwave';
         case 'hack': return 'forest'; // closest built-in for DaisyUI components
+        case 'catppuccin-mocha': return 'dracula';
+        case 'catppuccin-latte': return 'cupcake';
         default: return 'light';
       }
     }
-    function isDocDark(){ return document.body.classList.contains('dark') || document.body.classList.contains('hack'); }
+    function isDocDark(){
+      return document.body.classList.contains('dark') ||
+             document.body.classList.contains('hack') ||
+             document.body.classList.contains('catppuccin-mocha');
+    }
     function applyTheme(name){
       const root = document.documentElement;
       root.setAttribute('data-theme', themeToDaisy(name));
       document.body.classList.toggle('dark', name === 'dark' || name === 'synthwave');
       document.body.classList.toggle('hack', name === 'hack');
+      document.body.classList.toggle('catppuccin-mocha', name === 'catppuccin-mocha');
+      document.body.classList.toggle('catppuccin-latte', name === 'catppuccin-latte');
       try { localStorage.setItem('hydreq.theme', name); } catch{}
       // Sync CodeMirror theme
       try { if (typeof syncEditorTheme === 'function') syncEditorTheme(); } catch{}
