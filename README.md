@@ -279,6 +279,7 @@ Outputs
 
 Optional PR comment
 - Set `GH_PR_REF=<pr-number-or-url>` and install GitHub CLI (`gh`) to auto-post a summary comment.
+- See an example automated summary comment: [GitHub PR Comment](https://github.com/DrWeltschmerz/HydReq/pull/6#issuecomment-3325685621)
 
 ### Example suites (at a glance)
 - `testdata/example.yaml` — smoke and extraction
