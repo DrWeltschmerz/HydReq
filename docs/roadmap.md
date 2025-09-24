@@ -4,12 +4,14 @@
 
 The following tasks are top priority for import adapter and migration features. See linked issues for details:
 
-- [Upgrade Existing Import Adapters for Full Feature Coverage](https://github.com/DrWeltschmerz/HydReq/issues/11)
-- [Develop New Import Adapters for Additional Formats](https://github.com/DrWeltschmerz/HydReq/issues/12)
-- [Implement JavaScript Scripting Support and Script Translation for Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/13)
-- [Add Environment and Variable Mapping to Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/14)
-- [Improve CLI Import Commands with Customization Options](https://github.com/DrWeltschmerz/HydReq/issues/15)
-- [Ensure Comprehensive Test Coverage for Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/16)
+### Issue links in implementation order
+
+1. [#11 Upgrade Existing Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/11)
+2. [#12 Develop New Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/12)
+3. [#13 Implement JavaScript Scripting/Translation](https://github.com/DrWeltschmerz/HydReq/issues/13)
+4. [#14 Add Environment/Variable Mapping](https://github.com/DrWeltschmerz/HydReq/issues/14)
+5. [#15 Improve CLI Import Commands](https://github.com/DrWeltschmerz/HydReq/issues/15)
+6. [#16 Ensure Comprehensive Test Coverage](https://github.com/DrWeltschmerz/HydReq/issues/16)
 
 ---
 
@@ -49,17 +51,6 @@ Notes: Flags for scripts, envs, folders, etc.
 Depends on: All previous tasks (must test all new/adapted features).  
 Order: Last. Should cover all code paths and edge cases added above.  
 Difficulty: Medium (tedious but straightforward).
-
----
-
-### Recommended Implementation Order
-
-1. [#11 Upgrade Existing Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/11)
-2. [#12 Develop New Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/12)
-3. [#13 Implement JavaScript Scripting/Translation](https://github.com/DrWeltschmerz/HydReq/issues/13)
-4. [#14 Add Environment/Variable Mapping](https://github.com/DrWeltschmerz/HydReq/issues/14)
-5. [#15 Improve CLI Import Commands](https://github.com/DrWeltschmerz/HydReq/issues/15)
-6. [#16 Ensure Comprehensive Test Coverage](https://github.com/DrWeltschmerz/HydReq/issues/16)
 
 ---
 
