@@ -1,6 +1,6 @@
 # Roadmap
 
-## Top Priority
+## Top Priority ✅ COMPLETED
 
 The following tasks are top priority for import adapter and migration features. See linked issues for details:
 
@@ -15,90 +15,132 @@ The following tasks are top priority for import adapter and migration features. 
 
 ---
 
-### Task Dependencies, Order, and Ease
+## Near-term (Feasible with Current UI)
 
-**1. Upgrade Existing Import Adapters for Full Feature Coverage (#11)**  
-Depends on: None (core/foundational work).  
-Order: First. Sets baseline for other improvements.  
-Difficulty: Medium-Hard (covers multiple features).  
-Notes: Must support auth, environments, scripts, advanced bodies, folders.
+### High Priority
+- **Reports in GUI (download JSON/JUnit artifacts)** - Essential for CI/CD integration
+- **YAML-preserving save path** - Backend-focused, improves user experience
 
-**2. Develop New Import Adapters for Additional Formats (#12)**  
-Depends on: #11 for guidance on "full feature coverage" standards.  
-Order: Second. After upgrading existing adapters, implement new ones similarly.  
-Difficulty: Medium (varies by format complexity).  
-Notes: Must research and map new formats (REST Client, Swagger UI, Newman).
-
-**3. Implement JavaScript Scripting Support and Script Translation for Import Adapters (#13)**  
-Depends on: #11, for script migration within adapters; can partly run in parallel.  
-Order: Third. Needed for script migration and translation in imports.  
-Difficulty: Hard (JS sandbox, translation logic).  
-Notes: Enables script hooks in HydReq and adapter migration.
-
-**4. Add Environment and Variable Mapping to Import Adapters (#14)**  
-Depends on: #11, #12, #13 (adapters must parse environments for mapping).  
-Order: Fourth. Complements scripting and core adapter work.  
-Difficulty: Medium.  
-Notes: Variable scoping and CLI customization.
-
-**5. Improve CLI Import Commands with Customization Options (#15)**  
-Depends on: #11, #12, #13, #14 (CLI exposes options for all the above features).  
-Order: Fifth. Surfaces all new features to users.  
-Difficulty: Easy-Medium (if CLI infra is solid).  
-Notes: Flags for scripts, envs, folders, etc.
-
-**6. Ensure Comprehensive Test Coverage for Import Adapters (#16)**  
-Depends on: All previous tasks (must test all new/adapted features).  
-Order: Last. Should cover all code paths and edge cases added above.  
-Difficulty: Medium (tedious but straightforward).
+### Medium Priority  
+- **OAuth2 client credentials helper** - Common auth pattern, needs some JS
+- **Tags filter and default-timeout in GUI header** - UX improvement, needs JS
+- **Editor polish** - Various small improvements, needs JS
 
 ---
 
-### Easiest & Fastest Task
+## Medium-term (Requires UI Modernization)
 
-- **Easiest/Fastest:** [#15 Improve CLI Import Commands](https://github.com/DrWeltschmerz/HydReq/issues/15) (if CLI is well-structured).
-- **Next Easiest:** [#14 Add Environment and Variable Mapping](https://github.com/DrWeltschmerz/HydReq/issues/14) (if adapters parse environments cleanly).
+### High Priority
+- **Results history in GUI and diffs between runs** - Essential for CI/CD and debugging
+- **OpenAPI hints expansion and response schema diffs** - Improves contract testing
+- **Advanced reporting: interactive dashboards, trend analysis, performance metrics visualization** - Better insights and monitoring
 
----
-
-### Dependencies/Tree
-
-```
-#11 → #12 → #13 → #14 → #15 → #16
-
-Or, as some work can overlap:
-
-#11 (upgrade existing adapters)
-   ├─ #13 (JS scripting support/translation)
-   ├─ #12 (new adapters, adopting #11's standards)
-        └─ #14 (env/variable mapping, after adapters parse environments)
-             └─ #15 (CLI exposes all above)
-                  └─ #16 (tests everything)
-```
+### Medium Priority
+- **AI-assisted test generation: auto-generate tests from OpenAPI specs, suggest assertions** - Major productivity boost
+- **Integrations: with monitoring tools (e.g., Prometheus), issue trackers (Jira, GitHub Issues)** - Enterprise features
 
 ---
 
-# Near-term
-- Reports in GUI (download JSON/JUnit artifacts)
-- Tags filter and default-timeout in GUI header (basic inputs added; refine UX and persistence)
-- Editor polish: collapse persistence, Convert… cleanup, DSN helpers per driver docs, "Run with deps" badges
-- YAML-preserving save path (optional raw mode with comments/order retained)
-- OAuth2 client credentials helper for suite auth
+## New Feature Suggestions
 
-# Medium-term
-- Results history in GUI and diffs between runs
-- VS Code extension for inline runs and decorations
-- OpenAPI hints expansion and response schema diffs
-- Advanced reporting: interactive dashboards, trend analysis, performance metrics visualization
-- AI-assisted test generation: auto-generate tests from OpenAPI specs, suggest assertions based on responses (enhances existing Copilot integration)
-- Integrations: with monitoring tools (e.g., Prometheus), issue trackers (Jira, GitHub Issues)
+### High Priority
+- **API Mocking/Stubbing Engine** - Essential for microservices development workflows
+- **Consumer-Driven Contract Testing** - Critical for microservices reliability
+- **Plugin Architecture** - Enables community ecosystem and extensibility
 
-# Longer-term
-- gRPC testing (reflect/proto) and contract checks
-- Official Docker image and GitHub Action for CI
-- Performance testing: load testing, stress testing within suites
-- GraphQL support: query/mutation testing with schema validation
-- Security testing: basic vulnerability scans (e.g., injection, auth bypass)
-- Collaboration features: team sharing, version control for test suites
-- Mobile API testing: support for mobile-specific endpoints and protocols
-- Message queue testing: AMQP, MQTT, WebSockets for event-driven systems
+### Medium Priority
+- **Test Data Factories & Generators** - Reduces test maintenance overhead
+- **Multi-Environment Configuration Management** - Essential for complex deployments
+- **Performance Regression Detection** - Valuable for CI/CD pipelines
+
+### Low Priority
+- **API Documentation Generation** - Nice-to-have for living documentation
+
+---
+
+## Longer-term (Major Infrastructure)
+
+### Medium Priority
+- **gRPC testing and contract checks** - Modern protocol support
+- **GraphQL support** - Popular query language
+- **Official Docker image and GitHub Action** - Deployment and CI automation
+
+### Low Priority
+- **Performance testing: load testing, stress testing** - Advanced testing capabilities
+- **Security testing** - Basic vulnerability scanning
+- **Collaboration features** - Team sharing and version control
+- **Mobile API testing** - Platform-specific testing
+- **Message queue testing** - Event-driven system testing
+
+---
+
+## Implementation Strategy
+
+### Phase 1: UI Modernization (Prerequisite)
+**Goal**: Enable advanced UI features
+**Approach**: HTMX + Alpine.js for progressive enhancement, or full SPA migration
+**Timeline**: 2-4 weeks
+**Dependencies**: None
+
+### Phase 2: High-Impact Features (Post-UI Upgrade)
+**Priority Order**:
+1. Results history and diffs (CI/CD essential)
+2. Advanced reporting dashboards (monitoring)
+3. OpenAPI hints expansion (contract testing)
+4. API mocking/stubbing (development workflow)
+5. Consumer-driven contracts (microservices)
+6. Plugin architecture (ecosystem)
+
+### Phase 3: Ecosystem & Integrations
+**Focus**: Community plugins, CI/CD integrations, enterprise features
+**Timeline**: Ongoing after Phase 2
+
+---
+
+## Success Metrics
+
+### Near-term Goals (3-6 months)
+- ✅ Complete import adapter overhaul (DONE)
+- ⏳ UI modernization enabling advanced features
+- ⏳ 2-3 high-priority features implemented
+- ⏳ Plugin ecosystem foundation
+
+### Medium-term Goals (6-12 months)
+- ⏳ 5+ community plugins available
+- ⏳ Full CI/CD integration suite
+- ⏳ Enterprise collaboration features
+- ⏳ Multi-protocol support (GraphQL, gRPC)
+
+### Long-term Vision (1-2 years)
+- ⏳ Industry-standard API testing platform
+- ⏳ Comprehensive microservices testing suite
+- ⏳ Thriving plugin ecosystem
+- ⏳ Enterprise-grade collaboration tools
+
+---
+
+## Risk Mitigation
+
+### Technical Risks
+- **UI Modernization Complexity**: Start with progressive enhancement (HTMX) before full SPA
+- **Plugin Security**: Sandboxed execution environment mandatory
+- **Performance**: Careful optimization for large test suites
+
+### Business Risks  
+- **Feature Creep**: Strict prioritization and phased rollout
+- **Community Adoption**: Focus on developer experience and integrations
+- **Competition**: Differentiate through import capabilities and extensibility
+
+---
+
+## Dependencies and Prerequisites
+
+### Must-Have Before Advanced Features
+1. **UI Modernization** - Enables interactive features
+2. **Database Integration** - Required for history/diffs
+3. **Plugin System Foundation** - Enables ecosystem
+
+### Nice-to-Have
+1. **Docker/K8s Support** - Deployment flexibility
+2. **GitHub Actions** - CI/CD automation
+3. **Monitoring Integration** - Enterprise readiness
