@@ -26,3 +26,6 @@ qa.sqlite
 #.vscode/
 .idea/
 *.bak*
+
+# Feature proposals and planning
+Features.md
