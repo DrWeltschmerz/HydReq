@@ -1,0 +1,156 @@
+{
+  "info": {
+    "name": "Complex Postman Collection",
+    "description": "A comprehensive test collection with all features",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "https://api.example.com"},
+    {"key": "apiKey", "value": "test-key-123"}
+  ],
+  "item": [
+    {
+      "name": "Authentication Folder",
+      "item": [
+        {
+          "name": "Basic Auth Request",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Accept", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {"key": "username", "value": "testuser", "type": "string"},
+                {"key": "password", "value": "testpass", "type": "string"}
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "console.log('Pre-request script running');",
+                  "pm.globals.set('timestamp', new Date().toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bearer Token Request",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{apiKey}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/secure",
+              "host": ["{{baseUrl}}"],
+              "path": ["secure"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Body Types Folder",
+      "item": [
+        {
+          "name": "JSON Body",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": \"John Doe\", \"email\": \"john@example.com\", \"nested\": {\"key\": \"value\"}}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            }
+          }
+        },
+        {
+          "name": "Form URL Encoded",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/x-www-form-urlencoded"}
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {"key": "username", "value": "johndoe", "type": "text"},
+                {"key": "password", "value": "secret123", "type": "text"},
+                {"key": "remember", "value": "true", "type": "text"}
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["login"]
+            }
+          }
+        },
+        {
+          "name": "Multipart Form Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "multipart/form-data"}
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "file", "type": "file", "src": ["/path/to/file.txt"]},
+                {"key": "description", "value": "Test file upload", "type": "text"}
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["upload"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Query Parameters Request",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/search?q=javascript&limit=10&sort=desc",
+          "host": ["{{baseUrl}}"],
+          "path": ["search"],
+          "query": [
+            {"key": "q", "value": "javascript"},
+            {"key": "limit", "value": "10"},
+            {"key": "sort", "value": "desc"}
+          ]
+        }
+      }
+    }
+  ]
+}

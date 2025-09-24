@@ -24,4 +24,5 @@ Add this to your workspace `.vscode/settings.json` to validate YAML with the sch
 
 Tips:
 - Keep `prompts/suite.prompts.md` open in a split pane while writing suites so Copilot picks up the conventions and examples.
-- Run `hydreq` with no arguments to launch the Web UI for quick feedback while authoring.
+- Run `hydreq` with no arguments to launch the Web UI for quick feedback while authoring, or use the Web UI's import feature to convert collections from Postman, Insomnia, HAR, OpenAPI/Swagger, Bruno, REST Client, and Newman formats.
+- For advanced scripting needs, use JavaScript hooks with full runtime support for complex logic and dynamic data generation.

@@ -1,0 +1,247 @@
+name: JavaScript Hooks Examples
+baseUrl: ${ENV:HTTPBIN_BASE_URL}
+vars:
+  api_version: v1
+  user_agent: HydReq-Test/1.0
+  initial_counter: "0"
+
+tests:
+  - name: Pre-request JS hook - set timestamp and custom header
+    request:
+      method: GET
+      url: /get
+      headers:
+        User-Agent: ${user_agent}
+    pre:
+      - name: Set timestamp and API version
+        js:
+          code: |
+            setVar('timestamp', new Date().toISOString());
+            setVar('request_id', 'req_' + Math.random().toString(36).substr(2, 9));
+            console.log('Pre-request: Generated request ID:', getVar('request_id'));
+    assert:
+      status: 200
+      jsonContains:
+        headers.User-Agent: ${user_agent}
+
+  - name: Post-response JS hook - validate and extract data
+    request:
+      method: POST
+      url: /post
+      body:
+        action: test
+        version: ${api_version}
+    post:
+      - name: Validate response and extract values
+        js:
+          code: |
+            console.log('Post-response: Status code is', response.status);
+            if (response.status === 200) {
+              setVar('response_size', JSON.stringify(response.body).length);
+              setVar('has_data', response.body.json ? 'true' : 'false');
+              console.log('Response size:', getVar('response_size'));
+            } else {
+              console.error('Unexpected status:', response.status);
+            }
+    assert:
+      status: 200
+      jsonEquals:
+        json.action: test
+        json.version: ${api_version}
+
+  - name: Complex JS logic - conditional requests
+    request:
+      method: GET
+      url: /get
+    pre:
+      - name: Dynamic status code selection
+        js:
+          code: |
+            var hour = new Date().getHours();
+            var statusCode = (hour % 2 === 0) ? 200 : 201;
+            setVar('status_code', statusCode.toString());
+            setVar('test_mode', hour % 2 === 0 ? 'even' : 'odd');
+            console.log('Selected status code:', statusCode, 'Mode:', getVar('test_mode'));
+    assert:
+      status: 200
+
+  - name: JS hooks with variable manipulation
+    request:
+      method: POST
+      url: /post
+      body:
+        counter: ${counter}
+        timestamp: ${timestamp}
+    pre:
+      - name: Initialize and increment counter
+        js:
+          code: |
+            var currentCount = parseInt(getVar('counter') || '0');
+            setVar('counter', (currentCount + 1).toString());
+            console.log('Counter incremented to:', getVar('counter'));
+    post:
+      - name: Process response data
+        js:
+          code: |
+            if (response.body && response.body.json) {
+              setVar('response_method', response.body.json.method || 'unknown');
+              setVar('response_url', response.body.json.url || 'unknown');
+              console.log('Response method:', getVar('response_method'));
+            }
+    assert:
+      status: 200
+      jsonEquals:
+        json.counter: ${counter}
+
+  - name: Error handling in JS hooks
+    request:
+      method: GET
+      url: /status/500
+    post:
+      - name: Handle error response
+        js:
+          code: |
+            try {
+              if (response.status >= 400) {
+                setVar('error_occurred', 'true');
+                setVar('error_code', response.status.toString());
+                console.log('Error detected:', response.status);
+              } else {
+                setVar('error_occurred', 'false');
+              }
+            } catch (e) {
+              console.error('JS hook error:', e.message);
+              setVar('js_error', e.message);
+            }
+    assert:
+      status: 500
+
+  - name: Simple JS pre-hook variable manipulation
+    request:
+      method: GET
+      url: /get
+    pre:
+      - name: Set variables with JS
+        js:
+          code: |
+            setVar('js_timestamp', new Date().toISOString());
+            setVar('js_random', Math.random().toString());
+            setVar('js_calc', (42 * 2).toString());
+            console.log('JS pre-hook executed successfully');
+    assert:
+      status: 200
+
+  - name: JS post-hook response processing
+    request:
+      method: POST
+      url: /post
+      body:
+        test_data: hello world
+    post:
+      - name: Process response with JS
+        js:
+          code: |
+            if (response.status === 200) {
+              setVar('response_received', 'true');
+              setVar('response_length', response.body ? response.body.length.toString() : '0');
+              console.log('JS post-hook: Response processed, length:', getVar('response_length'));
+            } else {
+              setVar('response_received', 'false');
+              console.log('JS post-hook: Unexpected status', response.status);
+            }
+    assert:
+      status: 200
+      jsonEquals:
+        json.test_data: "hello world"
+
+  - name: Complex JS logic and error handling
+    request:
+      method: GET
+      url: /get
+    pre:
+      - name: Complex JS operations
+        js:
+          code: |
+            try {
+              var data = { numbers: [1, 2, 3, 4, 5] };
+              var sum = data.numbers.reduce(function(a, b) { return a + b; }, 0);
+              var avg = sum / data.numbers.length;
+
+              setVar('sum_result', sum.toString());
+              setVar('avg_result', avg.toString());
+              setVar('data_length', data.numbers.length.toString());
+
+              console.log('JS calculations: sum=' + sum + ', avg=' + avg);
+            } catch (e) {
+              setVar('js_error', e.message);
+              console.error('JS error:', e.message);
+            }
+    post:
+      - name: Verify calculations
+        js:
+          code: |
+            var expectedSum = '15';
+            var expectedAvg = '3';
+            if (getVar('sum_result') === expectedSum && getVar('avg_result') === expectedAvg) {
+              setVar('calculations_correct', 'true');
+              console.log('JS verification: Calculations are correct');
+            } else {
+              setVar('calculations_correct', 'false');
+              console.log('JS verification: Calculations failed');
+            }
+    assert:
+      status: 200
+
+  - name: JS hooks with conditional logic
+    request:
+      method: GET
+      url: /get?test=value
+    pre:
+      - name: Conditional variable setting
+        js:
+          code: |
+            var currentHour = new Date().getHours();
+            if (currentHour < 12) {
+              setVar('time_of_day', 'morning');
+            } else if (currentHour < 18) {
+              setVar('time_of_day', 'afternoon');
+            } else {
+              setVar('time_of_day', 'evening');
+            }
+            setVar('current_hour', currentHour.toString());
+            console.log('Time-based logic executed, hour:', currentHour);
+    assert:
+      status: 200
+
+  - name: Multiple JS hooks in sequence
+    request:
+      method: POST
+      url: /post
+      body:
+        sequence_test: true
+    pre:
+      - name: First pre-hook
+        js:
+          code: |
+            setVar('step1', 'completed');
+            console.log('Step 1 completed');
+      - name: Second pre-hook
+        js:
+          code: |
+            setVar('step2', 'completed');
+            setVar('combined', getVar('step1') + ' and ' + getVar('step2'));
+            console.log('Step 2 completed, combined:', getVar('combined'));
+    post:
+      - name: First post-hook
+        js:
+          code: |
+            setVar('post_step1', 'done');
+            console.log('Post step 1');
+      - name: Second post-hook
+        js:
+          code: |
+            setVar('post_step2', 'done');
+            setVar('all_steps', getVar('combined') + ', post: ' + getVar('post_step1') + ' ' + getVar('post_step2'));
+            console.log('All steps completed:', getVar('all_steps'));
+    assert:
+      status: 200

@@ -39,13 +39,13 @@
   "definitions": {
     "hooks": {
       "type": "array",
-      "description": "Sequence of hook steps. Each step may issue an HTTP request with asserts/extract or run a SQL query with extract.",
+      "description": "Sequence of hook steps. Each step may issue an HTTP request with asserts/extract, run a SQL query with extract, or execute JavaScript code.",
       "items": { "$ref": "#/definitions/hook" }
     },
     "hook": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Reusable step executed before/after a suite or test.",
+      "description": "Reusable step executed before/after a suite or test. Supports HTTP requests, SQL queries, and JavaScript execution.",
       "properties": {
         "name": { "type": "string", "description": "Optional label for this hook step." },
         "vars": { "type": "object", "description": "Variables set/overridden for the duration of this hook.", "additionalProperties": { "type": "string" } },
@@ -63,6 +63,15 @@
             "extract": { "type": "object", "description": "Map variable name to column name for extraction.", "additionalProperties": { "type": "string" } }
           },
           "required": ["driver", "dsn", "query"]
+        },
+        "js": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Execute JavaScript code with access to request/response objects and variables.",
+          "properties": {
+            "code": { "type": "string", "description": "JavaScript code to execute. Has access to setVar(), getVar(), request, response objects." }
+          },
+          "required": ["code"]
         }
       }
     },

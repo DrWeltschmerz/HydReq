@@ -17,14 +17,14 @@ Keep these rules in mind:
   - `maxDurationMs: <int>`
 - Extraction: `extract: { varName: { jsonPath: path } }` and reuse with `${varName}`.
 - Interpolation supports `${var}`, `${ENV:VAR}`, and generators `${FAKE:uuid}`, `${EMAIL}`, `${NOW[:offset]:layout}`, `${RANDINT:min:max}`.
-- Hooks: add `pre`/`post` arrays to tests or `preSuite`/`postSuite` at top-level. Hooks can set `vars`, run HTTP `request` with `assert` and `extract`, or run `sql` with `driver|dsn|query|extract`.
+- Hooks: add `pre`/`post` arrays to tests or `preSuite`/`postSuite` at top-level. Hooks can set `vars`, run HTTP `request` with `assert` and `extract`, run `sql` with `driver|dsn|query|extract`, or execute `js` with custom JavaScript code for complex logic.
 - Scheduling:
   - Use `stage` for simple ordering; same-stage tests run in parallel.
   - Or use `dependsOn` for a DAG; duplicate names are not allowed with `dependsOn`.
 - Matrix expansion: add `matrix:` with key: [values] to generate cartesian combinations; use vars in body/query/headers.
 - OpenAPI validation: enable suite-level `openApi: { file: path, enabled: true }` and optionally per-test `openApi.enabled`.
 
-Tip: While authoring, you can run tests from the CLI (`hydreq run -f suite.yaml`) or use the built-in Web UI by running `hydreq` with no arguments to launch a local GUI.
+Tip: While authoring, you can run tests from the CLI (`hydreq run -f suite.yaml`) or use the built-in Web UI by running `hydreq` with no arguments to launch a local GUI. The Web UI also supports importing collections directly from Postman, Insomnia, HAR, OpenAPI/Swagger, Bruno, REST Client, and Newman formats, and includes a visual editor for creating and modifying test suites.
 
 Examples:
 
@@ -78,8 +78,12 @@ Additional patterns for Copilot to suggest on demand:
 - SQL hooks
   - Before tests that depend on DB state, add a `pre` hook `sql: { driver, dsn, query }` and extract variables (e.g., `userId`).
 
+- JavaScript hooks
+  - For complex logic, dynamic data generation, or custom assertions, use `js` hooks with full JavaScript runtime: `js: { code: "console.log('test'); setVar('timestamp', new Date().toISOString());" }`. Access variables with `getVar()` and `setVar()`, make HTTP calls, or perform custom validation.
+
 - Matrix promotion
   - Consolidate near-duplicate tests by introducing `matrix:` and replacing literals with `${var}`.
 
 - Adapters (import helpers)
-  - When users have Postman/Insomnia/HAR/OpenAPI/Bruno, suggest using `hydreq import <adapter> <path>` to bootstrap a suite, then refine with assertions and matrix.
+  - When users have Postman/Insomnia/HAR/OpenAPI/Swagger/Bruno/REST Client/Newman collections, suggest using `hydreq import <adapter> <path>` to bootstrap a suite, then refine with assertions and matrix.
+  - Supported formats: `postman` (JSON), `insomnia` (JSON), `har` (JSON), `openapi` (YAML/JSON for OpenAPI 3.x or Swagger 2.0), `bruno` (JSON), `restclient` (.http), `newman` (JSON)

@@ -6,12 +6,12 @@ The following tasks are top priority for import adapter and migration features. 
 
 ### Issue links in implementation order
 
-1. [#11 Upgrade Existing Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/11)
-2. [#12 Develop New Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/12)
-3. [#13 Implement JavaScript Scripting/Translation](https://github.com/DrWeltschmerz/HydReq/issues/13)
-4. [#14 Add Environment/Variable Mapping](https://github.com/DrWeltschmerz/HydReq/issues/14)
-5. [#15 Improve CLI Import Commands](https://github.com/DrWeltschmerz/HydReq/issues/15)
-6. [#16 Ensure Comprehensive Test Coverage](https://github.com/DrWeltschmerz/HydReq/issues/16)
+1. ✅ [#11 Upgrade Existing Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/11) - **COMPLETED**
+2. ✅ [#12 Develop New Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/12) - **COMPLETED**
+3. ✅ [#13 Implement JavaScript Scripting/Translation](https://github.com/DrWeltschmerz/HydReq/issues/13) - **COMPLETED**
+4. ✅ [#14 Add Environment/Variable Mapping](https://github.com/DrWeltschmerz/HydReq/issues/14) - **COMPLETED**
+5. ✅ [#15 Improve CLI Import Commands](https://github.com/DrWeltschmerz/HydReq/issues/15) - **COMPLETED**
+6. ✅ [#16 Ensure Comprehensive Test Coverage](https://github.com/DrWeltschmerz/HydReq/issues/16) - **COMPLETED**
 
 ---
 

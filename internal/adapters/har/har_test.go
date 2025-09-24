@@ -32,3 +32,21 @@ func TestConvertSimple(t *testing.T) {
 		t.Fatalf("expected default status 200, got %d", tc.Assert.Status)
 	}
 }
+
+func TestConvert_EmptyHAR(t *testing.T) {
+	harJSON := `{"log": {"creator": {"name": "test"}, "entries": []}}`
+	s, err := Convert(strings.NewReader(harJSON))
+	if err != nil {
+		t.Fatalf("convert: %v", err)
+	}
+	if len(s.Tests) != 0 {
+		t.Fatalf("expected 0 tests for empty HAR")
+	}
+}
+
+func TestConvert_InvalidHAR(t *testing.T) {
+	_, err := Convert(strings.NewReader(`{"log": "invalid"}`))
+	if err == nil {
+		t.Fatal("expected error for invalid HAR")
+	}
+}

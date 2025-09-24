@@ -27,6 +27,39 @@ Flags:
 - `--report-dir`: if set and no explicit report paths are provided, writes JSON, JUnit, and HTML reports into this directory using `<suite-name>-<timestamp>.{json,xml,html}` and also emits aggregated run-level artifacts `run-<timestamp>.{json,xml,html}`
 - `--output`: console output format: `summary` (default) or `json` (prints a detailed JSON result to stdout)
 
+## Import Commands
+
+Import external API collections to HydReq YAML suites:
+
+```
+./hydreq import postman collection.json > suite.yaml
+./hydreq import postman collection.json --env environment.json --base-url https://api.example.com > suite.yaml
+./hydreq import newman collection.json --env environment.json --skip-auth > suite.yaml
+./hydreq import insomnia export.json --verbose > suite.yaml
+./hydreq import insomnia export.json --flat --no-scripts --base-url https://api.example.com > suite.yaml
+./hydreq import bruno export.json > suite.yaml
+./hydreq import bruno export.json --flat --no-scripts > suite.yaml
+./hydreq import har archive.har > suite.yaml
+./hydreq import har archive.har --base-url https://api.example.com > suite.yaml
+./hydreq import openapi spec.yaml > suite.yaml
+./hydreq import openapi spec.yaml --base-url https://api.example.com > suite.yaml
+./hydreq import restclient requests.http > suite.yaml
+./hydreq import restclient requests.http --base-url https://api.example.com > suite.yaml
+```
+
+### Import Flags
+
+Global flags (available for all import commands):
+- `--verbose` (or `-v`): show detailed import information
+- `--out` (or `-o`): output file path (defaults to stdout)
+
+Format-specific flags:
+- `--env` (Postman/Newman only): path to environment JSON file to merge variables
+- `--base-url`: override the base URL for all imported requests
+- `--no-scripts` (Postman/Insomnia/Bruno/Newman only): skip conversion of pre/post request scripts
+- `--flat` (Postman/Insomnia/Bruno/Newman only): flatten folder structure into simple test names
+- `--skip-auth` (Postman/Insomnia/Bruno/Newman only): skip conversion of authentication settings
+
 Exit codes:
 - `0`: all tests passed
 - `1`: tests failed

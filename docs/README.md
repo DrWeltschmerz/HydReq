@@ -17,9 +17,10 @@ Welcome! This is the full documentation for HydReq. Start here and jump to the t
 - Hooks:
   - HTTP hooks: ./hooks.md
   - SQL hooks: ./sql-hooks.md
+  - JavaScript scripting: ./scripting.md
 - OpenAPI validation
   - ./openapi.md
-- Adapters (import Postman/Insomnia/HAR/OpenAPI/Bruno)
+- Adapters (import Postman/Insomnia/HAR/OpenAPI/Bruno/Newman/REST Client)
   - ./adapters.md
 - Reports (JSON/JUnit/HTML)
   - ./reports.md

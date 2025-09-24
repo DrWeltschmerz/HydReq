@@ -1,0 +1,173 @@
+{
+  "name": "Complex Bruno Collection",
+  "version": "1",
+  "items": [
+    {
+      "uid": "folder_auth",
+      "name": "Authentication Folder",
+      "type": "folder",
+      "items": [
+        {
+          "uid": "req_basic_auth",
+          "name": "Basic Auth Request",
+          "type": "http-request",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users",
+            "auth": {
+              "mode": "basic",
+              "basic": {
+                "username": "{{username}}",
+                "password": "{{password}}"
+              }
+            },
+            "headers": [
+              {
+                "name": "Accept",
+                "value": "application/json",
+                "enabled": true
+              }
+            ],
+            "script": {
+              "req": "console.log('Pre-request script');\nbru.setVar('timestamp', new Date().toISOString());",
+              "res": "bru.test('Status is 200', function() {\n  expect(res.getStatus()).to.equal(200);\n});"
+            },
+            "vars": {
+              "req": [
+                {
+                  "name": "userId",
+                  "value": "123",
+                  "enabled": true
+                }
+              ]
+            },
+            "assertions": [
+              {
+                "uid": "assert_001",
+                "name": "Status equals 200",
+                "type": "status",
+                "enabled": true
+              }
+            ]
+          }
+        },
+        {
+          "uid": "req_bearer_auth",
+          "name": "Bearer Token Request",
+          "type": "http-request",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/secure",
+            "auth": {
+              "mode": "bearer",
+              "bearer": {
+                "token": "{{apiKey}}"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "uid": "folder_bodies",
+      "name": "Body Types Folder",
+      "type": "folder",
+      "items": [
+        {
+          "uid": "req_json_body",
+          "name": "JSON Body",
+          "type": "http-request",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/users",
+            "headers": [
+              {
+                "name": "Content-Type",
+                "value": "application/json",
+                "enabled": true
+              }
+            ],
+            "body": {
+              "mode": "json",
+              "json": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"nested\": {\n    \"key\": \"value\"\n  }\n}"
+            }
+          }
+        },
+        {
+          "uid": "req_form_body",
+          "name": "Form URL Encoded",
+          "type": "http-request",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/login",
+            "body": {
+              "mode": "formUrlEncoded",
+              "formUrlEncoded": [
+                {
+                  "name": "username",
+                  "value": "johndoe",
+                  "enabled": true
+                },
+                {
+                  "name": "password",
+                  "value": "secret123",
+                  "enabled": true
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "uid": "req_query_params",
+      "name": "Query Parameters Request",
+      "type": "http-request",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/search",
+        "params": [
+          {
+            "name": "q",
+            "value": "javascript",
+            "enabled": true
+          },
+          {
+            "name": "limit",
+            "value": "10",
+            "enabled": true
+          },
+          {
+            "name": "sort",
+            "value": "desc",
+            "enabled": true
+          }
+        ]
+      }
+    }
+  ],
+  "environments": [
+    {
+      "uid": "env_dev",
+      "name": "Development",
+      "variables": [
+        {
+          "uid": "var_baseurl",
+          "name": "baseUrl",
+          "value": "https://api.example.com",
+          "type": "text",
+          "enabled": true,
+          "secret": false
+        },
+        {
+          "uid": "var_apikey",
+          "name": "apiKey",
+          "value": "test-key-123",
+          "type": "text",
+          "enabled": true,
+          "secret": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+GET https://httpbin.org/get
+Authorization: Bearer test-token
+Content-Type: application/json
+
+###
+
+POST https://httpbin.org/post
+Content-Type: application/json
+
+{
+  "message": "Hello from REST Client"
+}

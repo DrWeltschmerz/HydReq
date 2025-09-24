@@ -1,7 +1,7 @@
 # 🐙 HydReq (Hydra Request)
 
 > 🚀 **API Testing Simplified**  
-> Write YAML tests, run in CLI/Web UI, generate reports. Supports matrices, hooks, OpenAPI, and CI automation.
+> Write YAML tests, run in CLI/Web UI, generate reports. Supports matrices, hooks (HTTP/SQL/JS), OpenAPI/Swagger, 7+ import formats, and CI automation.
 
 <table width="100%" border="0" cellpadding="6" cellspacing="0">
   <tr>
@@ -44,7 +44,7 @@
 ## Documentation
 
 - Full docs: `docs/README.md`
-- Quick links: [Getting started](docs/getting-started.md), [Web UI](docs/web-ui.md), [CLI](docs/cli.md), [Authoring](docs/authoring.md), [Scheduling](docs/scheduling.md), [Hooks](docs/hooks.md), [SQL hooks](docs/sql-hooks.md), [OpenAPI](docs/openapi.md), [Visual editor](docs/visual-editor.md), [Adapters](docs/adapters.md), [Reports](docs/reports.md), [Examples](docs/examples.md), [Troubleshooting](docs/troubleshooting.md), [Contributing](docs/contributing.md), [Roadmap](docs/roadmap.md), [What’s new](CHANGELOG.md), Cheatsheets: [Suite](docs/cheatsheets/suite.cheatsheet.md), [Assertions](docs/cheatsheets/assertions.cheatsheet.md)
+- Quick links: [Getting started](docs/getting-started.md), [Web UI](docs/web-ui.md), [CLI](docs/cli.md), [Authoring](docs/authoring.md), [Scheduling](docs/scheduling.md), [Hooks](docs/hooks.md), [SQL hooks](docs/sql-hooks.md), [JavaScript scripting](docs/scripting.md), [OpenAPI](docs/openapi.md), [Visual editor](docs/visual-editor.md), [Adapters](docs/adapters.md), [Reports](docs/reports.md), [Examples](docs/examples.md), [Troubleshooting](docs/troubleshooting.md), [Contributing](docs/contributing.md), [Roadmap](docs/roadmap.md), [What's new](CHANGELOG.md), Cheatsheets: [Suite](docs/cheatsheets/suite.cheatsheet.md), [Assertions](docs/cheatsheets/assertions.cheatsheet.md)
 
 ## Contents
 
@@ -217,7 +217,7 @@ Embed dynamic data anywhere interpolation works:
 | 🔁 Retries | With backoff, jitter, and configurable limits |
 | 🔐 Auth Helpers | Bearer/Basic via environment variables |
 | 📊 Matrix Expansion | Data-driven test combinations |
-| 🪝 Hooks | Pre/post suite/test
+| 🪝 Hooks | Pre/post suite/test with HTTP, SQL, and JavaScript execution |
 | 📋 Reports | JSON, JUnit, HTML with summaries and details |
 
 
@@ -226,17 +226,24 @@ Embed dynamic data anywhere interpolation works:
 - Postman (v2.1 JSON)
 - Insomnia (export JSON)
 - HAR (HTTP Archive)
-- OpenAPI (3.x)
+- OpenAPI (3.x) / Swagger (2.0)
 - Bruno (minimal export)
+- REST Client (VS Code .http)
+- Newman (Postman CLI)
 
 ### CLI examples:
 
 ```
 hydreq import postman path/to/collection.json > suite.yaml
+hydreq import postman path/to/collection.json --env path/to/environment.json > suite.yaml
+hydreq import postman path/to/collection.json --env path/to/environment.json --base-url https://staging.api.com --verbose > suite.yaml
 hydreq import insomnia path/to/export.json > suite.yaml
 hydreq import har path/to/archive.har > suite.yaml
 hydreq import openapi path/to/spec.(yaml|json) > suite.yaml
 hydreq import bruno path/to/export.json > suite.yaml
+hydreq import restclient path/to/requests.http > suite.yaml
+hydreq import newman path/to/collection.json > suite.yaml
+hydreq import newman path/to/collection.json --env path/to/environment.json > suite.yaml
 ```
 
 ### Reports
@@ -272,12 +279,45 @@ Optional PR comment
 - `testdata/matrix.yaml` — matrix expansion
 - `testdata/depends.yaml` — DAG scheduling
 - `testdata/hooks.yaml` — HTTP hooks
+- `testdata/js-hooks.yaml` — JavaScript hooks
 - `testdata/sqlite.yaml` — SQL hooks
 - `testdata/openapi.yaml` — OpenAPI validation
 - `testdata/tags.yaml` — tags and slow example
 - `testdata/retries.yaml` — retries with jitter
 - `testdata/jsoncontains.yaml` — JSONContains
 - `testdata/postgres.yaml` / `sqlserver.yaml` — DB examples (env DSNs)
+
+---
+
+## JavaScript Hooks
+
+HydReq supports advanced scripting with JavaScript hooks for complex test logic, dynamic data generation, and response processing.
+
+```yaml
+tests:
+  - name: Dynamic data generation
+    pre:
+      - name: Generate test data
+        js:
+          code: |
+            setVar('user_id', Math.floor(Math.random() * 1000));
+            setVar('timestamp', new Date().toISOString());
+    request:
+      method: POST
+      url: /users
+      body:
+        id: ${user_id}
+        created: ${timestamp}
+```
+
+**Available in JS hooks:**
+- `setVar(name, value)` — Set variables for use in templates
+- `getVar(name)` — Get variable values
+- `request` — Access to the current HTTP request object
+- `response` — Access to the HTTP response (in post hooks)
+- Full JavaScript runtime with standard libraries
+
+See `docs/hooks.md` and `testdata/js-hooks.yaml` for comprehensive examples.
 
 ---
 

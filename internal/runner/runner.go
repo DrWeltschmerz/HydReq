@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dop251/goja"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers"
@@ -933,6 +934,12 @@ func runHook(ctx context.Context, s *models.Suite, vars *map[string]string, h mo
 			}
 		}
 	}
+	// JS action
+	if h.JS != nil {
+		if err := RunJSHook(h.JS, vars); err != nil {
+			return err
+		}
+	}
 	if h.Request == nil {
 		return nil
 	}
@@ -963,6 +970,39 @@ func runHook(ctx context.Context, s *models.Suite, vars *map[string]string, h mo
 		}
 	}
 	return nil
+}
+
+// RunJSHook executes JavaScript code with access to variables
+func RunJSHook(jsHook *models.JSHook, vars *map[string]string) error {
+	vm := goja.New()
+
+	// Set up context variables
+	varsObj := vm.NewObject()
+	for k, v := range *vars {
+		varsObj.Set(k, v)
+	}
+	vm.Set("vars", varsObj)
+
+	// Set up utility functions
+	vm.Set("setVar", func(name, value string) {
+		(*vars)[name] = value
+		varsObj.Set(name, value) // Update JS object too
+	})
+
+	vm.Set("getVar", func(name string) string {
+		return (*vars)[name]
+	})
+
+	// Add context variables if provided
+	if jsHook.Context != nil {
+		for k, v := range jsHook.Context {
+			vm.Set(k, v)
+		}
+	}
+
+	// Execute the JavaScript code
+	_, err := vm.RunString(jsHook.Code)
+	return err
 }
 
 // Generators expansion helpers

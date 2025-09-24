@@ -74,6 +74,7 @@ type Hook struct {
 	Assert  Assertions         `yaml:"assert,omitempty" json:"assert"`
 	Extract map[string]Extract `yaml:"extract,omitempty" json:"extract"`
 	SQL     *SQLHook           `yaml:"sql,omitempty" json:"sql"`
+	JS      *JSHook            `yaml:"js,omitempty" json:"js"`
 }
 
 type SQLHook struct {
@@ -90,4 +91,9 @@ type OpenAPIConfig struct {
 
 type OpenAPITest struct {
 	Enabled *bool `yaml:"enabled,omitempty" json:"enabled"` // override per-test
+}
+
+type JSHook struct {
+	Code    string         `yaml:"code" json:"code"`
+	Context map[string]any `yaml:"context,omitempty" json:"context"` // variables available to script
 }
