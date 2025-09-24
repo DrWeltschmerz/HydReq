@@ -34,7 +34,8 @@
         <a href="docs/getting-started.md">🚀 Quick Start</a><br>
         <a href="docs/examples.md">🧪 Examples</a><br>
         <a href="#copilot-and-editor-support">🤖 Copilot Setup</a></br>
-        <a href="docs/roadmap.md">🧭 Roadmap</a> 
+        <a href="docs/roadmap.md">🧭 Roadmap</a></br>
+        <a href="docs/contributing.md">🛠️ Contributing</a>
       </p>
     </td>
   </tr>
