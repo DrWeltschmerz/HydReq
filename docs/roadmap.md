@@ -1,16 +1,100 @@
 # Roadmap
 
-Top Priority
-- Enhanced adapters + new adapters: full-featured importers for Postman, Insomnia, HAR, OpenAPI, REST Client (VS Code), Swagger UI exports, Newman (Postman CLI) collections, Bruno with auth, variables, scripts, and advanced body types
+## Top Priority
 
-Near-term
+The following tasks are top priority for import adapter and migration features. See linked issues for details:
+
+- [Upgrade Existing Import Adapters for Full Feature Coverage](https://github.com/DrWeltschmerz/HydReq/issues/11)
+- [Develop New Import Adapters for Additional Formats](https://github.com/DrWeltschmerz/HydReq/issues/12)
+- [Implement JavaScript Scripting Support and Script Translation for Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/13)
+- [Add Environment and Variable Mapping to Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/14)
+- [Improve CLI Import Commands with Customization Options](https://github.com/DrWeltschmerz/HydReq/issues/15)
+- [Ensure Comprehensive Test Coverage for Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/16)
+
+---
+
+### Task Dependencies, Order, and Ease
+
+**1. Upgrade Existing Import Adapters for Full Feature Coverage (#11)**  
+Depends on: None (core/foundational work).  
+Order: First. Sets baseline for other improvements.  
+Difficulty: Medium-Hard (covers multiple features).  
+Notes: Must support auth, environments, scripts, advanced bodies, folders.
+
+**2. Develop New Import Adapters for Additional Formats (#12)**  
+Depends on: #11 for guidance on "full feature coverage" standards.  
+Order: Second. After upgrading existing adapters, implement new ones similarly.  
+Difficulty: Medium (varies by format complexity).  
+Notes: Must research and map new formats (REST Client, Swagger UI, Newman).
+
+**3. Implement JavaScript Scripting Support and Script Translation for Import Adapters (#13)**  
+Depends on: #11, for script migration within adapters; can partly run in parallel.  
+Order: Third. Needed for script migration and translation in imports.  
+Difficulty: Hard (JS sandbox, translation logic).  
+Notes: Enables script hooks in HydReq and adapter migration.
+
+**4. Add Environment and Variable Mapping to Import Adapters (#14)**  
+Depends on: #11, #12, #13 (adapters must parse environments for mapping).  
+Order: Fourth. Complements scripting and core adapter work.  
+Difficulty: Medium.  
+Notes: Variable scoping and CLI customization.
+
+**5. Improve CLI Import Commands with Customization Options (#15)**  
+Depends on: #11, #12, #13, #14 (CLI exposes options for all the above features).  
+Order: Fifth. Surfaces all new features to users.  
+Difficulty: Easy-Medium (if CLI infra is solid).  
+Notes: Flags for scripts, envs, folders, etc.
+
+**6. Ensure Comprehensive Test Coverage for Import Adapters (#16)**  
+Depends on: All previous tasks (must test all new/adapted features).  
+Order: Last. Should cover all code paths and edge cases added above.  
+Difficulty: Medium (tedious but straightforward).
+
+---
+
+### Recommended Implementation Order
+
+1. [#11 Upgrade Existing Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/11)
+2. [#12 Develop New Import Adapters](https://github.com/DrWeltschmerz/HydReq/issues/12)
+3. [#13 Implement JavaScript Scripting/Translation](https://github.com/DrWeltschmerz/HydReq/issues/13)
+4. [#14 Add Environment/Variable Mapping](https://github.com/DrWeltschmerz/HydReq/issues/14)
+5. [#15 Improve CLI Import Commands](https://github.com/DrWeltschmerz/HydReq/issues/15)
+6. [#16 Ensure Comprehensive Test Coverage](https://github.com/DrWeltschmerz/HydReq/issues/16)
+
+---
+
+### Easiest & Fastest Task
+
+- **Easiest/Fastest:** [#15 Improve CLI Import Commands](https://github.com/DrWeltschmerz/HydReq/issues/15) (if CLI is well-structured).
+- **Next Easiest:** [#14 Add Environment and Variable Mapping](https://github.com/DrWeltschmerz/HydReq/issues/14) (if adapters parse environments cleanly).
+
+---
+
+### Dependencies/Tree
+
+```
+#11 → #12 → #13 → #14 → #15 → #16
+
+Or, as some work can overlap:
+
+#11 (upgrade existing adapters)
+   ├─ #13 (JS scripting support/translation)
+   ├─ #12 (new adapters, adopting #11's standards)
+        └─ #14 (env/variable mapping, after adapters parse environments)
+             └─ #15 (CLI exposes all above)
+                  └─ #16 (tests everything)
+```
+
+---
+
+# Near-term
 - Reports in GUI (download JSON/JUnit artifacts)
 - Tags filter and default-timeout in GUI header (basic inputs added; refine UX and persistence)
 - Editor polish: collapse persistence, Convert… cleanup, DSN helpers per driver docs, "Run with deps" badges
 - YAML-preserving save path (optional raw mode with comments/order retained)
 - OAuth2 client credentials helper for suite auth
 
-Medium-term
+# Medium-term
 - Results history in GUI and diffs between runs
 - VS Code extension for inline runs and decorations
 - OpenAPI hints expansion and response schema diffs
@@ -18,7 +102,7 @@ Medium-term
 - AI-assisted test generation: auto-generate tests from OpenAPI specs, suggest assertions based on responses (enhances existing Copilot integration)
 - Integrations: with monitoring tools (e.g., Prometheus), issue trackers (Jira, GitHub Issues)
 
-Longer-term
+# Longer-term
 - gRPC testing (reflect/proto) and contract checks
 - Official Docker image and GitHub Action for CI
 - Performance testing: load testing, stress testing within suites
