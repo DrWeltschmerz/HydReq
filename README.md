@@ -33,7 +33,8 @@
         <a href="docs/README.md">📖 Full Docs</a><br>
         <a href="docs/getting-started.md">🚀 Quick Start</a><br>
         <a href="docs/examples.md">🧪 Examples</a><br>
-        <a href="#copilot-and-editor-support">🤖 Copilot Setup</a>
+        <a href="#copilot-and-editor-support">🤖 Copilot Setup</a></br>
+        <a href="docs/roadmap.md">🧭 Roadmap</a> 
       </p>
     </td>
   </tr>
