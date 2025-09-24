@@ -1,5 +1,47 @@
 # Changelog
 
+## v0.3.4-beta (2025-09-24)
+
+Highlights
+- Complete import adapter overhaul with full feature coverage for all 7 formats (Postman, Newman, Bruno, Insomnia, HAR, OpenAPI, REST Client).
+- Comprehensive test coverage (>80%) for all import adapters including edge cases, environment variables, scripts, and error handling.
+- Copilot instructions configured for consistent AI-assisted development.
+
+Features
+- Import Adapters (Full Feature Coverage)
+	- **Postman**: Environment variables, scripts/hooks, authentication, advanced request bodies, folders/collections.
+	- **Newman**: Enhanced Postman CLI format support with environment variable integration.
+	- **Bruno**: Environment extraction from JSON exports, script translation, authentication support.
+	- **Insomnia**: Environment variables, authentication, request translation with full fidelity.
+	- **HAR**: HTTP Archive format support with request/response capture and replay.
+	- **OpenAPI/Swagger**: Security schemes (bearer, basic auth), parameter extraction, response validation.
+	- **REST Client**: Query parameter parsing, multiple headers, request body handling.
+- Testing Infrastructure
+	- Comprehensive test suites for all adapters with table-driven tests.
+	- Edge case coverage: malformed input, empty collections, missing fields, invalid formats.
+	- Environment variable and script translation validation.
+	- Error handling and input validation testing.
+- Development Tools
+	- Copilot instructions configured (`.github/copilot-instructions.md`) for consistent AI-assisted development.
+	- Enhanced VS Code snippets for HydReq YAML authoring.
+
+Changes
+- CLI
+	- Import commands enhanced with full adapter feature support.
+	- Improved error messages and validation for import operations.
+- Adapters
+	- All adapters now support environment variables, authentication, and script translation.
+	- Consistent error handling and input validation across all formats.
+	- Enhanced fidelity for complex request types (multipart, GraphQL, etc.).
+- Testing
+	- Test coverage increased from ~60% to >80% across adapter packages.
+	- Added integration tests for environment variable merging and script conversion.
+	- Comprehensive edge case testing for malformed and empty inputs.
+
+Fixes
+- Import Adapters: Fixed environment variable scoping and script translation issues.
+- Testing: Resolved race conditions in adapter tests and improved test reliability.
+
 ## v0.3.3-beta.1 (2025-09-24)
 
 Features

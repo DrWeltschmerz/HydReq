@@ -55,7 +55,23 @@ func main() {
 			return nil
 		}
 		if strings.HasSuffix(lower, ".yaml") || strings.HasSuffix(lower, ".yml") {
-			files = append(files, path)
+			// Quick check if this looks like a HydReq suite by reading first few lines
+			if data, err := os.ReadFile(path); err == nil {
+				// Convert to JSON to check structure
+				if jsonBytes, err := kyaml.YAMLToJSON(data); err == nil {
+					var v map[string]interface{}
+					if err := json.Unmarshal(jsonBytes, &v); err == nil {
+						// Check for required suite properties
+						if _, hasName := v["name"]; hasName {
+							if _, hasBaseUrl := v["baseUrl"]; hasBaseUrl {
+								if _, hasTests := v["tests"]; hasTests {
+									files = append(files, path)
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 		return nil
 	})

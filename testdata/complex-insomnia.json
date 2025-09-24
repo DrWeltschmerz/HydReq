@@ -1,0 +1,147 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2025-09-24T10:00:00.000Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.0",
+  "type": "collection.insomnia.rest/5.0",
+  "name": "Complex Insomnia Collection",
+  "meta": {
+    "id": "wrk_001",
+    "created": 1638360000000,
+    "modified": 1638360000000
+  },
+  "collection": {
+    "items": [
+      {
+        "type": "folder",
+        "name": "Authentication Folder",
+        "items": [
+          {
+            "type": "http-request",
+            "name": "Basic Auth Request",
+            "request": {
+              "method": "GET",
+              "url": "{{ baseUrl }}/users",
+              "authentication": {
+                "type": "basic",
+                "username": "testuser",
+                "password": "testpass"
+              },
+              "headers": [
+                {
+                  "name": "Accept",
+                  "value": "application/json",
+                  "id": "header_001"
+                }
+              ]
+            },
+            "preRequestScript": "console.log('Pre-request script');\ninsomnia.globals.set('timestamp', new Date().toISOString());",
+            "afterResponseScript": "pm.test('Status is 200', function() {\n    pm.response.to.have.status(200);\n});"
+          },
+          {
+            "type": "http-request",
+            "name": "Bearer Token Request",
+            "request": {
+              "method": "GET",
+              "url": "{{ baseUrl }}/secure",
+              "authentication": {
+                "type": "bearer",
+                "token": "test-key-123"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "folder",
+        "name": "Body Types Folder",
+        "items": [
+          {
+            "type": "http-request",
+            "name": "JSON Body",
+            "request": {
+              "method": "POST",
+              "url": "{{ baseUrl }}/users",
+              "headers": [
+                {
+                  "name": "Content-Type",
+                  "value": "application/json",
+                  "id": "header_002"
+                }
+              ],
+              "body": {
+                "mimeType": "application/json",
+                "text": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"nested\": {\n    \"key\": \"value\"\n  }\n}"
+              }
+            }
+          },
+          {
+            "type": "http-request",
+            "name": "Form URL Encoded",
+            "request": {
+              "method": "POST",
+              "url": "{{ baseUrl }}/login",
+              "headers": [
+                {
+                  "name": "Content-Type",
+                  "value": "application/x-www-form-urlencoded",
+                  "id": "header_003"
+                }
+              ],
+              "body": {
+                "mimeType": "application/x-www-form-urlencoded",
+                "params": [
+                  {
+                    "name": "username",
+                    "value": "johndoe",
+                    "id": "param_001"
+                  },
+                  {
+                    "name": "password",
+                    "value": "secret123",
+                    "id": "param_002"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "http-request",
+        "name": "Query Parameters Request",
+        "request": {
+          "method": "GET",
+          "url": "{{ baseUrl }}/search",
+          "parameters": [
+            {
+              "name": "q",
+              "value": "javascript",
+              "id": "param_003"
+            },
+            {
+              "name": "limit",
+              "value": "10",
+              "id": "param_004"
+            },
+            {
+              "name": "sort",
+              "value": "desc",
+              "id": "param_005"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "environments": [
+    {
+      "name": "Development",
+      "data": {
+        "baseUrl": "https://api.example.com",
+        "apiKey": "test-key-123",
+        "timeout": "5000"
+      }
+    }
+  ]
+}

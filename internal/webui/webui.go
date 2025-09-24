@@ -19,6 +19,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DrWeltschmerz/HydReq/internal/adapters/bruno"
+	"github.com/DrWeltschmerz/HydReq/internal/adapters/har"
+	"github.com/DrWeltschmerz/HydReq/internal/adapters/insomnia"
+	"github.com/DrWeltschmerz/HydReq/internal/adapters/newman"
+	"github.com/DrWeltschmerz/HydReq/internal/adapters/oapi"
+	"github.com/DrWeltschmerz/HydReq/internal/adapters/postman"
+	"github.com/DrWeltschmerz/HydReq/internal/adapters/restclient"
 	"github.com/DrWeltschmerz/HydReq/internal/runner"
 	"github.com/DrWeltschmerz/HydReq/internal/ui"
 	valfmt "github.com/DrWeltschmerz/HydReq/internal/validate"
@@ -82,6 +89,8 @@ func (s *server) routes() {
 	s.mux.HandleFunc("/api/editor/envcheck", s.handleEditorEnvCheck)
 	// Run a single hook (suite/test; pre/post)
 	s.mux.HandleFunc("/api/editor/hookrun", s.handleEditorHookRun)
+	// Import collection endpoint
+	s.mux.HandleFunc("/api/import", s.handleImport)
 	// Serve the embedded static/ directory at the root so / loads index.html directly
 	// Serve embedded static files with no-cache headers to prevent stale UI during local dev
 	if sub, err := fs.Sub(staticFS, "static"); err == nil {
@@ -742,6 +751,18 @@ func (s *server) handleEditorHookRun(w http.ResponseWriter, r *http.Request) {
 		}
 		messages = append(messages, "SQL executed")
 	}
+	// Run JS hook if present
+	if hr.Hook.JS != nil {
+		start := time.Now()
+		err := runner.RunJSHook(hr.Hook.JS, &vars)
+		durMs = time.Since(start).Milliseconds()
+		if err != nil {
+			status = "failed"
+			messages = append(messages, err.Error())
+		} else {
+			messages = append(messages, "JS executed successfully")
+		}
+	}
 	// Run HTTP/assert/extract as a test if present
 	if hr.Hook.Request != nil {
 		temp := suite
@@ -1019,6 +1040,74 @@ func (s *server) handleCancel(w http.ResponseWriter, r *http.Request) {
 	}
 	cancel()
 	w.WriteHeader(204)
+}
+
+func (s *server) handleImport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Parse multipart form
+	err := r.ParseMultipartForm(32 << 20) // 32MB max
+	if err != nil {
+		http.Error(w, "Failed to parse form: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "No file provided: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	format := r.FormValue("format")
+	if format == "" {
+		http.Error(w, "No format specified", http.StatusBadRequest)
+		return
+	}
+
+	// Convert based on format
+	var suite *models.Suite
+	switch format {
+	case "postman":
+		suite, err = postman.Convert(file, nil)
+	case "insomnia":
+		suite, err = insomnia.Convert(file)
+	case "har":
+		suite, err = har.Convert(file)
+	case "openapi":
+		suite, err = oapi.Convert(file)
+	case "bruno":
+		suite, err = bruno.Convert(file)
+	case "restclient":
+		suite, err = restclient.Convert(file)
+	case "newman":
+		suite, err = newman.Convert(file, nil)
+	default:
+		http.Error(w, "Unsupported format: "+format, http.StatusBadRequest)
+		return
+	}
+
+	if err != nil {
+		http.Error(w, "Conversion failed: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Marshal to YAML
+	yamlData, err := yaml.Marshal(suite)
+	if err != nil {
+		http.Error(w, "Failed to marshal YAML: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Set headers for file download
+	w.Header().Set("Content-Type", "application/x-yaml")
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename))+"_imported.yaml\"")
+
+	// Write YAML data
+	w.Write(yamlData)
 }
 
 func (s *server) runSuites(id string, suites []string, workers int, env map[string]string) {
