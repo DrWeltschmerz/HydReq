@@ -604,6 +604,10 @@ func atomicWriteWithBackup(path string, data []byte) error {
 	}
 	dir := filepath.Dir(path)
 	base := filepath.Base(path)
+	// ensure parent directory exists (tests/CI may write into testdata/ which might not exist)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
 	tmp := filepath.Join(dir, "."+base+".tmp")
 	if err := os.WriteFile(tmp, data, 0644); err != nil {
 		return err
