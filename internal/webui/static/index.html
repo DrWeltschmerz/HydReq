@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.min.css">
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/yaml/yaml.min.js"></script>
+  <!-- js-yaml for client-side YAML serialization/parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
   <style>
     /* Compact fields: narrow numeric inputs */
     #ed_stage, #ed_timeout, #ed_assert_status, #ed_assert_maxDuration,
@@ -33,7 +35,9 @@
     #editorModal { overscroll-behavior: contain; }
     body.modal-open { overflow: hidden; }
     #editorModal .editor-root { font-size: 14px; }
-    input[type="text"], input[type="number"], select, textarea { padding: 6px 8px; }
+    /* Runner area: slightly smaller fonts for denser output */
+    #results, .run { font-size: 12px; }
+    #suites li { font-size: 13px; }
     /* Anti-vertical-squish safety: allow flex children to shrink and scroll */
     .flex-col { display:flex; flex-direction:column; min-height:0; }
     .scroll { overflow:auto; min-height:0; }
@@ -86,7 +90,8 @@
     }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; background: var(--bg); color: var(--txt); }
     header { background: var(--hdr-bg); color: var(--hdr-fg); padding: 16px; font-weight: 700; display:flex; align-items:center; justify-content:space-between; }
-    main { display: grid; grid-template-columns: 360px 1fr; height: calc(100vh - 64px); }
+    /* Make the left pane slightly wider for better file names and controls */
+    main { display: grid; grid-template-columns: 520px 1fr; height: calc(100vh - 64px); }
     aside { border-right: 1px solid var(--bd); padding: 12px; overflow: auto; }
     section { padding: 12px; overflow: auto; }
     ul { list-style: none; padding: 0; margin: 0; }
@@ -99,6 +104,8 @@
   .progress > div { height: 10px; background: linear-gradient(90deg, var(--grad1), var(--grad2)); width: 0%; }
     .log { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; white-space: pre-wrap; }
   .ok { color: var(--success); } .fail { color: var(--error); } .skip { color: var(--warning); }
+    /* Runner area: slightly smaller fonts for denser output */
+    #results, .run { font-size: 12px; }
     .toolbar { display:flex; gap:8px; align-items:center; }
   button { padding: 6px 10px; border: 1px solid var(--btn-bd); background: var(--btn-bg); border-radius: 6px; cursor: pointer; color: inherit; }
     button:hover { background: var(--btn-hov); }
@@ -205,7 +212,10 @@
 </head>
 <body>
   <header>
-    <div>HydReq — Hydra Request</div>
+    <div style="display:flex; align-items:center; gap:12px">
+      <img id="hydreq_logo" src="/logo_notext.svg" alt="HydReq" style="height:36px; width:36px; display:block;"/>
+      <div>HydReq — Hydra Request</div>
+    </div>
     <div class="row m-0">
   <label class="row m-0"><input id="onlyFailed" type="checkbox"/> Only failed</label>
   <label class="row m-0"><input id="autoScroll" type="checkbox"/> Auto-scroll</label>
@@ -224,9 +234,10 @@
   </header>
   <main>
     <aside>
-      <div class="row">
+  <div class="row">
   <button id="refresh" class="btn btn-sm" title="Rescan testdata for *.yaml suites">Refresh</button>
-        <label>Workers <input id="workers" type="number" min="1" max="64" value="4" class="w-64px"/></label>
+    <button id="newSuiteBtn" class="btn btn-sm" title="Create a new test suite">New Suite</button>
+    <label>Workers <input id="workers" type="number" min="1" max="64" value="4" class="w-64px"/></label>
         <label>Tags <input id="tags" type="text" placeholder="smoke,slow" class="w-120px"/></label>
         <label>Default timeout (ms) <input id="defaultTimeout" type="number" min="0" placeholder="30000" class="w-120px"/></label>
       </div>
@@ -273,12 +284,64 @@
       <div id="stages"></div>
   <div class="row" style="justify-content:space-between;align-items:center">
     <div class="row ed-row-6 ed-ai-center"><h3 style="margin:0">Results</h3><span class="dim" title="For CI artifacts use CLI flags --report-json / --report-junit">(Reports via CLI)</span></div>
-  <button id="clearLog" class="btn btn-sm" title="Clear the console output">Clear</button>
+    <div class="row ed-row-6 ed-ai-center">
+      <button id="downloadRunJSON" class="btn btn-sm" title="Download run JSON">Run JSON</button>
+      <button id="downloadRunJUnit" class="btn btn-sm" title="Download run JUnit">Run JUnit</button>
+      <button id="downloadRunHTML" class="btn btn-sm" title="Download run HTML">Run HTML</button>
+      <button id="clearLog" class="btn btn-sm" title="Clear the console output">Clear</button>
+    </div>
       </div>
       <div id="results" class="log"></div>
     </section>
   </main>
   <script>
+  // Utility: create a safe filename from a suite name
+  function slugify(name) {
+    return name.toLowerCase()
+               .replace(/[^\w\s-]/g, '')
+               .trim()
+               .replace(/\s+/g, '-')
+               .replace(/-+/g, '-');
+  }
+
+  async function promptNewSuite() {
+    const name = prompt('Enter suite name (e.g. My API tests):');
+    if (!name) return;
+    const slug = slugify(name);
+    const path = 'testdata/' + slug + '.yaml';
+    // quick client-side validation
+    if (!path.startsWith('testdata/') || (!path.endsWith('.yaml') && !path.endsWith('.yml'))) {
+      alert('Invalid path generated. Please choose a different name.');
+      return;
+    }
+
+    // Check existence via the editor endpoint (returns 200 if exists)
+    try {
+      const resp = await fetch('/api/editor/suite?path=' + encodeURIComponent(path));
+      if (resp.ok) {
+        if (!confirm('A suite already exists at ' + path + '. Overwrite?')) return;
+      }
+    } catch (e) {
+      // ignore network errors; we'll still open editor for new file
+    }
+
+    const parsed = {
+      name: name,
+      baseUrl: "",
+      vars: {},
+      tests: [
+        { name: "example test", request: { method: "GET", url: "/" }, assert: { status: 200 } }
+      ]
+    };
+
+    try {
+      openEditor(path, parsed);
+    } catch (e) {
+      console.error('openEditor failed', e);
+      alert('Failed to open editor: ' + (e && e.message ? e.message : e));
+    }
+  }
+
   const suitesEl = document.getElementById('suites');
     const selCount = document.getElementById('selCount');
     const workersEl = document.getElementById('workers');
@@ -305,6 +368,7 @@
   const agg = { passed:0, failed:0, skipped:0, total:0, suites:0, durationMs:0 };
   function scrollBottom(){ if (autoScroll.checked) { results.scrollTop = results.scrollHeight; } }
   let currentRunId = null;
+  let lastRunId = null; // retain last run id for downloads after completion
 
     function pct(d,t){ return t>0 ? Math.min(100, Math.round(100*d/t)) : 0; }
     function setBar(el, d, t){ el.style.width = pct(d,t) + '%'; }
@@ -324,33 +388,71 @@
 
     function renderSuites(list){
       suitesEl.innerHTML = '';
-      list.forEach(p => {
+  console.log('renderSuites: rendering', list.length, 'items');
+  list.forEach(item => {
+        // new server shape: { path: string, name?: string }
+        const path = (typeof item === 'string') ? item : (item.path || item.Path || item.file || JSON.stringify(item));
+        const pathKey = path; // canonical string key for selection and fetches
+        const base = (typeof path === 'string' ? path.split('/').pop() : String(path));
+        const friendly = (item && item.name) ? item.name : null;
+  // (no-op removed) keep DOM operations explicit so per-button handlers always read their own data attributes
         const li = document.createElement('li'); li.style.display='flex'; li.style.alignItems='center'; li.style.justifyContent='space-between'; li.style.gap='8px';
-        const name = document.createElement('span'); name.textContent = p; name.style.flex='1';
-        const editBtn = document.createElement('button'); editBtn.textContent='Edit'; editBtn.title='Open editor'; editBtn.onclick = async (e)=>{
+        // Title + filename layout (name column is taller so long names wrap)
+        const name = document.createElement('span'); name.style.flex='1'; name.style.display='flex'; name.style.flexDirection='column'; name.style.alignItems='flex-start'; name.style.gap='2px';
+        const titleRow = document.createElement('div'); titleRow.style.display='flex'; titleRow.style.flexDirection='row'; titleRow.style.alignItems='baseline'; titleRow.style.gap='8px';
+        const titleSpan = document.createElement('span'); titleSpan.className = 'spec-title'; titleSpan.style.fontWeight='600'; titleSpan.style.fontSize='14px';
+        titleSpan.textContent = friendly && (typeof friendly === 'string') && friendly.trim() !== '' ? friendly : base;
+        const fileSpan = document.createElement('span'); fileSpan.textContent = base; fileSpan.style.opacity = 0.6; fileSpan.style.fontSize = '12px'; fileSpan.className = 'spec-file';
+        titleRow.appendChild(titleSpan); titleRow.appendChild(fileSpan);
+        name.appendChild(titleRow);
+        const editBtn = document.createElement('button'); editBtn.textContent='Edit'; editBtn.title='Open editor';
+        editBtn.dataset.path = pathKey;
+        editBtn.addEventListener('click', async (e)=>{
           e.stopPropagation();
-          const res = await fetch('/api/editor/suite?path='+encodeURIComponent(p));
+          const btn = e.currentTarget;
+          const pth = btn && btn.getAttribute && btn.getAttribute('data-path');
+          console.log('editBtn clicked, data-path=', pth);
+          if (!pth) { console.error('Edit handler: missing data-path on clicked element'); return; }
+          const res = await fetch('/api/editor/suite?path='+encodeURIComponent(pth));
           if (!res.ok){ alert('Failed to load suite'); return; }
           const data = await res.json();
-          try { openEditor(p, data); } catch (e) { console.error('openEditor failed', e); alert('Failed to open editor: '+ (e && e.message ? e.message : e)); }
-        };
-        li.appendChild(name); li.appendChild(editBtn);
-        if (selected.has(p)) li.classList.add('selected');
-        li.onclick = () => { if (selected.has(p)) selected.delete(p); else selected.add(p); localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected))); selCount.textContent = selected.size + ' selected'; renderSuites(list); };
+          try { openEditor(pth, data); } catch (err) { console.error('openEditor failed', err); alert('Failed to open editor: '+ (err && err.message ? err.message : err)); }
+        });
+        // Compact download dropdown
+        const dlWrap = document.createElement('span'); dlWrap.style.position='relative'; dlWrap.style.display='inline-block';
+        const dlBtn = document.createElement('button'); dlBtn.className='btn btn-ghost btn-xs'; dlBtn.textContent='▾'; dlBtn.title='Download';
+        dlBtn.dataset.path = pathKey;
+        const dlMenu = document.createElement('div'); dlMenu.style.position='absolute'; dlMenu.style.right='0'; dlMenu.style.top='28px'; dlMenu.style.minWidth='140px'; dlMenu.style.border='1px solid var(--bd)'; dlMenu.style.background='var(--bg)'; dlMenu.style.padding='6px'; dlMenu.style.borderRadius='6px'; dlMenu.style.boxShadow='0 6px 12px rgba(0,0,0,0.08)'; dlMenu.style.display='none'; dlMenu.style.zIndex='10';
+        const addDl = (label, fmt)=>{ const b = document.createElement('div'); b.textContent = label; b.style.padding='6px'; b.style.cursor='pointer'; b.style.borderRadius='4px'; b.onclick = (e)=>{ e.stopPropagation(); const p = dlBtn.getAttribute && dlBtn.getAttribute('data-path'); if (!p) { console.error('download: missing data-path'); return; } downloadSuite(p, fmt); dlMenu.style.display='none'; }; b.onmouseenter = ()=> b.style.background='var(--li-hov)'; b.onmouseleave = ()=> b.style.background='transparent'; dlMenu.appendChild(b); };
+        addDl('Download JSON','json'); addDl('Download JUnit','junit'); addDl('Download HTML','html');
+        dlBtn.addEventListener('click', (e)=>{ e.stopPropagation(); dlMenu.style.display = (dlMenu.style.display === 'none') ? 'block' : 'none'; });
+        document.addEventListener('click', ()=>{ try{ dlMenu.style.display='none'; }catch{} });
+        dlWrap.appendChild(dlBtn); dlWrap.appendChild(dlMenu);
+        li.appendChild(name); li.appendChild(dlWrap); li.appendChild(editBtn);
+        if (selected.has(pathKey)) li.classList.add('selected');
+        li.onclick = () => { if (selected.has(pathKey)) selected.delete(pathKey); else selected.add(pathKey); localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected))); selCount.textContent = selected.size + ' selected'; renderSuites(list); };
         suitesEl.appendChild(li);
       });
       selCount.textContent = selected.size + ' selected';
     }
 
     async function refresh(){
-      const res = await fetch('/api/suites');
+      const res = await fetch('/api/editor/suites');
       const list = await res.json();
       renderSuites(list);
     }
 
     async function run(){
-      const suites = Array.from(selected);
-      if (suites.length === 0){ alert('Select at least one suite'); return; }
+      let suites = Array.from(selected);
+      if (suites.length === 0) {
+        // If user hasn't selected any suites, default to all discovered suites
+        // Use the editor suites endpoint which may return objects {path,name}
+        const resAll = await fetch('/api/editor/suites');
+        if (!resAll.ok) { alert('No suites selected and failed to load suites'); return; }
+        const alllist = await resAll.json();
+        // normalize to string paths
+        suites = alllist.map(i => (typeof i === 'string') ? i : (i.path || i.Path || JSON.stringify(i)));
+      }
       const env = parseEnv();
       renderActiveEnv(env);
   const tags = (tagsEl && tagsEl.value)? tagsEl.value.split(',').map(s=>s.trim()).filter(Boolean) : [];
@@ -487,7 +589,7 @@
           scrollBottom();
         }
         if (type === 'error'){ const d = document.createElement('div'); d.className='fail'; d.textContent = 'Error: ' + (payload.error||''); results.appendChild(d); }
-        if (type === 'done'){ es.close(); currentRunId = null; }
+        if (type === 'done'){ es.close(); lastRunId = id; currentRunId = null; }
       };
     }
 
@@ -529,9 +631,18 @@
     document.getElementById('refresh').onclick = refresh;
     document.getElementById('run').onclick = run;
     document.getElementById('importBtn').onclick = importCollection;
+  try { document.getElementById('newSuiteBtn').onclick = promptNewSuite; } catch(e){}
   // per-suite edit buttons are rendered inline in the list
 
   function openEditor(path, data){
+    // Accept either the server response shape { raw, parsed } or a parsed suite
+    // object directly (promptNewSuite passes parsed directly). Normalize so the
+    // rest of the code can always read data.parsed.
+    try {
+      if (data && !data.parsed && (data.name || data.Name || Array.isArray(data.tests))) {
+        data = { parsed: data };
+      }
+    } catch (e) {}
     // Visual + YAML editor modal (MVP)
     let modal = document.getElementById('editorModal');
     if (!modal){
@@ -559,6 +670,7 @@
               <button id="ed_save" class="btn btn-sm">Save</button>
               <button id="ed_save_close" class="btn btn-sm">Save & Close</button>
               <button id="ed_close" type="button" class="btn btn-sm">Close</button>
+              <span id="ed_dirty_indicator" class="pill" title="You have unsaved changes" style="margin-left:8px; display:none; background:#fde2e1; color:#b91c1c">Unsaved</span>
             </div>
           </div>
           <div class="ed-main">
@@ -621,6 +733,8 @@
                     </select>
                     <label>URL path</label>
                     <input id="ed_url" type="text"/>
+                    <label>Test name</label>
+                    <input id="ed_test_name" type="text" placeholder="My test name" />
                     <label>Timeout (ms)</label>
                     <input id="ed_timeout" type="number" min="0"/>
                     <label class="ed-col-span-full ed-mt-6 fw-600">Headers</label>
@@ -745,17 +859,46 @@
     }
     modal.querySelector('#ed_path').textContent = path;
     const rawEl = modal.querySelector('#ed_raw');
+  // If caller provided parsed data, ensure the visual suite name field is prefilled
+  // early so the editor shows the name even before full form rendering.
+  try {
+    const nameFieldEarly = modal.querySelector && modal.querySelector('#ed_suite_name');
+    if (data.parsed && nameFieldEarly) {
+      const n = (data.parsed && (data.parsed.name || data.parsed.Name)) || '';
+      if (n) nameFieldEarly.value = n;
+    }
+  } catch(e) {}
   const issuesEl = modal.querySelector('#ed_issues');
   const quickRunBox = modal.querySelector('#ed_quickrun');
   const tabVisual = modal.querySelector('#tab_visual');
   const tabYaml = modal.querySelector('#tab_yaml');
-    const paneVisual = modal.querySelector('#pane_visual');
-    const paneYaml = modal.querySelector('#pane_yaml');
+  const paneVisual = modal.querySelector('#pane_visual');
+  const paneYaml = modal.querySelector('#pane_yaml');
+  // Shared in-memory YAML; declare early so we can safely initialize it below.
+  let inMemoryYaml = '';
   const densityToggle = modal.querySelector('#ed_density');
   const editorRoot = modal.querySelector('.editor-root');
   const splitter = modal.querySelector('#ed_splitter');
   const rightPane = splitter ? splitter.nextElementSibling : null;
-    rawEl.value = data.raw || '';
+    // Initialize raw editor value. Prefer raw file content when present; otherwise
+    // serialize the provided parsed object into canonical YAML so new suites open
+    // with a prefilled YAML document (including the suite name).
+    if (data.raw && data.raw.trim() !== '') {
+      rawEl.value = data.raw;
+      inMemoryYaml = data.raw;
+    } else if (data.parsed) {
+      try {
+        // Avoid referencing `working` here because `working` is declared later.
+        const dumped = jsyaml.dump(data.parsed || {}, { noRefs: true });
+        inMemoryYaml = unquoteNumericKeys(dumped || '');
+        rawEl.value = inMemoryYaml;
+      } catch (e) {
+        rawEl.value = '';
+        inMemoryYaml = '';
+      }
+    } else {
+      rawEl.value = '';
+    }
     // Initialize CodeMirror for YAML
   // Track if the YAML text was modified by the user since last mirror
   let yamlDirty = false;
@@ -786,21 +929,22 @@
         });
         if (changed) change.update(change.from, change.to, out, change.origin);
       });
-  // Track YAML user edits and validate immediately (function is hoisted)
-  yamlEditor.on('change', function(){ yamlDirty = true; validateRawAndApply(); });
+  // Track YAML user edits. Validation is now on-demand (via the Validate button).
+  // We still mark the YAML as dirty so switching to Visual will trigger parsing/validation.
+  yamlEditor.on('change', function(){ yamlDirty = true; });
       // Resize to fit parent
       setTimeout(()=> yamlEditor.refresh(), 0);
       return yamlEditor;
     }
     issuesEl.innerHTML = '';
 
-    // One-time event delegation: any change within Visual pane updates working model and mirrors YAML
+    // One-time event delegation: any change within Visual pane updates working model and serializes to the shared YAML
     (function attachVisualDelegates(){
       const root = modal.querySelector('#pane_visual');
       if (!root) return;
-      const handler = ()=>{ try { sync(); syncYamlPreviewFromVisual(); } catch {} };
-      root.addEventListener('input', handler, true);
-      root.addEventListener('change', handler, true);
+      const handler = async ()=>{ try { sync(); await serializeWorkingToYamlImmediate(); } catch {} };
+      root.addEventListener('input', ()=>{ handler(); }, true);
+      root.addEventListener('change', ()=>{ handler(); }, true);
       root.addEventListener('click', (e)=>{
         const t = e.target;
         if (!t) return;
@@ -883,6 +1027,9 @@
     // working copy of parsed suite for visual editing
     let working = (data.parsed ? normalizeParsed(JSON.parse(JSON.stringify(data.parsed))) : { tests: [] });
   if (!Array.isArray(working.tests)) working.tests = [];
+  // Single in-memory YAML source-of-truth. Both visual and YAML editors read/write this.
+  // Initialized from raw file content if available; otherwise populated when serializing working.
+  if (data.raw && data.raw.trim() !== '') inMemoryYaml = data.raw;
   let selIndex = 0;
   // Cache of quick-run results per test (keyed by index:name), persisted in localStorage per suite path
   const LS_VER = 'v1';
@@ -892,29 +1039,81 @@
   const testRunCache = new Map(Object.entries(persisted));
   let lastSuiteRun = null;
 
-    let dirty = false;
-    function markDirty(){ dirty = true; }
+  let dirty = false;
+  function markDirty(){ dirty = true; try{ const di = modal && modal.querySelector && modal.querySelector('#ed_dirty_indicator'); if (di) di.style.display = ''; }catch{} }
   function attemptClose(){ if (dirty && !confirm('Discard unsaved changes?')) return; modal.remove(); document.body.classList.remove('modal-open'); }
-    async function mirrorYamlFromVisual(force=false){
-      // serialize current working via validate endpoint and put YAML into editor
+    // Serialize working to canonical YAML via server and update shared inMemoryYaml. Then mirror into the editor when appropriate.
+    async function serializeWorkingToYamlImmediate(){
       try{
-        const res = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working })});
-        if (!res.ok) return;
-        const v = await res.json();
-        const y = v && v.yaml ? v.yaml : '';
+        // Client-side serialization: build a plain object matching the editable model and dump YAML
+        const suiteObj = {
+          name: working.name || '',
+          baseUrl: working.baseUrl || '',
+          vars: working.vars || {},
+          auth: working.auth || null,
+          preSuite: working.preSuite || [],
+          postSuite: working.postSuite || [],
+          tests: (working.tests||[]).map(t => ({
+            name: t.name || '',
+            request: t.request || {},
+            assert: t.assert || {},
+            extract: t.extract || {},
+            vars: t.vars || {},
+            dependsOn: t.dependsOn || [],
+            pre: t.pre || [],
+            post: t.post || [],
+            retry: t.retry || null,
+            matrix: t.matrix || {},
+            openApi: t.openApi || null,
+            stage: t.stage || 0,
+            tags: t.tags || []
+          }))
+        };
+        // Use js-yaml to dump; no refs
+        const yraw = jsyaml.dump(suiteObj, { noRefs: true });
+        const y = unquoteNumericKeys(yraw);
+        inMemoryYaml = y;
         ensureYamlEditor();
-        // Only mirror when YAML tab is not active, unless forced
+        // if YAML tab is visible and user hasn't edited it, keep it synced
+        if (paneYaml.style.display !== 'none') {
+          if (!yamlDirty && yamlEditor.getValue() !== inMemoryYaml) {
+            yamlEditor.setValue(inMemoryYaml);
+            yamlDirty = false;
+          }
+        }
+        return { yaml: inMemoryYaml, parsed: suiteObj, issues: [] };
+      }catch(e){
+        return null;
+      }
+    }
+
+    async function mirrorYamlFromVisual(force=false){
+      // Ensure inMemoryYaml is up-to-date from working, then mirror into editor when appropriate.
+      try{
+        await serializeWorkingToYamlImmediate();
+        ensureYamlEditor();
         if (paneYaml.style.display === 'none' || force) {
           const cur = yamlEditor.getValue();
-          if (cur !== y) yamlEditor.setValue(y);
-          // mirrored content is programmatic, not a user edit
+          if (cur !== inMemoryYaml) yamlEditor.setValue(inMemoryYaml);
           yamlDirty = false;
         }
         yamlEditor.setOption('readOnly', false);
       }catch{}
     }
-    // Debounced mirroring from Visual to YAML when YAML tab hidden
-    const syncYamlPreviewFromVisual = debounce(()=>{ if (paneYaml.style.display === 'none') mirrorYamlFromVisual(false); }, 300);
+  // Debounced serialization from Visual to YAML when YAML tab hidden
+  const syncYamlPreviewFromVisual = debounce(()=>{ if (paneYaml.style.display === 'none') { try { serializeWorkingToYamlImmediate().catch(()=>{}); } catch{} } }, 300);
+
+    // Remove quotes around purely-numeric mapping keys in YAML string so keys like 1234: value don't become "1234": value
+    function unquoteNumericKeys(yamlText){
+      if (!yamlText) return yamlText;
+      // Replace lines like "  "123": value" with "  123: value" but only for simple mappings
+      return yamlText.split('\n').map(line=>{
+        // match indentation, quoted key, colon
+        const m = line.match(/^(\s*)("|')([0-9]+)("|')\s*:\s*(.*)$/);
+        if (m) return m[1] + m[3] + ': ' + m[5];
+        return line;
+      }).join('\n');
+    }
     function setVisualEnabled(enabled){
       // Disable/enable all controls in visual pane and tests list
       const ctrlSel = '#pane_visual input, #pane_visual select, #pane_visual textarea, #pane_visual button';
@@ -929,24 +1128,25 @@
       try{
         ensureYamlEditor();
         const rawText = yamlEditor.getValue();
-        const res = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ raw: rawText })});
-        if (!res.ok) return;
-        const v = await res.json();
-        renderIssues(v.issues||[], v.yaml||'');
-        lastValidated = v;
-        if (v.parsed){
-          // enable visual and sync working from YAML
-          setVisualEnabled(true);
-          working = normalizeParsed(v.parsed);
+        inMemoryYaml = rawText;
+        // Client-side parse first for instant feedback
+        try {
+          const parsed = jsyaml.load(rawText);
+          // Normalize parsed object into working model
+          working = normalizeParsed(parsed || {});
           if (!Array.isArray(working.tests)) working.tests = [];
-          // If Visual tab is showing, re-render to reflect live YAML
-          if (paneVisual.style.display !== 'none'){
-            renderTests();
-            renderForm();
-          }
-        } else {
-          // no parsed -> disable Visual
+          setVisualEnabled(true);
+          // Update canonical YAML from parsed object to maintain consistent formatting
+          try { const dumped = jsyaml.dump(parsed || {}, { noRefs: true }); inMemoryYaml = unquoteNumericKeys(dumped); } catch(e) {}
+          renderIssues([], inMemoryYaml);
+          lastValidated = { OK: true, Issues: [], Parsed: parsed, YAML: inMemoryYaml };
+          if (paneVisual.style.display !== 'none'){ renderTests(); renderForm(); }
+        } catch(parseErr){
+          // YAML parse error: show issue and disable Visual
+          const msg = parseErr && parseErr.message ? parseErr.message : String(parseErr);
+          renderIssues([{ path: 'root', message: 'YAML parse error: ' + msg, severity: 'error' }], rawText);
           setVisualEnabled(false);
+          lastValidated = { OK: false, Issues: [{ path: 'root', message: msg, severity: 'error' }], Parsed: null, YAML: rawText };
         }
       }catch{}
     }
@@ -968,8 +1168,12 @@
         paneVisual.style.display='none'; paneYaml.style.display='flex';
         tabYaml.classList.add('tab-active'); tabVisual.classList.remove('tab-active');
         ensureYamlEditor(); yamlEditor.refresh();
-        // If YAML has no user edits since last mirror, force a mirror so it reflects Visual changes
-        if (!yamlDirty) { mirrorYamlFromVisual(true); }
+  // Ensure Visual form is rendered (so getters exist), then synchronize into working and mirror into YAML
+  try { renderForm(); } catch {}
+  try { sync(); } catch {}
+  // Serialize working into inMemoryYaml and push to editor if not edited by user
+  try { await serializeWorkingToYamlImmediate(); } catch {}
+  if (!yamlDirty) { try { ensureYamlEditor(); const cur = yamlEditor.getValue(); if (cur !== inMemoryYaml) yamlEditor.setValue(inMemoryYaml); } catch {} }
         // Restore YAML-mode cached results/validation (if any)
         try {
           const y = JSON.parse(localStorage.getItem(`hydreq.${LS_VER}.yamlRun:`+LS_ENC(path))||'null');
@@ -986,8 +1190,9 @@
     // Close button robust handler + Escape support
     const closeBtn = modal.querySelector('#ed_close');
     if (closeBtn){ closeBtn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); attemptClose(); }); }
-    document.addEventListener('keydown', function escClose(ev){ if (!document.getElementById('editorModal')) { document.removeEventListener('keydown', escClose); return; } if (ev.key === 'Escape'){ attemptClose(); } });
+    document.addEventListener('keydown', function escClose(ev){ if (!document.getElement('editorModal')) { document.removeEventListener('keydown', escClose); return; } if (ev.key === 'Escape'){ attemptClose(); } });
 
+   
     // Draggable splitter for right pane
     (function(){
       if (!splitter || !rightPane) return;
@@ -1072,7 +1277,7 @@
       return kvTable(container, obj||{}, onChange);
     }
 
-    function hookList(container, hooks, options){
+  function hookList(container, hooks, options, onChange){
       const c = (typeof container==='string') ? modal.querySelector(container) : container;
       c.innerHTML = '';
       const list = document.createElement('div'); c.appendChild(list);
@@ -1086,6 +1291,7 @@
         else if (v==='sql') addRow({ __mode:'sql', sql: { driver:'', dsn:'', query:'', extract:{} } });
         else if (v==='js') addRow({ __mode:'js', js: { code:'' } });
         else addRow({ __mode:'empty' });
+        try{ if (onChange) onChange(); }catch{}
       };
       actions.appendChild(sel); actions.appendChild(add); c.appendChild(actions);
 
@@ -1109,7 +1315,7 @@
         const grid = document.createElement('div'); grid.className='ed-grid-2-140'; body.appendChild(grid);
         // Vars
         const varsLabel = document.createElement('label'); varsLabel.textContent='Vars'; const varsDiv=document.createElement('div'); varsDiv.className='hk_vars'; grid.appendChild(varsLabel); grid.appendChild(varsDiv);
-        const varsGet = kvTable(varsDiv, h?.vars||{});
+  const varsGet = kvTable(varsDiv, h?.vars||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
         // HTTP section
         const httpLabel = document.createElement('label'); httpLabel.textContent='HTTP'; const httpC = document.createElement('div'); httpC.className='hk_http'; grid.appendChild(httpLabel); grid.appendChild(httpC);
         const http = h?.request||{}; const hg = document.createElement('div'); hg.style.display='grid'; hg.style.gridTemplateColumns='120px 1fr'; hg.style.gap='6px';
@@ -1129,8 +1335,8 @@
             const o=document.createElement('option'); o.value=m; o.textContent=m; if (cur===m) o.selected=true; sel.appendChild(o);
           });
         })();
-        const hkHeadGet = kvTable(hg.querySelector('.hk_headers'), http.headers||{});
-        const hkQueryGet = kvTable(hg.querySelector('.hk_query'), http.query||{});
+  const hkHeadGet = kvTable(hg.querySelector('.hk_headers'), http.headers||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
+  const hkQueryGet = kvTable(hg.querySelector('.hk_query'), http.query||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
         const bodyEl = hg.querySelector('.hk_body'); try { bodyEl.value = (http.body && typeof http.body==='object')? JSON.stringify(http.body,null,2):(http.body||''); } catch { bodyEl.value = http.body||''; }
         // JS section
         const jsLabel = document.createElement('label'); jsLabel.textContent='JS'; const jsC = document.createElement('div'); jsC.className='hk_js'; grid.appendChild(jsLabel); grid.appendChild(jsC);
@@ -1150,7 +1356,7 @@
           <label>Extract</label><div class="hk_sqlextract"></div>`;
         sqlC.appendChild(sg);
         const toggleBtn = sg.querySelector('.hk_toggle_dsn'); const dsnInput = sg.querySelector('.hk_dsn'); toggleBtn.onclick = ()=>{ dsnInput.type = (dsnInput.type==='password'?'text':'password'); };
-        const hkSQLExtractGet = kvTable(sg.querySelector('.hk_sqlextract'), sql.extract||{});
+  const hkSQLExtractGet = kvTable(sg.querySelector('.hk_sqlextract'), sql.extract||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
         const driverEl = sg.querySelector('.hk_driver'); const dsnEl = sg.querySelector('.hk_dsn'); const dsnPH = { sqlite: 'file:./qa.sqlite?cache=shared', pgx: 'postgres://user:pass@localhost:5432/db?sslmode=disable', sqlserver: 'sqlserver://sa:Your_password123@localhost:1433?database=master' };
         function refreshDsnPH(){ const v=(driverEl.value||'').trim(); dsnEl.placeholder = dsnPH[v]||''; }
         driverEl.addEventListener('change', refreshDsnPH); refreshDsnPH();
@@ -1189,7 +1395,7 @@
           const js = { code: (jsg.querySelector('.hk_js_code').value || '') };
           const name = nameI.value||''; const vars = varsGet(); const payload = { name, vars };
           if (row._mode==='http') payload.request = req; else if (row._mode==='sql') payload.sql = sql; else if (row._mode==='js') payload.js = js;
-          const env = (function(){ const env = {}; const lines=(document.getElementById('env_kv').value||'').split(/\n/); for(const line of lines){ const s=line.trim(); if(!s) continue; const eq=s.indexOf('='); if(eq>0){ env[s.slice(0,eq).trim()] = s.slice(eq+1).trim(); } } return env; })();
+          const env = (function(){ const env = {}; const lines=(document.getElementById('env_kv').value||'').split(/\n/); for(const line of lines){ const s=line.trim(); if(!s) return; const eq=s.indexOf('='); if(eq>0){ env[s.slice(0,eq).trim()] = s.slice(eq+1).trim(); } } return env; })();
           const scope = (options && options.scope) || 'suitePre';
           out.innerHTML = 'Running...';
           let res; try { res = await fetch('/api/editor/hookrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working, scope, testIndex: selIndex, hook: payload, env })}); } catch(e){ out.textContent = 'Network error'; return; }
@@ -1202,6 +1408,20 @@
         row._get = ()=>{ const name = nameI.value||''; const vars = varsGet(); const out = { name, vars }; if (row._mode==='http'){ const req={ method: (hg.querySelector('.hk_method').value||'').toUpperCase(), url: hg.querySelector('.hk_url').value||'', headers: hkHeadGet(), query: hkQueryGet(), body: (function(txt){ try{ return txt?JSON.parse(txt):null }catch{return txt} })(bodyEl.value.trim()) }; if (req.method||req.url||Object.keys(req.headers||{}).length||Object.keys(req.query||{}).length||bodyEl.value.trim()) out.request=req; } else if (row._mode==='sql'){ const sql={ driver: driverEl.value||'', dsn: dsnEl.value||'', query: (sg.querySelector('.hk_querytxt').value||''), extract: hkSQLExtractGet() }; if (sql.driver||sql.dsn||sql.query||Object.keys(sql.extract||{}).length) out.sql=sql; } else if (row._mode==='js'){ const js={ code: (jsg.querySelector('.hk_js_code').value || '') }; if (js.code.trim()) out.js=js; } return out; };
         list.appendChild(row);
         if (list.children.length > 0) empty.style.display = 'none';
+        // propagate generic input/change events from any inputs inside the row
+        if (onChange){
+          row.addEventListener('input', ()=>{ try{ onChange(); }catch{} }, true);
+          row.addEventListener('change', ()=>{ try{ onChange(); }catch{} }, true);
+        }
+        // ensure delete triggers change
+        const delBtnLocal = header.querySelector('.hk_del');
+        if (delBtnLocal){
+          const orig = delBtnLocal.onclick;
+          delBtnLocal.onclick = ()=>{ if (typeof orig === 'function') orig(); try{ if (onChange) onChange(); }catch{} };
+        }
+        // ensure convert triggers change
+        const conv = header.querySelector('button[title="Switch mode"]');
+        if (conv){ const origc = conv.onclick; conv.onclick = ()=>{ if (typeof origc === 'function') origc(); try{ if (onChange) onChange(); }catch{} }; }
         return row._get;
       }
       // populate
@@ -1215,7 +1435,42 @@
       if (selIndex >= working.tests.length) selIndex = Math.max(0, working.tests.length-1);
       (working.tests||[]).forEach((t, i)=>{
   const div = document.createElement('div'); div.className='ed-row-8 ed-ai-center'; div.style.padding='6px 8px'; div.style.cursor='pointer'; div.style.justifyContent='space-between'; if (i===selIndex){ div.style.background='var(--li-sel)'; }
-    const label = document.createElement('span'); label.textContent = (t.name||`test ${i+1}`);
+  const label = document.createElement('span');
+  const fullName = (t.name||`test ${i+1}`);
+  // Truncate long names for display; show full name in tooltip
+  const maxLen = 36;
+  const displayName = (fullName.length > maxLen) ? (fullName.slice(0, maxLen-1) + '…') : fullName;
+  label.textContent = displayName;
+  label.title = fullName;
+    // Rename via pencil button (opens inline editor)
+    label.style.userSelect = 'text';
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn btn-ghost btn-xs';
+    editBtn.title = 'Rename test';
+    editBtn.innerHTML = '✎';
+    editBtn.onclick = (ev)=>{
+      ev.stopPropagation();
+      const cur = working.tests[i] || {};
+      const initial = cur.name || `test ${i+1}`;
+      const inp = document.createElement('input'); inp.type='text'; inp.value = initial; inp.style.width = '100%'; inp.style.boxSizing='border-box';
+      // Replace label with input
+      label.replaceWith(inp);
+      inp.focus(); inp.select();
+      const commit = ()=>{
+        const v = (inp.value||'').trim();
+        if (!working.tests[i]) working.tests[i] = {};
+        working.tests[i].name = v || initial;
+        // Restore label
+        const newFull = working.tests[i].name || initial;
+        label.textContent = (newFull.length>maxLen) ? (newFull.slice(0,maxLen-1)+'…') : newFull;
+        label.title = newFull;
+        inp.replaceWith(label);
+        try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{};
+        renderTests(); renderForm();
+      };
+      inp.onblur = commit;
+      inp.onkeydown = (ke)=>{ if (ke.key === 'Enter') { commit(); } else if (ke.key === 'Escape') { inp.replaceWith(label); } };
+    };
     const right = document.createElement('span'); right.className='ed-row-6 ed-ai-center';
     const runDepsBtn = document.createElement('button'); runDepsBtn.className='btn btn-ghost btn-xs'; runDepsBtn.title='Run with dependencies'; runDepsBtn.textContent='▶ deps';
     const badge = document.createElement('span'); badge.className='pill';
@@ -1228,9 +1483,14 @@
             badge.style.background = r.status==='passed'?'#e8f5e9':(r.status==='failed'?'#fde2e1':'var(--pill)');
           }
         })();
-        right.appendChild(runDepsBtn); right.appendChild(badge);
-        div.appendChild(label); div.appendChild(right);
-  div.onclick = (ev)=>{ if (ev.target===runDepsBtn) return; selIndex=i; renderTests(); renderForm(); renderQuickRunForSelection(); try{ sync(); mirrorYamlFromVisual(false);}catch{} };
+      right.appendChild(runDepsBtn); right.appendChild(badge);
+      // place edit button next to label
+      const leftWrap = document.createElement('span'); leftWrap.style.display='flex'; leftWrap.style.gap='6px'; leftWrap.style.alignItems='center';
+      leftWrap.appendChild(label);
+      leftWrap.appendChild(editBtn);
+      div.appendChild(leftWrap);
+      div.appendChild(right);
+  div.onclick = (ev)=>{ if (ev.target===runDepsBtn) return; selIndex=i; renderTests(); renderForm(); renderQuickRunForSelection(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
         runDepsBtn.onclick = async (ev)=>{
           ev.stopPropagation();
           try{ if (typeof sync === 'function') sync(); }catch{}
@@ -1249,11 +1509,19 @@
       // Attach add/delete handlers
       const addBtn = modal.querySelector('#ed_add_test');
       const delBtn = modal.querySelector('#ed_del_test');
-  addBtn.onclick = ()=>{ working.tests.push({ name: `test ${working.tests.length+1}`, request:{ method:'GET', url:'' }, assert:{ status:200 } }); selIndex = working.tests.length-1; renderTests(); renderForm(); try{ sync(); mirrorYamlFromVisual(false);}catch{} };
-  delBtn.onclick = ()=>{ if (working.tests.length===0) return; if (!confirm('Delete selected test?')) return; working.tests.splice(selIndex,1); selIndex = Math.max(0, selIndex-1); renderTests(); if (working.tests.length) renderForm(); try{ sync(); mirrorYamlFromVisual(false);}catch{} };
+  addBtn.onclick = ()=>{
+    const defaultName = `test ${working.tests.length+1}`;
+    const name = prompt('Enter test name:', defaultName);
+    const finalName = (name && name.trim()) ? name.trim() : defaultName;
+    working.tests.push({ name: finalName, request:{ method:'GET', url:'' }, assert:{ status:200 } });
+    selIndex = working.tests.length-1; renderTests(); renderForm(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
+  delBtn.onclick = ()=>{ if (working.tests.length===0) return; if (!confirm('Delete selected test?')) return; working.tests.splice(selIndex,1); selIndex = Math.max(0, selIndex-1); renderTests(); if (working.tests.length) renderForm(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
     }
 
-    function renderForm(){
+  // hoisted getters/elements used by sync() so Visual->YAML mirroring works
+  let suiteVarsGet, getPreSuite, getPostSuite, headersGet, queryGet, bodyEl, aHeadGet, aEqGet, aContGet, aBodyGet, extractGet, matrixGet, getPreHooks, getPostHooks, oapiSel;
+
+  function renderForm(){
       if (!working.tests.length){
         const f = modal.querySelector('#ed_req_form'); if (f) f.querySelectorAll('input,select,textarea,button').forEach(el=>{ if (el.id!=='ed_add_test') el.disabled = true; });
         return;
@@ -1263,30 +1531,32 @@
       // Suite fields
       modal.querySelector('#ed_suite_name').value = working.name || '';
       modal.querySelector('#ed_suite_baseurl').value = working.baseUrl || '';
-  const suiteVarsGet = kvTable('#ed_suite_vars', working.vars||{});
-  // Suite hooks editors
-  const getPreSuite = hookList('#ed_suite_presuite', (working.preSuite||[]), { scope: 'suitePre' });
-  const getPostSuite = hookList('#ed_suite_postsuite', (working.postSuite||[]), { scope: 'suitePost' });
-      const t = (working.tests && working.tests[selIndex]) || {};
-      const req = t.request || {};
-      modal.querySelector('#ed_method').value = (req.method||'GET').toUpperCase();
-      modal.querySelector('#ed_url').value = req.url || '';
-      modal.querySelector('#ed_timeout').value = t.timeoutMs || '';
-  const headersGet = kvTable('#ed_headers', req.headers||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
-  const queryGet = kvTable('#ed_query', req.query||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
-      // Body: show as JSON if object, otherwise as string
-      const bodyEl = modal.querySelector('#ed_body');
+  suiteVarsGet = kvTable('#ed_suite_vars', working.vars||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
+  // Suite hooks editors (assign to hoisted getters so sync() can call them)
+  getPreSuite = hookList('#ed_suite_presuite', (working.preSuite||[]), { scope: 'suitePre' }, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
+  getPostSuite = hookList('#ed_suite_postsuite', (working.postSuite||[]), { scope: 'suitePost' }, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
+    const t = (working.tests && working.tests[selIndex]) || {};
+    const req = t.request || {};
+  modal.querySelector('#ed_method').value = (req.method||'GET').toUpperCase();
+  modal.querySelector('#ed_url').value = req.url || '';
+  // Test name (visual)
+  modal.querySelector('#ed_test_name').value = t.name || '';
+    modal.querySelector('#ed_timeout').value = t.timeoutMs || '';
+  headersGet = kvTable('#ed_headers', req.headers||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
+  queryGet = kvTable('#ed_query', req.query||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
+    // Body: show as JSON if object, otherwise as string
+    bodyEl = modal.querySelector('#ed_body');
       try { bodyEl.value = (req.body && typeof req.body === 'object') ? JSON.stringify(req.body, null, 2) : (req.body || ''); } catch{ bodyEl.value = req.body || ''; }
   // Assertions
       const as = t.assert || {};
       modal.querySelector('#ed_assert_status').value = (as.status||0);
-  const aHeadGet = kvTable('#ed_assert_headerEquals', as.headerEquals||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
-  const aEqGet = mapTable('#ed_assert_jsonEquals', as.jsonEquals||{}, 'value', ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
-  const aContGet = mapTable('#ed_assert_jsonContains', as.jsonContains||{}, 'value', ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
-  const aBodyGet = listTable('#ed_assert_bodyContains', as.bodyContains||[], ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
+  aHeadGet = kvTable('#ed_assert_headerEquals', as.headerEquals||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
+  aEqGet = mapTable('#ed_assert_jsonEquals', as.jsonEquals||{}, 'value', ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
+  aContGet = mapTable('#ed_assert_jsonContains', as.jsonContains||{}, 'value', ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
+  aBodyGet = listTable('#ed_assert_bodyContains', as.bodyContains||[], ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} });
       modal.querySelector('#ed_assert_maxDuration').value = (as.maxDurationMs||'');
       // Extract
-      const extractC = modal.querySelector('#ed_extract');
+  const extractC = modal.querySelector('#ed_extract');
       const buildExtract = ()=>{
         extractC.innerHTML='';
         const table = document.createElement('div');
@@ -1312,7 +1582,7 @@
           return out;
         };
       };
-  const extractGet = buildExtract();
+  extractGet = buildExtract();
       // Flow & meta
       modal.querySelector('#ed_skip').checked = !!t.skip;
       modal.querySelector('#ed_only').checked = !!t.only;
@@ -1326,7 +1596,7 @@
       modal.querySelector('#ed_retry_backoff').value = hasRetry?(t.retry.backoffMs||0):0;
       modal.querySelector('#ed_retry_jitter').value = hasRetry?(t.retry.jitterPct||0):0;
   // Matrix
-      const matrixC = modal.querySelector('#ed_matrix');
+  const matrixC = modal.querySelector('#ed_matrix');
       const buildMatrix = ()=>{
         matrixC.innerHTML='';
         const table = document.createElement('div');
@@ -1349,12 +1619,12 @@
           return out;
         };
       };
-  const matrixGet = buildMatrix();
+  matrixGet = buildMatrix();
     // Test hooks editors (initialize once per render)
-  const getPreHooks = hookList('#ed_test_prehooks', (t.pre||[]), { scope: 'testPre' });
-  const getPostHooks = hookList('#ed_test_posthooks', (t.post||[]), { scope: 'testPost' });
+  getPreHooks = hookList('#ed_test_prehooks', (t.pre||[]), { scope: 'testPre' }, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
+  getPostHooks = hookList('#ed_test_posthooks', (t.post||[]), { scope: 'testPost' }, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
   // OpenAPI
-  const oapiSel = modal.querySelector('#ed_oapi_enabled');
+  oapiSel = modal.querySelector('#ed_oapi_enabled');
       const oapiState = t.openApi && typeof t.openApi.enabled === 'boolean' ? String(t.openApi.enabled) : 'inherit';
       oapiSel.value = oapiState;
       // Attach change handlers to update working model when leaving form (simple approach)
@@ -1363,6 +1633,13 @@
         const be = (modal.querySelector('#ed_auth_bearer').value||'').trim();
         const ba = (modal.querySelector('#ed_auth_basic').value||'').trim();
         if (be) names.push(be); if (ba) names.push(ba);
+        if (names.length === 0) {
+          // nothing to check
+          const setStatus = (el, ok)=>{ el.textContent = ok? 'env OK' : 'missing'; el.style.background = ok? 'var(--pill)' : '#fde2e1'; };
+          setStatus(modal.querySelector('#ed_auth_bearer_status'), false);
+          setStatus(modal.querySelector('#ed_auth_basic_status'), false);
+          return;
+        }
         let res = null;
         try { res = await fetch('/api/editor/envcheck', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ names })}); } catch {}
         const present = res && res.ok ? (await res.json()).present : {};
@@ -1398,6 +1675,8 @@
         const to = parseInt(modal.querySelector('#ed_timeout').value, 10); cur.timeoutMs = isNaN(to)?0:to;
         cur.request.headers = headersGet();
         cur.request.query = queryGet();
+  // Test name (visual)
+  cur.name = (modal.querySelector('#ed_test_name').value||'').trim();
         const txt = bodyEl.value.trim();
         if (!txt){ cur.request.body = null; }
         else {
@@ -1441,16 +1720,17 @@
         else { cur.openApi = { enabled: (ov==='true') }; }
         // write back
         working.tests[selIndex] = cur;
-        // Mirror YAML from Visual edits so YAML stays live-synced
-        try { syncYamlPreviewFromVisual(); } catch {}
+  // Mirror YAML from Visual edits so YAML stays live-synced (force immediate serialization so Visual -> YAML is 2-way)
+  try { serializeWorkingToYamlImmediate().catch(()=>{}); } catch {}
       };
       ['change','blur','input'].forEach(evt=>{
         modal.querySelector('#ed_suite_name').addEventListener(evt, sync);
         modal.querySelector('#ed_suite_baseurl').addEventListener(evt, sync);
         modal.querySelector('#ed_auth_bearer').addEventListener(evt, sync);
         modal.querySelector('#ed_auth_basic').addEventListener(evt, sync);
-        modal.querySelector('#ed_method').addEventListener(evt, sync);
-        modal.querySelector('#ed_url').addEventListener(evt, sync);
+  modal.querySelector('#ed_method').addEventListener(evt, sync);
+  modal.querySelector('#ed_url').addEventListener(evt, sync);
+  modal.querySelector('#ed_test_name').addEventListener(evt, sync);
         modal.querySelector('#ed_timeout').addEventListener(evt, sync);
         bodyEl.addEventListener(evt, sync);
         modal.querySelector('#ed_assert_status').addEventListener(evt, sync);
@@ -1472,6 +1752,7 @@
   modal.querySelector('#ed_auth_basic').addEventListener(evt, markDirty);
   modal.querySelector('#ed_method').addEventListener(evt, markDirty);
   modal.querySelector('#ed_url').addEventListener(evt, markDirty);
+  modal.querySelector('#ed_test_name').addEventListener(evt, markDirty);
   modal.querySelector('#ed_timeout').addEventListener(evt, markDirty);
   bodyEl.addEventListener(evt, markDirty);
   modal.querySelector('#ed_assert_status').addEventListener(evt, markDirty);
@@ -1493,10 +1774,13 @@
     renderForm();
     // start live YAML validation and initial state
   ensureYamlEditor();
-  // Normalize initial content by converting tabs to two spaces
-  yamlEditor.setValue((data.raw || '').replace(/\t/g, '  '));
-    // initial validate from YAML content
-    validateRawAndApply();
+  // Normalize initial content by converting tabs to two spaces. Use the
+  // inMemoryYaml (which may have been created from data.parsed) so newly
+  // created suites get a prefilled YAML document.
+  yamlEditor.setValue((inMemoryYaml || '').replace(/\t/g, '  '));
+  yamlDirty = false;
+  // initial parse/normalize is intentionally skipped; validation is performed on-demand by the user
+  // (clicking the 'Validate' button). Keep the YAML as provided by the file.
   // keep YAML preview in sync when editing Visual (but only when YAML tab hidden)
     const cacheKey = ()=>{
       const t = (working.tests && working.tests[selIndex]) || {};
@@ -1518,8 +1802,7 @@
       setQuickRunBox(r || null);
       const qrBox = modal.querySelector('#ed_quickrun_box'); if (qrBox) qrBox.open = true;
     }
-  // initial env presence/auth preview
-  (async ()=>{ try{ await fetch('/api/editor/envcheck', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ names: [] })}); } catch{}; })();
+  // initial env presence/auth preview (no-op call removed); updateEnvPresence will call when needed
     const renderIssues = (arr, yamlPreview)=>{
       issuesEl.innerHTML = '';
       if (!arr || !arr.length){ issuesEl.textContent = 'No issues'; } else {
@@ -1603,23 +1886,31 @@
   if (activeIsYaml){ try{ localStorage.setItem(`hydreq.${LS_VER}.yamlVal:`+LS_ENC(path), JSON.stringify(v)); }catch{} }
     };
   modal.querySelector('#ed_save').onclick = async ()=>{
-      // validate before save to get parsed model of current content
+      // Ensure shared YAML is up-to-date: if Visual active, serialize working; if YAML active, refresh inMemoryYaml
       const activeIsYaml = paneYaml.style.display !== 'none';
-      const rawText = (yamlEditor? yamlEditor.getValue() : rawEl.value);
-      const vres = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(activeIsYaml ? { raw: rawText } : { parsed: working })});
+      if (!activeIsYaml) {
+        await serializeWorkingToYamlImmediate();
+      } else {
+        inMemoryYaml = (yamlEditor ? yamlEditor.getValue() : rawEl.value);
+      }
+      // Validate shared YAML
+      const vres = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ raw: inMemoryYaml })});
       const v = await vres.json();
       renderIssues(v.issues||[], v.yaml||'');
       if (!v.ok){ if (!confirm('Validation reported issues. Save anyway?')) return; }
-      const payload = activeIsYaml ? { path, raw: rawText } : { path, parsed: (v.parsed || working) };
-      const saveRes = await fetch('/api/editor/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
-      if (!saveRes.ok){ const t=await saveRes.text(); alert('Save failed: '+t); return; }
-      await saveRes.json();
-      alert('Saved');
-      dirty = false;
+      const payload = { path, raw: inMemoryYaml };
+  const saveRes = await fetch('/api/editor/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  if (!saveRes.ok){ const t=await saveRes.text(); alert('Save failed: '+t); return; }
+  await saveRes.json();
+  alert('Saved');
+  dirty = false;
+  try{ const di = modal && modal.querySelector && modal.querySelector('#ed_dirty_indicator'); if (di) di.style.display = 'none'; }catch{}
+    // Refresh suite list so newly created suites show up immediately
+    try { refresh(); } catch (e) { /* ignore */ }
     };
     modal.querySelector('#ed_save_close').onclick = async ()=>{
       await modal.querySelector('#ed_save').onclick(new Event('click'));
-      if (!dirty) { modal.remove(); refresh(); }
+      if (!dirty) { modal.remove(); try { refresh(); } catch (e){} }
     };
     modal.querySelector('#ed_close').onclick = ()=> attemptClose();
   // Keep theme of CodeMirror in sync with current theme
@@ -1632,6 +1923,49 @@
     if (working.tests && working.tests.length) { try{ renderQuickRunForSelection(); }catch{} }
   }
   document.getElementById('clearLog').onclick = ()=>{ results.textContent=''; };
+  document.getElementById('downloadRunJSON').onclick = ()=> downloadRun('json');
+  document.getElementById('downloadRunJUnit').onclick = ()=> downloadRun('junit');
+  document.getElementById('downloadRunHTML').onclick = ()=> downloadRun('html');
+  // Download helpers
+  async function downloadURL(url) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        const txt = await res.text().catch(()=>res.statusText);
+        alert('Download failed: ' + res.status + ' - ' + txt);
+        return;
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get('Content-Disposition') || '';
+      let filename = 'report';
+      const m = cd.match(/filename\*?=(?:UTF-8''")?"?([^;"\n]+)/i);
+      if (m && m[1]) filename = decodeURIComponent(m[1]);
+      const a = document.createElement('a');
+      const urlObj = URL.createObjectURL(blob);
+      a.href = urlObj;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(urlObj);
+    } catch (e) {
+      alert('Download error: ' + e.message);
+    }
+  }
+
+  function downloadSuite(path, format) {
+    const runId = currentRunId || lastRunId;
+    if (!runId) { alert('No run available to download from. Start a run first.'); return; }
+    const url = '/api/report/suite?runId=' + encodeURIComponent(runId) + '&path=' + encodeURIComponent(path) + '&format=' + encodeURIComponent(format);
+    downloadURL(url);
+  }
+
+  function downloadRun(format) {
+    const runId = currentRunId || lastRunId;
+    if (!runId) { alert('No run available to download from. Start a run first.'); return; }
+    const url = '/api/report/run?runId=' + encodeURIComponent(runId) + '&format=' + encodeURIComponent(format);
+    downloadURL(url);
+  }
   // init theme from localStorage (handled in initTheme via applyTheme)
   const ofInit = localStorage.getItem('hydreq.onlyFailed') === '1';
   if (ofInit) { onlyFailed.checked = true; }

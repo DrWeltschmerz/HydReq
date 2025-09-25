@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.3.5-beta (2025-09-24)
+
+Highlights
+- Major Web UI refactor and usability polish: improved a Visual editor mode, two-way YAML⇄Visual sync improvements, and numerous UX polish items that make editing and running suites more pleasant.
+
+Features
+- New-suite creation from the Web UI: users can create a new suite, which is saved under `testdata/` using a slugified filename and prefilled YAML scaffold (name, baseUrl, minimal test template).
+- Visual editor improvements:
+	- Dedicated "Test name" field in the Visual Request panel so test titles can be edited directly while editing request details.
+	- Rename tests via an inline pencil button next to test titles (replaces double-click UX); commits on blur/Enter, cancels on Escape.
+	- Tests list truncates long names with an ellipsis and exposes the full name as a tooltip to avoid UI breakage.
+	- Live two-way syncing between Visual controls and the YAML editor persisted during edits; Save/Save & Close trigger repository refresh to show newly created suites.
+- Reports and downloads: added small UX flows to download per-suite artifacts (JSON/JUnit/HTML) directly from the GUI where applicable.
+
+CI / Tests
+- Playwright-based E2E tests were added and integrated into the CI pipeline (smoke flows for editor and run flows). CI configs and helper scripts updated to run browser-driven tests and upload artifacts on failure.
+- `validate` job expanded: runs JSON Schema validation across `testdata/` and ensures example suites are valid before runs.
+
+Polish & Fixes
+- Fixed editor initialization bugs and YAML prefill for newly created suites (client now serializes parsed scaffold into YAML when opening a new in-memory suite).
+- Fixed UI sync and in-memory YAML variable redeclaration issues that previously caused editor failures.
+- Accessibility & small UI behavior fixes: run badges, quick-run box behavior, density toggle persistence, and better error messages when saving invalid suites.
+
+
 ## v0.3.4-beta (2025-09-24)
 
 Highlights

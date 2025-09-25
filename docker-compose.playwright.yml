@@ -1,0 +1,45 @@
+services:
+  httpbin:
+    image: kennethreitz/httpbin
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/ip"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  hydreq:
+    build:
+      context: .
+      dockerfile: Dockerfile.playwright
+    ports:
+      - "8787:8787"
+    working_dir: /work
+    environment:
+      ENABLE_DEMO_AUTH: "1"
+    volumes:
+      - .:/work
+    depends_on:
+      - httpbin
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.50.0-noble
+    user: "root"
+    environment:
+      CI: "true"
+      HYDREQ_E2E_URL: "http://host.docker.internal:8787/"
+      HTTPBIN_BASE_URL: "http://host.docker.internal:8080"
+    volumes:
+      - ./:/work
+    working_dir: /work/test/e2e
+    depends_on:
+      - hydreq
+      - httpbin
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        npm install > /dev/null 2>&1
+        npx playwright install --with-deps > /dev/null 2>&1
+        npx playwright test --reporter=list --reporter=html
