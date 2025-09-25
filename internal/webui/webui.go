@@ -1349,11 +1349,29 @@ func (s *server) handleReportSuite(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		baseName := sanitizeFilename(filepath.Base(path))
+		// Try common CLI filename patterns: <basename>-<runTS>.html
 		matches, _ := filepath.Glob(filepath.Join(reportDir, baseName+"-*.html"))
 		if len(matches) > 0 {
 			w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(matches[0]))
 			http.ServeFile(w, r, matches[0])
 			return
+		}
+		// If runId encodes a run timestamp like run-<ts>, try matching *-<ts>.html
+		if strings.HasPrefix(runId, "run-") {
+			runTS := strings.TrimPrefix(runId, "run-")
+			matches2, _ := filepath.Glob(filepath.Join(reportDir, "*-"+runTS+".html"))
+			if len(matches2) > 0 {
+				w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(matches2[0]))
+				http.ServeFile(w, r, matches2[0])
+				return
+			}
+			// also try combined baseName with runTS in filename
+			matches3, _ := filepath.Glob(filepath.Join(reportDir, "*"+baseName+"*"+runTS+"*.html"))
+			if len(matches3) > 0 {
+				w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(matches3[0]))
+				http.ServeFile(w, r, matches3[0])
+				return
+			}
 		}
 		http.Error(w, "report not found", 404)
 		return
@@ -1459,7 +1477,7 @@ Loop:
 			break Loop
 		default:
 		}
-		s.runOneWithCtx(ctx, path, workers, env, out)
+		s.runOneWithCtx(id, ctx, path, workers, env, out)
 	}
 	out(evt{Type: "batchEnd"})
 	out(evt{Type: "done"})
@@ -1470,7 +1488,7 @@ Loop:
 	s.mu.Unlock()
 }
 
-func (s *server) runOneWithCtx(ctx context.Context, path string, workers int, env map[string]string, out func(any)) {
+func (s *server) runOneWithCtx(runId string, ctx context.Context, path string, workers int, env map[string]string, out func(any)) {
 	type evt struct {
 		Type    string `json:"type"`
 		Payload any    `json:"payload"`
@@ -1518,10 +1536,13 @@ func (s *server) runOneWithCtx(ctx context.Context, path string, workers int, en
 		stageCounts[tc.Stage] = stageCounts[tc.Stage] + combos
 	}
 	out(evt{Type: "suiteStart", Payload: map[string]any{"path": path, "name": suite.Name, "total": total, "stages": stageCounts}})
+	var allResults []runner.TestResult
 	runWithSuite := func() (runner.Summary, error) {
 		return runner.RunSuite(ctx, suite, runner.Options{Workers: workers, OnStart: func(tr runner.TestResult) {
 			out(evt{Type: "testStart", Payload: tr})
 		}, OnResult: func(tr runner.TestResult) {
+			// collect results for detailed report and stream events
+			allResults = append(allResults, tr)
 			out(evt{Type: "test", Payload: tr})
 		}})
 	}
@@ -1550,6 +1571,59 @@ func (s *server) runOneWithCtx(ctx context.Context, path string, workers int, en
 			"durationMs": sum.Duration.Milliseconds(),
 		},
 	}})
+
+	// Build and persist a detailed report for this suite so downloads work like CLI
+	dr := report.DetailedReport{
+		Suite:   suite.Name,
+		Summary: report.FromRunner(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration),
+	}
+	for _, r := range allResults {
+		tc := report.TestCase{
+			Name:       r.Name,
+			Stage:      r.Stage,
+			Tags:       r.Tags,
+			Status:     r.Status,
+			DurationMs: r.DurationMs,
+			Messages:   r.Messages,
+		}
+		dr.TestCases = append(dr.TestCases, tc)
+	}
+
+	// write files under reports/ using runTS recorded for the run (or fallback)
+	if err := os.MkdirAll("reports", 0o755); err == nil {
+		// find runTS using the runId provided to this function
+		s.mu.Lock()
+		runTS := ""
+		if m, ok := s.reports[runId]; ok {
+			if v, ok2 := m["runTS"]; ok2 {
+				if sTS, ok3 := v.(string); ok3 {
+					runTS = sTS
+				}
+			}
+		}
+		if runTS == "" {
+			runTS = time.Now().Format("20060102-150405")
+		}
+		s.mu.Unlock()
+		fnameBase := sanitizeFilename(suite.Name)
+		outHTML := filepath.Join("reports", fmt.Sprintf("%s-%s.html", fnameBase, runTS))
+		_ = report.WriteHTMLDetailed(outHTML, dr)
+		outJSON := filepath.Join("reports", fmt.Sprintf("%s-%s.json", fnameBase, runTS))
+		_ = report.WriteJSONDetailed(outJSON, dr)
+		// store in in-memory reports map under the run that owns this execution if present
+		s.mu.Lock()
+		for rid, m := range s.reports {
+			if m == nil {
+				continue
+			}
+			// heuristics: if streams exist for rid, associate
+			if _, ok := s.streams[rid]; ok {
+				s.reports[rid][path+"::detailed"] = dr
+				break
+			}
+		}
+		s.mu.Unlock()
+	}
 }
 
 type totals struct {

@@ -1,0 +1,59 @@
+const { test, expect } = require('@playwright/test');
+
+const APP_URL = process.env.HYDREQ_E2E_URL || 'http://localhost:8080/';
+// Increase test timeout to allow for slow CI environments and networked services
+const { test: _test } = require('@playwright/test');
+_test.setTimeout(120000);
+
+test('expand-all, select suite, run and observe runner output', async ({ page }) => {
+  await page.goto(APP_URL);
+  // Wait for suites to populate
+  await page.waitForSelector('#suites li', { timeout: 60000 });
+
+  // Expand all then collapse to exercise UI controls
+  const expandAll = page.locator('#expandAll');
+  const collapseAll = page.locator('#collapseAll');
+  await expect(expandAll).toBeVisible();
+  await expect(collapseAll).toBeVisible();
+  await expandAll.click();
+  await page.waitForFunction(() => Array.from(document.querySelectorAll('.suite-tests')).some(t => t.children.length > 0), null, { timeout: 20000 });
+  await collapseAll.click();
+  await page.waitForTimeout(300);
+
+  // Discover suites and pick one (prefer suites with tests)
+  const suitesResp = await page.request.get(APP_URL + 'api/editor/suites');
+  if (!suitesResp.ok()) throw new Error('Failed to load suites: ' + suitesResp.status());
+  const suites = await suitesResp.json();
+  if (!Array.isArray(suites) || suites.length === 0) throw new Error('No suites discovered');
+
+  let path = null;
+  for (const entry of suites) {
+    const candidate = (typeof entry === 'string') ? entry : (entry.path || entry.Path || entry.name || null);
+    if (!candidate) continue;
+    try {
+      const res = await page.request.get(APP_URL + 'api/editor/suite?path=' + encodeURIComponent(candidate));
+      if (!res.ok()) continue;
+      const body = await res.json();
+      if (body && body.parsed && Array.isArray(body.parsed.tests) && body.parsed.tests.length > 0) { path = candidate; break; }
+    } catch (e) {}
+  }
+  if (!path) {
+    const first = suites[0];
+    path = (typeof first === 'string') ? first : (first.path || first.Path || first.name || null);
+  }
+  if (!path) throw new Error('Unable to derive suite path for run');
+
+  // Click the suite in the list to select it
+  await page.waitForSelector('#suites li[data-path="' + path + '"]', { timeout: 10000 });
+  await page.click('#suites li[data-path="' + path + '"]');
+
+  // Click Run and wait for runner output - '.run' entries are emitted on testStart
+  const runBtn = page.locator('#run');
+  await expect(runBtn).toBeVisible();
+  await runBtn.click();
+
+  await page.waitForFunction(() => {
+    const el = document.querySelector('.run');
+    return el && el.textContent && el.textContent.trim().length > 0;
+  }, null, { timeout: 45000 });
+});

@@ -95,14 +95,29 @@
     aside { border-right: 1px solid var(--bd); padding: 12px; overflow: auto; }
     section { padding: 12px; overflow: auto; }
     ul { list-style: none; padding: 0; margin: 0; }
-    li { padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+  li { padding: 8px 10px; border-radius: 6px; cursor: pointer; }
   li:hover { background: var(--li-hov); }
   li.selected { background: var(--li-sel); }
     .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .pill { background: var(--pill); border-radius: 999px; padding: 2px 8px; font-size: 12px; }
   .progress { height: 10px; background: var(--pg-bg); border-radius: 6px; overflow: hidden; }
   .progress > div { height: 10px; background: linear-gradient(90deg, var(--grad1), var(--grad2)); width: 0%; }
-    .log { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; white-space: pre-wrap; }
+  .log { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; white-space: pre-wrap; }
+  /* suite-tests visual grouping */
+  .suite-tests { margin-top: 6px; }
+  .suite-tests > div { padding: 6px 8px; margin: 4px 0; border-radius: 6px; display:flex; justify-content:space-between; align-items:center; }
+  .suite-tests > div:hover { background: var(--li-hov); }
+  /* animate expand/collapse */
+  .suite-tests { max-height: 0; overflow: hidden; transition: max-height 220ms ease; }
+  .suite-tests.open { max-height: 1200px; }
+  /* suite badge styling and animation */
+  .suite-badge { margin-left: 8px; margin-right: 8px; transition: transform .12s ease, opacity .12s ease, background .12s ease; display:inline-block; }
+  .suite-badge.animate { transform: scale(1.12); }
+  /* small inline spinner for loading tests */
+  .spinner { border: 2px solid rgba(0,0,0,0.08); border-top-color: var(--link); border-radius: 50%; width: 14px; height: 14px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* spacing between suites */
+  #suites { display:flex; flex-direction:column; gap:8px; }
   .ok { color: var(--success); } .fail { color: var(--error); } .skip { color: var(--warning); }
     /* Runner area: slightly smaller fonts for denser output */
     #results, .run { font-size: 12px; }
@@ -269,6 +284,11 @@
           <span id="importStatus" class="text-sm ml-2"></span>
         </div>
       </details>
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+        <button id="expandAll" class="btn btn-sm">Expand all</button>
+        <button id="collapseAll" class="btn btn-sm">Collapse all</button>
+        <div style="flex:1"></div>
+      </div>
       <ul id="suites"></ul>
       <div class="row ed-row-6">
         <button id="run" class="btn btn-primary btn-sm">Run Selected</button>
@@ -366,6 +386,8 @@
     let suite = { done: 0, total: 0 };
   const testRows = new Map(); // Name -> {container, line}
   const agg = { passed:0, failed:0, skipped:0, total:0, suites:0, durationMs:0 };
+  let currentSuitePath = null; // canonical path/key for suite currently running
+  const pendingTestEvents = new Map(); // path -> [events]
   function scrollBottom(){ if (autoScroll.checked) { results.scrollTop = results.scrollHeight; } }
   let currentRunId = null;
   let lastRunId = null; // retain last run id for downloads after completion
@@ -396,15 +418,86 @@
         const base = (typeof path === 'string' ? path.split('/').pop() : String(path));
         const friendly = (item && item.name) ? item.name : null;
   // (no-op removed) keep DOM operations explicit so per-button handlers always read their own data attributes
-        const li = document.createElement('li'); li.style.display='flex'; li.style.alignItems='center'; li.style.justifyContent='space-between'; li.style.gap='8px';
+  const li = document.createElement('li'); li.style.display='flex'; li.style.alignItems='center'; li.style.justifyContent='space-between'; li.style.gap='8px';
+  li.dataset.path = pathKey;
         // Title + filename layout (name column is taller so long names wrap)
         const name = document.createElement('span'); name.style.flex='1'; name.style.display='flex'; name.style.flexDirection='column'; name.style.alignItems='flex-start'; name.style.gap='2px';
-        const titleRow = document.createElement('div'); titleRow.style.display='flex'; titleRow.style.flexDirection='row'; titleRow.style.alignItems='baseline'; titleRow.style.gap='8px';
-        const titleSpan = document.createElement('span'); titleSpan.className = 'spec-title'; titleSpan.style.fontWeight='600'; titleSpan.style.fontSize='14px';
+    const titleRow = document.createElement('div'); titleRow.style.display='flex'; titleRow.style.flexDirection='row'; titleRow.style.alignItems='baseline'; titleRow.style.gap='8px';
+    // Expand/collapse button to show suite tests (display-only)
+    const expandBtn = document.createElement('button'); expandBtn.className = 'btn btn-ghost btn-xs'; expandBtn.textContent = '▸'; expandBtn.title = 'Show tests'; expandBtn.style.width = '28px';
+    expandBtn.setAttribute('aria-expanded','false'); expandBtn.setAttribute('aria-label','Toggle tests'); expandBtn.tabIndex = 0;
+    expandBtn.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); expandBtn.click(); } });
+    // Provide a promise-based expand helper per-list-item so programmatic callers can await load completion
+    expandBtn._expandPromise = null;
+    expandBtn._resolveExpand = null;
+    expandBtn.addEventListener('click', async function (e){
+      e.stopPropagation();
+      const open = expandBtn.dataset.open === '1';
+      if (open){
+        expandBtn.dataset.open = '0';
+        expandBtn.textContent = '▸';
+        expandBtn.setAttribute('aria-expanded','false');
+        testsDiv.classList.remove('open');
+        testsDiv.style.display = 'none';
+        return;
+      }
+      // open path
+      expandBtn.dataset.open = '1';
+      expandBtn.textContent = '▾';
+      expandBtn.setAttribute('aria-expanded','true');
+      // show inline spinner while loading
+      let spinner = null;
+      if (!expandBtn.dataset.loaded){ spinner = document.createElement('span'); spinner.className = 'spinner'; expandBtn.insertBefore(spinner, expandBtn.firstChild); }
+      // create a promise so callers can await when tests are ready
+      if (!expandBtn._expandPromise){ expandBtn._expandPromise = new Promise((res)=>{ expandBtn._resolveExpand = res; }); }
+      if (!expandBtn.dataset.loaded){
+        try{
+          const p = encodeURIComponent(pathKey);
+          const res = await fetch('/api/editor/suite?path='+p);
+          if (res.ok){
+            const dd = await res.json();
+            const parsed = dd.parsed || dd;
+            const tests = (parsed && parsed.tests) ? parsed.tests : [];
+            testsDiv.innerHTML='';
+            tests.forEach(t=>{
+              const row = document.createElement('div');
+              row.style.display='flex';
+              row.style.justifyContent='space-between';
+              row.style.padding='4px 6px';
+              const nm = document.createElement('span'); nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent;
+              const badge = document.createElement('span'); badge.className='pill';
+              const tr = testRows.get(nm.textContent);
+              if (tr && tr.line){
+                const cls = tr.line.className || '';
+                if (cls.indexOf('ok')>=0) { badge.textContent = '✓'; badge.style.background='rgba(16,185,129,0.12)'; }
+                else if (cls.indexOf('fail')>=0) { badge.textContent = '✗'; badge.style.background='rgba(239,68,68,0.08)'; }
+                else if (cls.indexOf('skip')>=0) { badge.textContent = '-'; badge.style.background='rgba(245,158,11,0.06)'; }
+                else { badge.textContent = '·'; badge.style.opacity = '.6'; }
+              } else { badge.textContent = '·'; badge.style.opacity = '.6'; }
+              row.appendChild(nm); row.appendChild(badge); testsDiv.appendChild(row);
+            });
+            expandBtn.dataset.loaded = '1';
+            try{ flushPendingForPath(pathKey); }catch(e){}
+          }
+        } catch(err){ testsDiv.innerHTML = '<div class="dim">Failed to load tests</div>'; }
+      }
+      // remove spinner if present
+      try{ if (spinner && spinner.parentNode) spinner.remove(); }catch{}
+      // set an id for aria-controls (slug from pathKey)
+      try{ const id = 'tests-' + slugify(pathKey); testsDiv.id = id; expandBtn.setAttribute('aria-controls', id); }catch{}
+      testsDiv.classList.add('open'); testsDiv.style.display='block';
+      // resolve any pending promise so programmatic expansion knows we're ready
+      try{ if (expandBtn._resolveExpand) { expandBtn._resolveExpand(); expandBtn._expandPromise = null; expandBtn._resolveExpand = null; } }catch(e){}
+    });
+  const titleSpan = document.createElement('span'); titleSpan.className = 'spec-title'; titleSpan.style.fontWeight='600'; titleSpan.style.fontSize='14px';
         titleSpan.textContent = friendly && (typeof friendly === 'string') && friendly.trim() !== '' ? friendly : base;
+    // suite-level status badge (updated live)
+  const suiteBadge = document.createElement('span'); suiteBadge.className = 'pill suite-badge'; suiteBadge.textContent = '·'; suiteBadge.style.opacity = '.6'; suiteBadge.title = 'suite status'; suiteBadge.dataset.status = 'unknown';
         const fileSpan = document.createElement('span'); fileSpan.textContent = base; fileSpan.style.opacity = 0.6; fileSpan.style.fontSize = '12px'; fileSpan.className = 'spec-file';
-        titleRow.appendChild(titleSpan); titleRow.appendChild(fileSpan);
+  titleRow.appendChild(expandBtn); titleRow.appendChild(titleSpan); titleRow.appendChild(suiteBadge); titleRow.appendChild(fileSpan);
         name.appendChild(titleRow);
+  // Hidden container for test list; toggled by expandBtn
+  const testsDiv = document.createElement('div'); testsDiv.className = 'suite-tests'; testsDiv.style.display='none'; testsDiv.style.marginTop='6px'; testsDiv.style.paddingLeft='6px'; testsDiv.style.borderLeft='2px solid rgba(0,0,0,0.04)'; name.appendChild(testsDiv);
         const editBtn = document.createElement('button'); editBtn.textContent='Edit'; editBtn.title='Open editor';
         editBtn.dataset.path = pathKey;
         editBtn.addEventListener('click', async (e)=>{
@@ -428,12 +521,41 @@
         dlBtn.addEventListener('click', (e)=>{ e.stopPropagation(); dlMenu.style.display = (dlMenu.style.display === 'none') ? 'block' : 'none'; });
         document.addEventListener('click', ()=>{ try{ dlMenu.style.display='none'; }catch{} });
         dlWrap.appendChild(dlBtn); dlWrap.appendChild(dlMenu);
-        li.appendChild(name); li.appendChild(dlWrap); li.appendChild(editBtn);
+  li.appendChild(name); li.appendChild(dlWrap); li.appendChild(editBtn);
+  // add a bit of vertical whitespace for readability
+  li.style.marginBottom = '6px';
         if (selected.has(pathKey)) li.classList.add('selected');
         li.onclick = () => { if (selected.has(pathKey)) selected.delete(pathKey); else selected.add(pathKey); localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected))); selCount.textContent = selected.size + ' selected'; renderSuites(list); };
         suitesEl.appendChild(li);
       });
       selCount.textContent = selected.size + ' selected';
+    }
+    // Expand/Collapse all helpers
+    async function expandAll(){
+      const lis = Array.from(document.querySelectorAll('#suites li'));
+      for (const li of lis){
+        try{
+          const btn = li.querySelector('button[aria-controls]') || li.querySelector('button');
+          if (!btn) continue;
+          if (btn.dataset.open === '1') continue; // already open
+          btn.click();
+          // await per-button promise if provided
+          if (btn._expandPromise && typeof btn._expandPromise.then === 'function'){
+            try{ await btn._expandPromise; }catch(e){}
+          }
+        }catch(e){}
+      }
+    }
+
+    function collapseAll(){
+      const lis = Array.from(document.querySelectorAll('#suites li'));
+      for (const li of lis){
+        try{
+          const btn = li.querySelector('button[aria-controls]') || li.querySelector('button');
+          if (!btn) continue;
+          if (btn.dataset.open === '1') btn.click();
+        }catch(e){}
+      }
     }
 
     async function refresh(){
@@ -468,6 +590,21 @@
   currentRunId = runId;
   listen(runId);
     }
+
+  // E2E helper: start a run programmatically from tests and ensure the page subscribes
+  try{
+    window.__E2E_startRun = async function(suites, workers){
+      try{
+        const payload = { suites: suites || [], workers: workers || 1 };
+        const res = await fetch('/api/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if (!res.ok) throw new Error('run failed');
+        const j = await res.json();
+        const runId = j.runId;
+        try{ currentRunId = runId; listen(runId); }catch(e){}
+        return runId;
+      }catch(e){ return null; }
+    };
+  }catch(e){}
 
     async function importCollection(){
       const format = document.getElementById('importFormat').value;
@@ -514,19 +651,74 @@
     }
 
     function listen(id){
-  batch = { done:0, total:0 }; suite = { done:0, total:0 };
+      batch = { done:0, total:0 }; suite = { done:0, total:0 };
+      try{ window.__E2E_LISTENED = id; }catch(e){}
   results.textContent=''; stages.innerHTML=''; testRows.clear(); agg.passed=agg.failed=agg.skipped=agg.total=agg.suites=agg.durationMs=0; setBar(batchBar,0,1); setBar(suiteBar,0,1); batchText.textContent='0/0'; suiteText.textContent='0/0';
       const es = new EventSource('/api/stream?runId=' + encodeURIComponent(id));
-      es.onmessage = (e)=>{
+      try{ es.onopen = function(){ try{ window.__E2E_ES_OPEN = true; }catch(e){} }; }catch(e){}
+  es.onmessage = async (e)=>{
         const ev = JSON.parse(e.data);
         const type = ev.type;
         const payload = ev.payload || {};
+        // Helper to programmatically expand a suite entry by path or name
+        async function expandSuiteByPath(target){
+          try{
+            const list = document.querySelectorAll('#suites li');
+            for (const li of list){
+              try{
+                const btnEl = li.querySelector('button[aria-controls]');
+                const pathKey = li.getAttribute('data-path') || (btnEl && btnEl.getAttribute && btnEl.getAttribute('data-path')) || null;
+                if (!pathKey) continue;
+                if (pathKey === target || li.querySelector('.spec-title')?.textContent === target){
+                  const btn = btnEl || li.querySelector('button'); // expand button
+                  const testsDiv = li.querySelector('.suite-tests');
+                  if (!testsDiv) return;
+                  if (btn && btn.dataset.open !== '1') {
+                    // programmatic click to open; if the button provides an expand promise, await it
+                    try{
+                      btn.click();
+                      if (btn._expandPromise && typeof btn._expandPromise.then === 'function'){
+                        await btn._expandPromise;
+                      }
+                      // ensure pending events flush
+                      try{ flushPendingForPath(pathKey); }catch(e){}
+                    }catch(e){}
+                  }
+                  return; // done
+                }
+              }catch(e){}
+            }
+          }catch(e){}
+        }
+
+        function flushPendingForPath(path){
+          try{
+            const evs = pendingTestEvents.get(path);
+            if (!evs || !evs.length) return;
+            const li = document.querySelector('#suites li[data-path="'+path+'"]');
+            if (!li) { pendingTestEvents.delete(path); return; }
+            const testsDiv = li.querySelector('.suite-tests');
+            if (!testsDiv) { pendingTestEvents.delete(path); return; }
+            // apply queued events
+            evs.forEach(ev=>{
+              try{
+                const { Name, Status, DurationMs, Messages } = ev;
+                Array.from(testsDiv.children).forEach(r => {
+                  try{ const nm = r.children[0]; const badge = r.children[1]; if (!nm||!badge) return; if (nm.textContent === Name){ if (Status==='passed'){ badge.textContent='✓'; badge.style.background='rgba(16,185,129,0.12)'; badge.style.opacity='1'; } else if (Status==='failed'){ badge.textContent='✗'; badge.style.background='rgba(239,68,68,0.08)'; badge.style.opacity='1'; } else if (Status==='skipped'){ badge.textContent='-'; badge.style.background='rgba(245,158,11,0.06)'; badge.style.opacity='1'; } }
+                  }catch(e){}
+                });
+              }catch(e){}
+            });
+            pendingTestEvents.delete(path);
+          }catch(e){}
+        }
         if (type === 'testStart'){
           const {Name} = payload;
           const wrap = document.createElement('div');
           const line = document.createElement('div'); line.className='run'; line.textContent = '… ' + Name;
           wrap.appendChild(line);
           results.appendChild(wrap);
+          try{ window.__E2E_TESTSTART = true; }catch(e){}
           testRows.set(Name, {container: wrap, line});
           scrollBottom();
         }
@@ -536,6 +728,8 @@
         if (type === 'suiteStart'){
           suite.total = payload.total; suite.done = 0; setBar(suiteBar,0,suite.total); suiteText.textContent = '0/' + suite.total; stages.innerHTML='';
           currentSuiteEl.textContent = (payload.name || payload.path || '');
+          // record canonical path so we can update suite badges and auto-expand
+          currentSuitePath = payload.path || payload.name || null;
           // log start of suite
           const nm = (payload.name || payload.path || '');
           const ln = document.createElement('div'); ln.textContent = `=== running: ${nm} ===`; results.appendChild(ln);
@@ -546,6 +740,8 @@
             d.innerHTML='<div class="w-120px">stage '+k+'</div><div class="progress flex-1"><div id="stage_'+k+'" style="width:0%"></div></div><div class="pill" id="stage_txt_'+k+'">0/'+stageMap[k]+'</div>';
             stages.appendChild(d);
           }
+          // Auto-expand this suite in the left list to show live status and wait for tests to load
+          try{ const target = payload.path || payload.name || ''; if (target) { try{ await expandSuiteByPath(target); }catch(e){} } }catch(e){}
         }
         if (type === 'test'){
           const {Name, Status, DurationMs, Stage, Messages} = payload;
@@ -574,6 +770,45 @@
           suite.done++; setBar(suiteBar, suite.done, suite.total); suiteText.textContent = suite.done + '/' + suite.total;
           const st = document.getElementById('stage_'+Stage); const stt = document.getElementById('stage_txt_'+Stage);
           if(st && stt){ const txt = stt.textContent.split('/'); const done = (parseInt(txt[0],10)||0)+1; const total = parseInt(txt[1],10)||0; st.style.width = pct(done,total)+'%'; stt.textContent = done+'/'+total; }
+          // Update any expanded suite test badges if we are on the runner view (editor modal not open)
+          try {
+            // if modal present, skip updating expanded suite badges — per requirement only update in runner view
+            if (!document.getElementById('editorModal')) {
+              // Update suite-level badges and expanded test badges.
+              // If currentSuitePath is set, prefer updating that li; otherwise attempt to match any li containing this test name.
+              try {
+                const updateBadgeForLi = (li)=>{
+                  if (!li) return;
+                  try{
+                    const sBadge = li.querySelector('.suite-badge');
+                    // if a failure occurs, mark suite badge failed
+                    if (Status === 'failed') { if (sBadge) { sBadge.textContent = '✗'; sBadge.style.background='rgba(239,68,68,0.08)'; sBadge.style.opacity='1'; sBadge.dataset.status = 'failed'; } }
+                    else if (Status === 'passed') { if (sBadge && sBadge.textContent !== '✗') { sBadge.textContent = '✓'; sBadge.style.background='rgba(16,185,129,0.12)'; sBadge.style.opacity='1'; sBadge.dataset.status = 'passed'; } }
+                    else if (Status === 'skipped') { if (sBadge && sBadge.textContent !== '✗') { sBadge.textContent = '-'; sBadge.style.background='rgba(245,158,11,0.06)'; sBadge.style.opacity='1'; sBadge.dataset.status = 'skipped'; } }
+                    // update inside expanded testsDiv rows if present
+                    const testsDiv = li.querySelector('.suite-tests');
+                    if (testsDiv){
+                      // If testsDiv hasn't been populated yet (not loaded), queue the event for later
+                      const expandBtnLocal = li.querySelector('button[aria-controls]');
+                      const loaded = expandBtnLocal && expandBtnLocal.dataset && expandBtnLocal.dataset.loaded === '1';
+                      if (!loaded){ // queue
+                        try{ const p = li.getAttribute('data-path') || (li.querySelector('.spec-title') && li.querySelector('.spec-title').textContent) || ''; if (p){ const arr = pendingTestEvents.get(p) || []; arr.push({ Name, Status, DurationMs, Messages }); pendingTestEvents.set(p, arr); } }catch(e){}
+                      } else {
+                        Array.from(testsDiv.children).forEach(r => { try{ const nmEl=r.children[0], badgeEl=r.children[1]; if (!nmEl||!badgeEl) return; if (nmEl.textContent===Name){ if (Status==='passed'){ badgeEl.textContent='✓'; badgeEl.style.background='rgba(16,185,129,0.12)'; badgeEl.style.opacity='1'; } else if (Status==='failed'){ badgeEl.textContent='✗'; badgeEl.style.background='rgba(239,68,68,0.08)'; badgeEl.style.opacity='1'; } else if (Status==='skipped'){ badgeEl.textContent='-'; badgeEl.style.background='rgba(245,158,11,0.06)'; badgeEl.style.opacity='1'; } } }catch(e){} });
+                      }
+                    }
+                  }catch(e){}
+                };
+                // Update current suite first
+                if (currentSuitePath){ const li = document.querySelector('#suites li[data-path="'+currentSuitePath+'"]'); if (li) updateBadgeForLi(li); }
+                // Update any other lists that might contain the test name (if not found above)
+                document.querySelectorAll('#suites li').forEach(li=>{ try{ // skip if already current suite
+                  if (li.getAttribute('data-path') === currentSuitePath) return; // check testsDiv content
+                  const testsDiv = li.querySelector('.suite-tests'); if (!testsDiv) return; const found = Array.from(testsDiv.children).some(r=> r.children && r.children[0] && r.children[0].textContent === Name); if (found) updateBadgeForLi(li);
+                }catch(e){} });
+              } catch(e) {}
+            }
+          } catch(e) {}
         }
         if (type === 'suiteEnd'){
           batch.done++; setBar(batchBar, batch.done, batch.total); batchText.textContent = batch.done + '/' + batch.total;
@@ -582,6 +817,11 @@
           const line = `=== ${name} — ${s.passed||0} passed, ${s.failed||0} failed, ${s.skipped||0} skipped, total ${s.total||0} in ${(s.durationMs||0)} ms ===`;
           const div = document.createElement('div'); div.textContent = line; results.appendChild(div);
           agg.suites++; agg.durationMs += (s.durationMs||0);
+          // Update suite badge based on final summary
+          try{
+            const li = document.querySelector('#suites li[data-path="'+(payload.path||payload.name||'')+'"]');
+            if (li){ const sb = li.querySelector('.suite-badge'); if (sb){ if ((s.failed||0) > 0){ sb.textContent = '✗'; sb.style.background='rgba(239,68,68,0.08)'; sb.style.opacity='1'; sb.dataset.status = 'failed'; } else { sb.textContent = '✓'; sb.style.background='rgba(16,185,129,0.12)'; sb.style.opacity='1'; sb.dataset.status = 'passed'; } sb.classList.add('animate'); setTimeout(()=> sb.classList.remove('animate'), 220); } }
+          }catch(e){}
           scrollBottom();
         }
         if (type === 'batchEnd'){
@@ -632,6 +872,8 @@
     document.getElementById('run').onclick = run;
     document.getElementById('importBtn').onclick = importCollection;
   try { document.getElementById('newSuiteBtn').onclick = promptNewSuite; } catch(e){}
+  try { document.getElementById('expandAll').onclick = () => { expandAll().catch(()=>{}); } } catch(e){}
+  try { document.getElementById('collapseAll').onclick = collapseAll; } catch(e){}
   // per-suite edit buttons are rendered inline in the list
 
   function openEditor(path, data){
@@ -666,10 +908,11 @@
                 <input id="ed_run_with_deps" type="checkbox" class="toggle toggle-sm">
               </label>
               <button id="ed_run_test" class="btn btn-sm" title="Validate and run the selected test without saving">Run test</button>
+              <button id="ed_run_suite" class="btn btn-sm" title="Validate and run the whole suite without saving">Run suite</button>
               <button id="ed_validate" class="btn btn-sm">Validate</button>
               <button id="ed_save" class="btn btn-sm">Save</button>
               <button id="ed_save_close" class="btn btn-sm">Save & Close</button>
-              <button id="ed_close" type="button" class="btn btn-sm">Close</button>
+              <button id="ed_close" type="button" class="btn btn-sm" title="Close">Close</button>
               <span id="ed_dirty_indicator" class="pill" title="You have unsaved changes" style="margin-left:8px; display:none; background:#fde2e1; color:#b91c1c">Unsaved</span>
             </div>
           </div>
@@ -1491,7 +1734,7 @@
       div.appendChild(leftWrap);
       div.appendChild(right);
   div.onclick = (ev)=>{ if (ev.target===runDepsBtn) return; selIndex=i; renderTests(); renderForm(); renderQuickRunForSelection(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
-        runDepsBtn.onclick = async (ev)=>{
+    runDepsBtn.onclick = async (ev)=>{
           ev.stopPropagation();
           try{ if (typeof sync === 'function') sync(); }catch{}
           const env = (function(){ const env = {}; const lines=(document.getElementById('env_kv').value||'').split(/\n/); for(const line of lines){ const s=line.trim(); if(!s) return; const eq=s.indexOf('='); if(eq>0){ env[s.slice(0,eq).trim()] = s.slice(eq+1).trim(); } } return env; })();
@@ -1506,7 +1749,7 @@
         };
         list.appendChild(div);
       });
-      // Attach add/delete handlers
+    // Attach add/delete handlers
       const addBtn = modal.querySelector('#ed_add_test');
       const delBtn = modal.querySelector('#ed_del_test');
   addBtn.onclick = ()=>{
@@ -1519,6 +1762,40 @@
     }
 
   // hoisted getters/elements used by sync() so Visual->YAML mirroring works
+
+      // Run whole suite button: validate + run all tests in suite via /api/editor/testrun
+      const runSuiteBtn = modal.querySelector('#ed_run_suite');
+      if (runSuiteBtn){
+        runSuiteBtn.addEventListener('click', async (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          try{ await sync(); }catch{}
+          // Validate on server to get normalized parsed suite
+          let vres;
+          try { vres = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working })}); }
+          catch(err){ alert('Validation request failed'); return; }
+          if (!vres.ok){ alert('Validation failed'); return; }
+          const vdata = await vres.json(); if (!vdata.parsed){ alert('Validation failed to parse suite'); return; }
+          // POST to /api/editor/testrun to run entire suite
+          quickRunBox.innerHTML = 'Running suite...';
+          try{
+            const runRes = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: vdata.parsed, runAll: true, includeDeps: true, env: (function(){ const e={}; const lines=(document.getElementById('env_kv').value||'').split(/\n/); for(const line of lines){ const s=line.trim(); if(!s) continue; const eq=s.indexOf('='); if(eq>0){ e[s.slice(0,eq).trim()] = s.slice(eq+1).trim(); } } return e; })() })});
+            if (!runRes.ok){ const txt = await runRes.text().catch(()=> ''); quickRunBox.textContent = 'Run failed: ' + txt; return; }
+            const jr = await runRes.json(); // Expect similar shape as test run: { cases: [...] }
+            // render summary in quickRunBox
+            quickRunBox.innerHTML = '';
+            if (Array.isArray(jr.cases)){
+              const hdr = document.createElement('div'); hdr.style.fontWeight='600'; hdr.style.marginBottom='6px'; hdr.textContent = `Suite run — ${jr.cases.length} cases`;
+              quickRunBox.appendChild(hdr);
+              jr.cases.forEach(c=>{
+                const ln = document.createElement('div'); ln.textContent = `${c.status==='passed'? '✓': (c.status==='failed'? '✗':'-')} ${c.name || ''} (${c.durationMs||0} ms)`; quickRunBox.appendChild(ln);
+                if (Array.isArray(c.messages) && c.messages.length){ const pre = document.createElement('pre'); pre.className = (c.status==='failed'?'fail':(c.status==='skipped'?'skip':'ok')); pre.textContent = c.messages.join('\n'); quickRunBox.appendChild(pre); }
+              });
+            } else {
+              quickRunBox.textContent = JSON.stringify(jr);
+            }
+          }catch(err){ quickRunBox.textContent = 'Run failed: ' + (err && err.message ? err.message : String(err)); }
+        });
+      }
   let suiteVarsGet, getPreSuite, getPostSuite, headersGet, queryGet, bodyEl, aHeadGet, aEqGet, aContGet, aBodyGet, extractGet, matrixGet, getPreHooks, getPostHooks, oapiSel;
 
   function renderForm(){
