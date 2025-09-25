@@ -1,3 +1,4 @@
+
 const { test, expect } = require('@playwright/test');
 
 const APP_URL = process.env.HYDREQ_E2E_URL || 'http://localhost:8080/';

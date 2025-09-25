@@ -381,6 +381,19 @@
   const autoScroll = document.getElementById('autoScroll');
   const cancelBtn = document.getElementById('cancel');
 
+  // Restore persisted values
+  console.log('tagsEl:', tagsEl);
+  tagsEl.value = localStorage.getItem('hydreq.tags') || '';
+  defToEl.value = localStorage.getItem('hydreq.defaultTimeout') || '';
+
+  // Save on change
+  console.log('Adding tags listener');
+  tagsEl.addEventListener('input', () => {
+    console.log('Saving tags:', tagsEl.value);
+    localStorage.setItem('hydreq.tags', tagsEl.value);
+  });
+  defToEl.addEventListener('input', () => localStorage.setItem('hydreq.defaultTimeout', defToEl.value));
+
   let selected = new Set(JSON.parse(localStorage.getItem('hydreq.sel')||'[]'));
     let batch = { done: 0, total: 0 };
     let suite = { done: 0, total: 0 };
@@ -559,12 +572,21 @@
     }
 
     async function refresh(){
-      const res = await fetch('/api/editor/suites');
-      const list = await res.json();
-      renderSuites(list);
+      console.log('refresh: fetching /api/editor/suites');
+      try {
+        const res = await fetch('/api/editor/suites');
+        console.log('refresh: fetch complete, status=', res && res.status);
+        let list = [];
+        try { list = await res.json(); } catch (e) { console.error('refresh: failed parsing JSON', e); }
+        console.log('refresh: got list (len=', (Array.isArray(list)?list.length:0), ')');
+        try { renderSuites(list || []); } catch (e) { console.error('refresh: renderSuites threw', e); }
+      } catch (err) {
+        console.error('refresh: fetch failed', err);
+      }
     }
 
     async function run(){
+      console.log('run called');
       let suites = Array.from(selected);
       if (suites.length === 0) {
         // If user hasn't selected any suites, default to all discovered suites
@@ -578,8 +600,9 @@
       const env = parseEnv();
       renderActiveEnv(env);
   const tags = (tagsEl && tagsEl.value)? tagsEl.value.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  console.log('tags:', tags);
   const defaultTimeoutMs = (defToEl && defToEl.value)? (parseInt(defToEl.value,10)||0) : 0;
-  const res = await fetch('/api/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({suites, workers: parseInt(workersEl.value)||4, tags: (tags.length? tags: undefined), defaultTimeoutMs: (defaultTimeoutMs>0? defaultTimeoutMs: undefined), env})});
+  const res = await fetch('/api/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({suites, workers: parseInt(workersEl.value)||4, tags: Array.isArray(tags) ? tags : [], defaultTimeoutMs: (defaultTimeoutMs>0? defaultTimeoutMs: undefined), env})});
       if (!res.ok){
         let txt = '';
         try { txt = await res.text(); } catch {}
@@ -744,19 +767,19 @@
           try{ const target = payload.path || payload.name || ''; if (target) { try{ await expandSuiteByPath(target); }catch(e){} } }catch(e){}
         }
         if (type === 'test'){
-          const {Name, Status, DurationMs, Stage, Messages} = payload;
+          const {Name, Status, DurationMs, Stage, Messages, Tags} = payload;
           agg.total++;
           if (Status==='passed') agg.passed++; else if (Status==='failed') agg.failed++; else if (Status==='skipped') agg.skipped++;
-          if (onlyFailed.checked && Status !== 'failed') {
-            const row = testRows.get(Name); if (row) { row.container.remove(); testRows.delete(Name); }
+          let row = testRows.get(Name);
+          if (!row){
+            const wrap = document.createElement('div');
+            const line = document.createElement('div'); wrap.appendChild(line); results.appendChild(wrap);
+            row = {container: wrap, line}; testRows.set(Name, row);
+          }
+          row.line.className = (Status==='passed'?'ok':(Status==='failed'?'fail':'skip'));
+          if (Status==='skipped') {
+            row.line.textContent = `- ${Name} (tags)`;
           } else {
-            let row = testRows.get(Name);
-            if (!row){
-              const wrap = document.createElement('div');
-              const line = document.createElement('div'); wrap.appendChild(line); results.appendChild(wrap);
-              row = {container: wrap, line}; testRows.set(Name, row);
-            }
-            row.line.className = (Status==='passed'?'ok':(Status==='failed'?'fail':'skip'));
             row.line.textContent = (Status==='passed'?'✓':(Status==='failed'?'✗':'-')) + ' ' + Name + ' (' + DurationMs + ' ms)';
             if (Status==='failed' && Array.isArray(Messages) && Messages.length){
               let det = row.container.querySelector('details');
@@ -764,7 +787,6 @@
               let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='fail'; det.appendChild(pre); }
               pre.textContent = Messages.join('\n');
             }
-            scrollBottom();
           }
           // progress and stages after rendering
           suite.done++; setBar(suiteBar, suite.done, suite.total); suiteText.textContent = suite.done + '/' + suite.total;
@@ -795,8 +817,18 @@
                         try{ const p = li.getAttribute('data-path') || (li.querySelector('.spec-title') && li.querySelector('.spec-title').textContent) || ''; if (p){ const arr = pendingTestEvents.get(p) || []; arr.push({ Name, Status, DurationMs, Messages }); pendingTestEvents.set(p, arr); } }catch(e){}
                       } else {
                         Array.from(testsDiv.children).forEach(r => { try{ const nmEl=r.children[0], badgeEl=r.children[1]; if (!nmEl||!badgeEl) return; if (nmEl.textContent===Name){ if (Status==='passed'){ badgeEl.textContent='✓'; badgeEl.style.background='rgba(16,185,129,0.12)'; badgeEl.style.opacity='1'; } else if (Status==='failed'){ badgeEl.textContent='✗'; badgeEl.style.background='rgba(239,68,68,0.08)'; badgeEl.style.opacity='1'; } else if (Status==='skipped'){ badgeEl.textContent='-'; badgeEl.style.background='rgba(245,158,11,0.06)'; badgeEl.style.opacity='1'; } } }catch(e){} });
-                      }
-                    }
+                          // Restore badge fallback for missing test rows
+                          // If not found, ensure badge is set to default
+                          const found = Array.from(testsDiv.children).some(r=> r.children && r.children[0] && r.children[0].textContent === Name);
+                          if (!found && sBadge) {
+                            sBadge.textContent = '·';
+                            sBadge.style.opacity = '.6';
+                            sBadge.style.background = '';
+                            sBadge.dataset.status = 'unknown';
+                          }
+                          }
+                        }
+                        // End of listen()
                   }catch(e){}
                 };
                 // Update current suite first
@@ -804,8 +836,21 @@
                 // Update any other lists that might contain the test name (if not found above)
                 document.querySelectorAll('#suites li').forEach(li=>{ try{ // skip if already current suite
                   if (li.getAttribute('data-path') === currentSuitePath) return; // check testsDiv content
-                  const testsDiv = li.querySelector('.suite-tests'); if (!testsDiv) return; const found = Array.from(testsDiv.children).some(r=> r.children && r.children[0] && r.children[0].textContent === Name); if (found) updateBadgeForLi(li);
-                }catch(e){} });
+                  const testsDiv = li.querySelector('.suite-tests');
+                  if (!testsDiv) return;
+                  const found = Array.from(testsDiv.children).some(r=> r.children && r.children[0] && r.children[0].textContent === Name);
+                  if (found) {
+                    updateBadgeForLi(li);
+                  } else {
+                    const sBadge = li.querySelector('.suite-badge');
+                    if (sBadge) {
+                      sBadge.textContent = '·';
+                      sBadge.style.opacity = '.6';
+                      sBadge.style.background = '';
+                      sBadge.dataset.status = 'unknown';
+                    }
+                  }
+                } catch(e) {} });
               } catch(e) {}
             }
           } catch(e) {}
@@ -814,7 +859,7 @@
           batch.done++; setBar(batchBar, batch.done, batch.total); batchText.textContent = batch.done + '/' + batch.total;
           const name = payload.name || payload.path || '';
           const s = payload.summary || {};
-          const line = `=== ${name} — ${s.passed||0} passed, ${s.failed||0} failed, ${s.skipped||0} skipped, total ${s.total||0} in ${(s.durationMs||0)} ms ===`;
+          const line = `=== ${name} — ${s.passed||0} passed, ${s.failed||0} failed, ${s.skipped||0} skipped, total ${s.total||0} in ${s.durationMs||0} ms`;
           const div = document.createElement('div'); div.textContent = line; results.appendChild(div);
           agg.suites++; agg.durationMs += (s.durationMs||0);
           // Update suite badge based on final summary
@@ -1017,16 +1062,10 @@
                   <div class="ed-body ed-grid-2-160" id="ed_flow_form">
                     <label>Skip</label>
                     <input id="ed_skip" type="checkbox"/>
-                    <label>Only</label>
                     <input id="ed_only" type="checkbox"/>
                     <label>Stage</label>
                     <input id="ed_stage" type="number" min="0"/>
-                    <label>Tags (comma sep)</label>
-                    <input id="ed_tags" type="text"/>
-                    <label>Depends on (comma sep)</label>
-                    <input id="ed_depends" type="text"/>
-                  </div>
-                </details>
+                </div>
 
                 <details open class="ed-panel">
                   <summary class="ed-summary">Test hooks</summary>
@@ -1094,6 +1133,23 @@
           </div>
         </div>`;
   document.body.appendChild(modal);
+  // Attach add/delete handlers early while modal exists. Handlers call
+  // functions (renderTests, renderForm, sync) that are defined later in this scope.
+  try {
+    const addBtn = modal.querySelector('#ed_add_test');
+    const delBtn = modal.querySelector('#ed_del_test');
+    if (addBtn) {
+      addBtn.onclick = ()=>{
+        const defaultName = `test ${working.tests.length+1}`;
+        const name = prompt('Enter test name:', defaultName);
+        const finalName = (name && name.trim()) ? name.trim() : defaultName;
+        working.tests.push({ name: finalName, request:{ method:'GET', url:'' }, assert:{ status:200 } });
+        selIndex = working.tests.length-1; renderTests(); renderForm(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
+    }
+    if (delBtn) {
+      delBtn.onclick = ()=>{ if (working.tests.length===0) return; if (!confirm('Delete selected test?')) return; working.tests.splice(selIndex,1); selIndex = Math.max(0, selIndex-1); renderTests(); if (working.tests.length) renderForm(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
+    }
+  } catch(e){}
   // Prevent page scroll under modal
   document.body.classList.add('modal-open');
   modal.addEventListener('wheel', (e)=>{ e.stopPropagation(); }, { passive: true });
@@ -1161,7 +1217,7 @@
           },
           'Shift-Tab': function(cm){ cm.indentSelection('subtract'); }
         }
-      });
+  });
       // Replace any tabs with two spaces on input/paste
       yamlEditor.on('beforeChange', function(cm, change){
         if (!change || !Array.isArray(change.text)) return;
@@ -1380,7 +1436,7 @@
           if (!Array.isArray(working.tests)) working.tests = [];
           setVisualEnabled(true);
           // Update canonical YAML from parsed object to maintain consistent formatting
-          try { const dumped = jsyaml.dump(parsed || {}, { noRefs: true }); inMemoryYaml = unquoteNumericKeys(dumped); } catch(e) {}
+          try { const dumped = jsyaml.dump(parsed || {}, { noRefs: true }); inMemoryYaml = unquoteNumericKeys(dumped); } catch (e) {}
           renderIssues([], inMemoryYaml);
           lastValidated = { OK: true, Issues: [], Parsed: parsed, YAML: inMemoryYaml };
           if (paneVisual.style.display !== 'none'){ renderTests(); renderForm(); }
@@ -1426,14 +1482,14 @@
         } catch {}
       }
       localStorage.setItem('hydreq.editor.tab', which);
-    }
+    };
     tabVisual.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); switchTab('visual'); };
     tabYaml.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); switchTab('yaml'); };
 
     // Close button robust handler + Escape support
     const closeBtn = modal.querySelector('#ed_close');
     if (closeBtn){ closeBtn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); attemptClose(); }); }
-    document.addEventListener('keydown', function escClose(ev){ if (!document.getElement('editorModal')) { document.removeEventListener('keydown', escClose); return; } if (ev.key === 'Escape'){ attemptClose(); } });
+  document.addEventListener('keydown', function escClose(ev){ if (!document.getElementById('editorModal')) { document.removeEventListener('keydown', escClose); return; } if (ev.key === 'Escape'){ attemptClose(); } });
 
    
     // Draggable splitter for right pane
@@ -1644,121 +1700,33 @@
           let res; try { res = await fetch('/api/editor/hookrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working, scope, testIndex: selIndex, hook: payload, env })}); } catch(e){ out.textContent = 'Network error'; return; }
           if (!res.ok){ const t=await res.text().catch(()=> ''); out.textContent = 'Run failed: ' + t; return; }
           const r = await res.json(); const icon = r.status==='passed'?'✓':(r.status==='failed'?'✗':'-'); const hdr = document.createElement('div'); hdr.style.fontWeight='600'; hdr.textContent = `${icon} hook ${r.name||''} (${r.durationMs||0} ms)`; out.innerHTML=''; out.appendChild(hdr);
-          if (Array.isArray(r.messages) && r.messages.length){ const pre=document.createElement('pre'); pre.className=(r.status==='failed'?'fail':(r.status==='skipped'?'skip':'ok')); pre.textContent = r.messages.join('\n'); out.appendChild(pre); }
+          if (Array.isArray(r.messages) && r.messages.length){ const pre=document.createElement('pre'); pre.className = (r.status==='failed'?'fail':(r.status==='skipped'?'skip':'ok')); pre.textContent = r.messages.join('\n'); out.appendChild(pre); }
           if (r.vars && Object.keys(r.vars).length){ const det=document.createElement('details'); const sum=document.createElement('summary'); sum.textContent='vars'; det.appendChild(sum); const pre=document.createElement('pre'); pre.textContent = JSON.stringify(r.vars,null,2); det.appendChild(pre); out.appendChild(det); }
         };
         // getter
         row._get = ()=>{ const name = nameI.value||''; const vars = varsGet(); const out = { name, vars }; if (row._mode==='http'){ const req={ method: (hg.querySelector('.hk_method').value||'').toUpperCase(), url: hg.querySelector('.hk_url').value||'', headers: hkHeadGet(), query: hkQueryGet(), body: (function(txt){ try{ return txt?JSON.parse(txt):null }catch{return txt} })(bodyEl.value.trim()) }; if (req.method||req.url||Object.keys(req.headers||{}).length||Object.keys(req.query||{}).length||bodyEl.value.trim()) out.request=req; } else if (row._mode==='sql'){ const sql={ driver: driverEl.value||'', dsn: dsnEl.value||'', query: (sg.querySelector('.hk_querytxt').value||''), extract: hkSQLExtractGet() }; if (sql.driver||sql.dsn||sql.query||Object.keys(sql.extract||{}).length) out.sql=sql; } else if (row._mode==='js'){ const js={ code: (jsg.querySelector('.hk_js_code').value || '') }; if (js.code.trim()) out.js=js; } return out; };
         list.appendChild(row);
-        if (list.children.length > 0) empty.style.display = 'none';
-        // propagate generic input/change events from any inputs inside the row
-        if (onChange){
-          row.addEventListener('input', ()=>{ try{ onChange(); }catch{} }, true);
-          row.addEventListener('change', ()=>{ try{ onChange(); }catch{} }, true);
-        }
-        // ensure delete triggers change
-        const delBtnLocal = header.querySelector('.hk_del');
-        if (delBtnLocal){
-          const orig = delBtnLocal.onclick;
-          delBtnLocal.onclick = ()=>{ if (typeof orig === 'function') orig(); try{ if (onChange) onChange(); }catch{} };
-        }
-        // ensure convert triggers change
-        const conv = header.querySelector('button[title="Switch mode"]');
-        if (conv){ const origc = conv.onclick; conv.onclick = ()=>{ if (typeof origc === 'function') origc(); try{ if (onChange) onChange(); }catch{} }; }
-        return row._get;
       }
       // populate
       if (Array.isArray(hooks)) hooks.forEach(h=> addRow(h));
       return ()=> Array.from(list.children).map(r=> r._get ? r._get() : null).filter(Boolean);
     }
-
-    function renderTests(){
-      const list = modal.querySelector('#ed_tests');
-      list.innerHTML='';
-      if (selIndex >= working.tests.length) selIndex = Math.max(0, working.tests.length-1);
-      (working.tests||[]).forEach((t, i)=>{
-  const div = document.createElement('div'); div.className='ed-row-8 ed-ai-center'; div.style.padding='6px 8px'; div.style.cursor='pointer'; div.style.justifyContent='space-between'; if (i===selIndex){ div.style.background='var(--li-sel)'; }
-  const label = document.createElement('span');
-  const fullName = (t.name||`test ${i+1}`);
-  // Truncate long names for display; show full name in tooltip
-  const maxLen = 36;
-  const displayName = (fullName.length > maxLen) ? (fullName.slice(0, maxLen-1) + '…') : fullName;
-  label.textContent = displayName;
-  label.title = fullName;
-    // Rename via pencil button (opens inline editor)
-    label.style.userSelect = 'text';
-    const editBtn = document.createElement('button');
-    editBtn.className = 'btn btn-ghost btn-xs';
-    editBtn.title = 'Rename test';
-    editBtn.innerHTML = '✎';
-    editBtn.onclick = (ev)=>{
-      ev.stopPropagation();
-      const cur = working.tests[i] || {};
-      const initial = cur.name || `test ${i+1}`;
-      const inp = document.createElement('input'); inp.type='text'; inp.value = initial; inp.style.width = '100%'; inp.style.boxSizing='border-box';
-      // Replace label with input
-      label.replaceWith(inp);
-      inp.focus(); inp.select();
-      const commit = ()=>{
-        const v = (inp.value||'').trim();
-        if (!working.tests[i]) working.tests[i] = {};
-        working.tests[i].name = v || initial;
-        // Restore label
-        const newFull = working.tests[i].name || initial;
-        label.textContent = (newFull.length>maxLen) ? (newFull.slice(0,maxLen-1)+'…') : newFull;
-        label.title = newFull;
-        inp.replaceWith(label);
-        try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{};
-        renderTests(); renderForm();
-      };
-      inp.onblur = commit;
-      inp.onkeydown = (ke)=>{ if (ke.key === 'Enter') { commit(); } else if (ke.key === 'Escape') { inp.replaceWith(label); } };
-    };
-    const right = document.createElement('span'); right.className='ed-row-6 ed-ai-center';
-    const runDepsBtn = document.createElement('button'); runDepsBtn.className='btn btn-ghost btn-xs'; runDepsBtn.title='Run with dependencies'; runDepsBtn.textContent='▶ deps';
-    const badge = document.createElement('span'); badge.className='pill';
-        (function(){
-          const k = i + ':' + (t.name||('test '+(i+1)));
-          const r = testRunCache.get(k);
-          if (!r) { badge.textContent='•'; badge.style.opacity='.5'; }
-          else {
-            badge.textContent = r.status==='passed'?'✓':(r.status==='failed'?'✗':'-');
-            badge.style.background = r.status==='passed'?'#e8f5e9':(r.status==='failed'?'#fde2e1':'var(--pill)');
-          }
-        })();
-      right.appendChild(runDepsBtn); right.appendChild(badge);
-      // place edit button next to label
-      const leftWrap = document.createElement('span'); leftWrap.style.display='flex'; leftWrap.style.gap='6px'; leftWrap.style.alignItems='center';
-      leftWrap.appendChild(label);
-      leftWrap.appendChild(editBtn);
-      div.appendChild(leftWrap);
-      div.appendChild(right);
-  div.onclick = (ev)=>{ if (ev.target===runDepsBtn) return; selIndex=i; renderTests(); renderForm(); renderQuickRunForSelection(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
-    runDepsBtn.onclick = async (ev)=>{
-          ev.stopPropagation();
-          try{ if (typeof sync === 'function') sync(); }catch{}
-          const env = (function(){ const env = {}; const lines=(document.getElementById('env_kv').value||'').split(/\n/); for(const line of lines){ const s=line.trim(); if(!s) return; const eq=s.indexOf('='); if(eq>0){ env[s.slice(0,eq).trim()] = s.slice(eq+1).trim(); } } return env; })();
-          const vres = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working })}); if (!vres.ok){ alert('Validation failed'); return; }
-          const v = await vres.json(); if (!v.parsed){ alert('Cannot run: content did not parse'); return; }
-          const body = { parsed: v.parsed, testIndex: i, env, runAll: false, includeDeps: true };
-          const res = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
-          if (!res.ok){ const t=await res.text().catch(()=> ''); alert('Run failed: '+t); return; }
-          const r = await res.json(); if (Array.isArray(r.cases)){ for (const c of r.cases){ const idx = (working.tests||[]).findIndex(tt=> tt.name===c.name); if (idx>=0){ const k = idx+':'+(c.name||('test '+(idx+1))); testRunCache.set(k, c); } } }
-          try{ localStorage.setItem(LS_KEY(path), JSON.stringify(Object.fromEntries(testRunCache.entries()))); }catch{}
-          renderTests(); setQuickRunBox(r); const qrBox = modal.querySelector('#ed_quickrun_box'); if (qrBox) qrBox.open = true;
-        };
-        list.appendChild(div);
-      });
     // Attach add/delete handlers
-      const addBtn = modal.querySelector('#ed_add_test');
-      const delBtn = modal.querySelector('#ed_del_test');
-  addBtn.onclick = ()=>{
-    const defaultName = `test ${working.tests.length+1}`;
-    const name = prompt('Enter test name:', defaultName);
-    const finalName = (name && name.trim()) ? name.trim() : defaultName;
-    working.tests.push({ name: finalName, request:{ method:'GET', url:'' }, assert:{ status:200 } });
-    selIndex = working.tests.length-1; renderTests(); renderForm(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
-  delBtn.onclick = ()=>{ if (working.tests.length===0) return; if (!confirm('Delete selected test?')) return; working.tests.splice(selIndex,1); selIndex = Math.max(0, selIndex-1); renderTests(); if (working.tests.length) renderForm(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
+      if (typeof modal !== 'undefined' && modal) {
+        const addBtn = modal.querySelector('#ed_add_test');
+        const delBtn = modal.querySelector('#ed_del_test');
+        if (addBtn) {
+          addBtn.onclick = ()=>{
+            const defaultName = `test ${working.tests.length+1}`;
+            const name = prompt('Enter test name:', defaultName);
+            const finalName = (name && name.trim()) ? name.trim() : defaultName;
+            working.tests.push({ name: finalName, request:{ method:'GET', url:'' }, assert:{ status:200 } });
+            selIndex = working.tests.length-1; renderTests(); renderForm(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
+        }
+        if (delBtn) {
+          delBtn.onclick = ()=>{ if (working.tests.length===0) return; if (!confirm('Delete selected test?')) return; working.tests.splice(selIndex,1); selIndex = Math.max(0, selIndex-1); renderTests(); if (working.tests.length) renderForm(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
+        }
+      }
     }
 
   // hoisted getters/elements used by sync() so Visual->YAML mirroring works
@@ -1843,7 +1811,7 @@
           const pathI = document.createElement('input'); pathI.placeholder='json.id'; pathI.value=jsonPath;
           ['input','change','blur'].forEach(ev=>{ nameI.addEventListener(ev, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} }); pathI.addEventListener(ev, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} }); });
           const del = document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick=()=> { row.remove(); try{ sync(); syncYamlPreviewFromVisual(); }catch{} };
-          row.appendChild(nameI); row.appendChild(pathI); row.appendChild(del); table.appendChild(row);
+          row.appendChild(nameI); row.appendChild(pathI); row.appendChild(del);
         };
         const ex = t.extract || {};
         Object.keys(ex).forEach(k=> addRow(k, (ex[k] && ex[k].jsonPath)||''));
@@ -1883,7 +1851,7 @@
           const vi=document.createElement('input'); vi.placeholder='v1, v2, v3'; vi.value=(Array.isArray(vals)?vals.join(', '):'');
           ['input','change','blur'].forEach(ev=>{ ki.addEventListener(ev, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} }); vi.addEventListener(ev, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); }catch{} }); });
           const del=document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick=()=> { row.remove(); try{ sync(); syncYamlPreviewFromVisual(); }catch{} };
-          row.appendChild(ki); row.appendChild(vi); row.appendChild(del); table.appendChild(row);
+          row.appendChild(ki); row.appendChild(vi); row.appendChild(del);
         };
         const mx = t.matrix || {};
         Object.keys(mx).forEach(k=> addRow(k, mx[k]||[]));
@@ -1944,11 +1912,11 @@
         working.postSuite = getPostSuite();
         updateAuthPreview();
         updateEnvPresence();
-        // Test sync
-        const cur = (working.tests && working.tests[selIndex]) || {};
-        cur.request = cur.request || {};
-        cur.request.method = modal.querySelector('#ed_method').value || 'GET';
-        cur.request.url = modal.querySelector('#ed_url').value || '';
+  // Test sync
+  const cur = (working.tests && working.tests[selIndex]) || {};
+  cur.request = cur.request || {};
+  cur.request.method = modal.querySelector('#ed_method').value || 'GET';
+  cur.request.url = modal.querySelector('#ed_url').value || '';
         const to = parseInt(modal.querySelector('#ed_timeout').value, 10); cur.timeoutMs = isNaN(to)?0:to;
         cur.request.headers = headersGet();
         cur.request.query = queryGet();
@@ -2005,12 +1973,12 @@
         modal.querySelector('#ed_suite_baseurl').addEventListener(evt, sync);
         modal.querySelector('#ed_auth_bearer').addEventListener(evt, sync);
         modal.querySelector('#ed_auth_basic').addEventListener(evt, sync);
-  modal.querySelector('#ed_method').addEventListener(evt, sync);
-  modal.querySelector('#ed_url').addEventListener(evt, sync);
-  modal.querySelector('#ed_test_name').addEventListener(evt, sync);
+        modal.querySelector('#ed_method').addEventListener(evt, sync);
+        modal.querySelector('#ed_url').addEventListener(evt, sync);
+        modal.querySelector('#ed_test_name').addEventListener(evt, sync);
         modal.querySelector('#ed_timeout').addEventListener(evt, sync);
-        bodyEl.addEventListener(evt, sync);
-        modal.querySelector('#ed_assert_status').addEventListener(evt, sync);
+  bodyEl.addEventListener(evt, sync);
+  modal.querySelector('#ed_assert_status').addEventListener(evt, sync);
         modal.querySelector('#ed_assert_maxDuration').addEventListener(evt, sync);
         modal.querySelector('#ed_skip').addEventListener(evt, sync);
         modal.querySelector('#ed_only').addEventListener(evt, sync);
@@ -2111,16 +2079,16 @@
       quickRunBox.innerHTML = '<em style="opacity:.8">Running…</em>';
       const vres = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(activeIsYaml ? { raw: rawText } : { parsed: working })});
       if (!vres.ok){ alert('Validation failed to run'); return; }
-      const v = await vres.json();
-      renderIssues(v.issues||[], v.yaml||'');
+      const vdata = await vres.json();
+      renderIssues(vdata.issues||[], vdata.yaml||'');
       const valBox = modal.querySelector('#ed_validation_box'); if (valBox) valBox.open = true;
-      if (!v.parsed){ alert('Cannot run: content did not parse'); return; }
+      if (!vdata.parsed){ alert('Cannot run: content did not parse'); return; }
       // Run the currently selected test without saving; include current env overrides from the main page
       const env = (function(){
         const env = {}; const lines = (document.getElementById('env_kv').value||'').split(/\n/);
-        for (const line of lines){ const s=line.trim(); if (!s) return; const eq=s.indexOf('='); if (eq>0){ env[s.slice(0,eq).trim()] = s.slice(eq+1).trim(); } } return env;
+        for (const line of lines){ const s=line.trim(); if(!s) return; const eq=s.indexOf('='); if(eq>0){ env[s.slice(0,eq).trim()] = s.slice(eq+1).trim(); } } return env;
       })();
-  const body = { parsed: v.parsed, testIndex: selIndex, env, runAll: false, includeDeps: true };
+  const body = { parsed: vdata.parsed, testIndex: selIndex, env, runAll: false, includeDeps: true };
   const res = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
       if (!res.ok){ const t=await res.text().catch(()=> ''); alert('Run failed: '+t); return; }
       const r = await res.json();
@@ -2198,7 +2166,7 @@
   switchTab(lastTab === 'visual' ? 'visual' : 'yaml');
     // Show cached quick run for initial selection (if any)
     if (working.tests && working.tests.length) { try{ renderQuickRunForSelection(); }catch{} }
-  }
+
   document.getElementById('clearLog').onclick = ()=>{ results.textContent=''; };
   document.getElementById('downloadRunJSON').onclick = ()=> downloadRun('json');
   document.getElementById('downloadRunJUnit').onclick = ()=> downloadRun('junit');

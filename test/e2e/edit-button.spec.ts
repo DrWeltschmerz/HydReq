@@ -14,7 +14,7 @@ test.describe("Editor edit-button per row", () => {
       let editBtn = await row.$('button[title="Open editor"][data-path]');
       if (!editBtn) {
         // fallback: any button with data-path
-        editBtn = await row.$('button[data-path]');
+        editBtn = await row.$("button[data-path]");
       }
       if (!editBtn) {
         // fallback: any button in the row (last resort)
@@ -35,7 +35,11 @@ test.describe("Editor edit-button per row", () => {
 
       // Prepare for potential confirm dialogs (unsaved changes)
       // Accept the first dialog if it appears (confirm on unsaved changes)
-      page.once('dialog', (dialog) => { try { dialog.accept(); } catch(e){} });
+      page.once("dialog", (dialog) => {
+        try {
+          dialog.accept();
+        } catch (e) {}
+      });
 
       await editBtn.click();
 
@@ -46,9 +50,9 @@ test.describe("Editor edit-button per row", () => {
       // Instead of relying on the UI to close cleanly (confirm/detach races), forcibly remove the modal so tests don't flake
       await page.evaluate(() => {
         try {
-          const m = document.getElementById('editorModal');
+          const m = document.getElementById("editorModal");
           if (m && m.parentNode) m.remove();
-          document.body.classList.remove('modal-open');
+          document.body.classList.remove("modal-open");
         } catch (e) {}
       });
     }

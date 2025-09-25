@@ -1005,9 +1005,11 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 func mustRead(p string) []byte { b, _ := os.ReadFile(p); return b }
 
 type runReq struct {
-	Suites  []string          `json:"suites"`
-	Workers int               `json:"workers"`
-	Env     map[string]string `json:"env"`
+	Suites         []string          `json:"suites"`
+	Workers        int               `json:"workers"`
+	Env            map[string]string `json:"env"`
+	Tags           []string          `json:"tags"`
+	DefaultTimeout int               `json:"defaultTimeout"`
 }
 type runResp struct {
 	RunID string `json:"runId"`
@@ -1034,7 +1036,7 @@ func (s *server) handleRun(w http.ResponseWriter, r *http.Request) {
 	s.streams[id] = ch
 	s.ready[id] = rd
 	s.mu.Unlock()
-	go s.runSuites(id, req.Suites, req.Workers, req.Env)
+	go s.runSuites(id, req.Suites, req.Workers, req.Env, req.Tags, req.DefaultTimeout)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(runResp{RunID: id})
 }
@@ -1431,7 +1433,7 @@ func (s *server) handleReportSuite(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *server) runSuites(id string, suites []string, workers int, env map[string]string) {
+func (s *server) runSuites(id string, suites []string, workers int, env map[string]string, tags []string, defaultTimeout int) {
 	out := func(ev any) {
 		b, _ := json.Marshal(ev)
 		s.mu.Lock()
@@ -1477,7 +1479,7 @@ Loop:
 			break Loop
 		default:
 		}
-		s.runOneWithCtx(id, ctx, path, workers, env, out)
+		s.runOneWithCtx(id, ctx, path, workers, env, tags, defaultTimeout, out)
 	}
 	out(evt{Type: "batchEnd"})
 	out(evt{Type: "done"})
@@ -1488,7 +1490,7 @@ Loop:
 	s.mu.Unlock()
 }
 
-func (s *server) runOneWithCtx(runId string, ctx context.Context, path string, workers int, env map[string]string, out func(any)) {
+func (s *server) runOneWithCtx(runId string, ctx context.Context, path string, workers int, env map[string]string, tags []string, defaultTimeout int, out func(any)) {
 	type evt struct {
 		Type    string `json:"type"`
 		Payload any    `json:"payload"`
@@ -1538,7 +1540,7 @@ func (s *server) runOneWithCtx(runId string, ctx context.Context, path string, w
 	out(evt{Type: "suiteStart", Payload: map[string]any{"path": path, "name": suite.Name, "total": total, "stages": stageCounts}})
 	var allResults []runner.TestResult
 	runWithSuite := func() (runner.Summary, error) {
-		return runner.RunSuite(ctx, suite, runner.Options{Workers: workers, OnStart: func(tr runner.TestResult) {
+		return runner.RunSuite(ctx, suite, runner.Options{Workers: workers, Tags: tags, DefaultTimeoutMs: defaultTimeout, OnStart: func(tr runner.TestResult) {
 			out(evt{Type: "testStart", Payload: tr})
 		}, OnResult: func(tr runner.TestResult) {
 			// collect results for detailed report and stream events

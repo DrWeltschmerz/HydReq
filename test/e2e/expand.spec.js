@@ -18,7 +18,7 @@ test('run selected suite and observe runner output', async ({ page }) => {
   if (!preselected || preselected.length === 0) {
     // Derive the first available suite path via the editor endpoint and
     // store it into localStorage so the Run button will run a known suite.
-    const suitesResp = await page.request.get(APP_URL + 'api/editor/suites');
+    const suitesResp = await page.request.get(APP_URL + '/api/editor/suites');
     if (suitesResp.ok()){
       const suites = await suitesResp.json();
       if (Array.isArray(suites) && suites.length > 0){
