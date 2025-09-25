@@ -1,0 +1,12 @@
+FROM golang:1.25 AS builder
+# Build updated
+WORKDIR /src
+COPY . .
+RUN date > /tmp/buildtime
+RUN CGO_ENABLED=0 GOOS=linux go build -o /out/hydreq ./cmd/hydreq
+
+FROM debian:bookworm-slim
+WORKDIR /app
+COPY --from=builder /out/hydreq /app/hydreq
+EXPOSE 8787
+ENTRYPOINT ["/app/hydreq", "gui"]

@@ -621,13 +621,13 @@ func main() {
 
 	// GUI command
 	var guiCmd = &cobra.Command{Use: "gui", Short: "Launch browser-based GUI", RunE: func(cmd *cobra.Command, args []string) error {
-		return gui.Run("127.0.0.1:8787", true)
+		return gui.Run("0.0.0.0:8787", true)
 	}}
 	rootCmd.AddCommand(guiCmd)
 
 	// Default to GUI when no args; TUI remains available via subcommand
 	if len(os.Args) == 1 {
-		if err := gui.Run("127.0.0.1:8787", true); err != nil {
+		if err := gui.Run("0.0.0.0:8787", true); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}

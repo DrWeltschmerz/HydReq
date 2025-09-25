@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -26,6 +27,7 @@ import (
 	"github.com/DrWeltschmerz/HydReq/internal/adapters/oapi"
 	"github.com/DrWeltschmerz/HydReq/internal/adapters/postman"
 	"github.com/DrWeltschmerz/HydReq/internal/adapters/restclient"
+	"github.com/DrWeltschmerz/HydReq/internal/report"
 	"github.com/DrWeltschmerz/HydReq/internal/runner"
 	"github.com/DrWeltschmerz/HydReq/internal/ui"
 	valfmt "github.com/DrWeltschmerz/HydReq/internal/validate"
@@ -49,6 +51,8 @@ type server struct {
 	runs    map[string]context.CancelFunc
 	ready   map[string]chan struct{}
 	schema  *jsonschema.Schema
+	// reports stores generated reports keyed by runId and suite path
+	reports map[string]map[string]any
 }
 
 func Run(addr string, openBrowser bool) error {
@@ -91,6 +95,9 @@ func (s *server) routes() {
 	s.mux.HandleFunc("/api/editor/hookrun", s.handleEditorHookRun)
 	// Import collection endpoint
 	s.mux.HandleFunc("/api/import", s.handleImport)
+	// report download endpoints
+	s.mux.HandleFunc("/api/report/run", s.handleReportRun)
+	s.mux.HandleFunc("/api/report/suite", s.handleReportSuite)
 	// Serve the embedded static/ directory at the root so / loads index.html directly
 	// Serve embedded static files with no-cache headers to prevent stale UI during local dev
 	if sub, err := fs.Sub(staticFS, "static"); err == nil {
@@ -191,6 +198,35 @@ func (s *server) handleEditorSuite(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(405)
 	}
+}
+
+type checkPathReq struct {
+	Path string `json:"path"`
+}
+type checkPathResp struct {
+	Safe   bool `json:"safe"`
+	Exists bool `json:"exists"`
+}
+
+func (s *server) handleEditorCheckPath(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(405)
+		return
+	}
+	var req checkPathReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(400)
+		return
+	}
+	safe := isEditablePath(req.Path)
+	exists := false
+	if safe {
+		if _, err := os.Stat(req.Path); err == nil {
+			exists = true
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(checkPathResp{Safe: safe, Exists: exists})
 }
 
 type validateReq struct {
@@ -330,14 +366,27 @@ func (s *server) handleEditorValidate(w http.ResponseWriter, r *http.Request) {
 			issues = append(issues, map[string]any{"path": "baseUrl", "message": "baseUrl is empty (requests should use path only)", "severity": "warning"})
 		}
 		if parsed.Auth != nil {
+			isEnvName := func(v string) bool {
+				if strings.TrimSpace(v) == "" {
+					return false
+				}
+				re := regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
+				return re.MatchString(v)
+			}
 			if strings.TrimSpace(parsed.Auth.BearerEnv) != "" {
-				if _, ok := os.LookupEnv(parsed.Auth.BearerEnv); !ok {
-					issues = append(issues, map[string]any{"path": "auth.bearerEnv", "message": "environment variable not set: " + parsed.Auth.BearerEnv, "severity": "info"})
+				be := strings.TrimSpace(parsed.Auth.BearerEnv)
+				if isEnvName(be) {
+					if _, ok := os.LookupEnv(be); !ok {
+						issues = append(issues, map[string]any{"path": "auth.bearerEnv", "message": "environment variable not set: " + be, "severity": "info"})
+					}
 				}
 			}
 			if strings.TrimSpace(parsed.Auth.BasicEnv) != "" {
-				if _, ok := os.LookupEnv(parsed.Auth.BasicEnv); !ok {
-					issues = append(issues, map[string]any{"path": "auth.basicEnv", "message": "environment variable not set: " + parsed.Auth.BasicEnv, "severity": "info"})
+				ba := strings.TrimSpace(parsed.Auth.BasicEnv)
+				if isEnvName(ba) {
+					if _, ok := os.LookupEnv(ba); !ok {
+						issues = append(issues, map[string]any{"path": "auth.basicEnv", "message": "environment variable not set: " + ba, "severity": "info"})
+					}
 				}
 			}
 		}
@@ -1110,6 +1159,256 @@ func (s *server) handleImport(w http.ResponseWriter, r *http.Request) {
 	w.Write(yamlData)
 }
 
+// handleReportRun streams a run-level report (batch) in either json|junit|html
+func (s *server) handleReportRun(w http.ResponseWriter, r *http.Request) {
+	runId := r.URL.Query().Get("runId")
+	if runId == "" {
+		http.Error(w, "runId required", 400)
+		return
+	}
+	format := r.URL.Query().Get("format")
+	if format == "" {
+		format = "json"
+	}
+	s.mu.Lock()
+	repmap, ok := s.reports[runId]
+	s.mu.Unlock()
+	if !ok {
+		// fallback: serve on-disk report files if CLI produced them
+		reportDir := "reports"
+		switch format {
+		case "html":
+			p := filepath.Join(reportDir, runId+".html")
+			if _, err := os.Stat(p); err == nil {
+				w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(p))
+				http.ServeFile(w, r, p)
+				return
+			}
+		case "json":
+			p := filepath.Join(reportDir, runId+".json")
+			if _, err := os.Stat(p); err == nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(p))
+				http.ServeFile(w, r, p)
+				return
+			}
+		case "junit":
+			p := filepath.Join(reportDir, runId+".xml")
+			if _, err := os.Stat(p); err == nil {
+				w.Header().Set("Content-Type", "application/xml")
+				w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(p))
+				http.ServeFile(w, r, p)
+				return
+			}
+		}
+		// try generic extensions
+		for _, ext := range []string{".html", ".json", ".xml"} {
+			p := filepath.Join("reports", runId+ext)
+			if _, err := os.Stat(p); err == nil {
+				http.ServeFile(w, r, p)
+				return
+			}
+		}
+		http.Error(w, "report not found", 404)
+		return
+	}
+	switch format {
+	case "json":
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", "attachment; filename=run-"+runId+".json")
+		var br report.BatchReport
+		if v, ok := repmap["batch::detailed"]; ok {
+			if bb, ok2 := v.(report.BatchReport); ok2 {
+				br = bb
+			}
+		}
+		if len(br.Suites) == 0 {
+			for k, v := range repmap {
+				if strings.HasSuffix(k, "::detailed") {
+					if dr, ok := v.(report.DetailedReport); ok {
+						br.Suites = append(br.Suites, dr)
+					}
+				}
+			}
+			br.RunAt = time.Now()
+			var sum report.Summary
+			for _, s2 := range br.Suites {
+				sum.Total += s2.Summary.Total
+				sum.Passed += s2.Summary.Passed
+				sum.Failed += s2.Summary.Failed
+				sum.Skipped += s2.Summary.Skipped
+			}
+			br.Summary = sum
+		}
+		_ = report.WriteJSONBatchTo(w, br)
+	case "junit":
+		w.Header().Set("Content-Type", "application/xml")
+		w.Header().Set("Content-Disposition", "attachment; filename=run-"+runId+".xml")
+		var sum report.Summary
+		if v, ok := repmap["batch::summary"]; ok {
+			if ssum, ok2 := v.(report.Summary); ok2 {
+				sum = ssum
+			}
+		}
+		if sum.Total == 0 {
+			for _, v := range repmap {
+				if dr, ok := v.(report.DetailedReport); ok {
+					sum.Total += dr.Summary.Total
+					sum.Passed += dr.Summary.Passed
+					sum.Failed += dr.Summary.Failed
+					sum.Skipped += dr.Summary.Skipped
+				}
+			}
+		}
+		_ = report.WriteJUnitBatchSummaryTo(w, sum)
+	case "html":
+		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("Content-Disposition", "attachment; filename=run-"+runId+".html")
+		var br report.BatchReport
+		if v, ok := repmap["batch::detailed"]; ok {
+			if bb, ok2 := v.(report.BatchReport); ok2 {
+				br = bb
+			}
+		}
+		if len(br.Suites) == 0 {
+			for k, v := range repmap {
+				if strings.HasSuffix(k, "::detailed") {
+					if dr, ok := v.(report.DetailedReport); ok {
+						br.Suites = append(br.Suites, dr)
+					}
+				}
+			}
+			br.RunAt = time.Now()
+			var sum report.Summary
+			for _, s2 := range br.Suites {
+				sum.Total += s2.Summary.Total
+				sum.Passed += s2.Summary.Passed
+				sum.Failed += s2.Summary.Failed
+				sum.Skipped += s2.Summary.Skipped
+			}
+			br.Summary = sum
+		}
+		reportDir := "reports"
+		if err := os.MkdirAll(reportDir, 0o755); err != nil {
+			http.Error(w, "failed to create reports directory", 500)
+			return
+		}
+		// prefer runTS recorded during run; fallback to runId timestamp parsing
+		runTS := ""
+		if v, ok := s.reports[runId]["runTS"]; ok {
+			if sTS, ok2 := v.(string); ok2 {
+				runTS = sTS
+			}
+		}
+		if runTS == "" {
+			// fall back to using runId suffix if it looks like run-<ts>
+			if strings.HasPrefix(runId, "run-") {
+				runTS = strings.TrimPrefix(runId, "run-")
+			} else {
+				runTS = time.Now().Format("20060102-150405")
+			}
+		}
+		outPath := filepath.Join(reportDir, fmt.Sprintf("run-%s.html", runTS))
+		if err := report.WriteHTMLBatch(outPath, br); err != nil {
+			http.Error(w, "failed to generate report", 500)
+			return
+		}
+		w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(outPath))
+		http.ServeFile(w, r, outPath)
+	default:
+		http.Error(w, "unsupported format", 400)
+	}
+}
+
+// handleReportSuite streams a suite-level report identified by runId & path
+func (s *server) handleReportSuite(w http.ResponseWriter, r *http.Request) {
+	runId := r.URL.Query().Get("runId")
+	path := r.URL.Query().Get("path")
+	if runId == "" || path == "" {
+		http.Error(w, "runId and path required", 400)
+		return
+	}
+	format := r.URL.Query().Get("format")
+	if format == "" {
+		format = "json"
+	}
+	s.mu.Lock()
+	repmap, ok := s.reports[runId]
+	s.mu.Unlock()
+	if !ok {
+		// try on-disk fallbacks
+		reportDir := "reports"
+		p := filepath.Join(reportDir, runId+".html")
+		if _, err := os.Stat(p); err == nil {
+			w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(p))
+			http.ServeFile(w, r, p)
+			return
+		}
+		baseName := sanitizeFilename(filepath.Base(path))
+		matches, _ := filepath.Glob(filepath.Join(reportDir, baseName+"-*.html"))
+		if len(matches) > 0 {
+			w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(matches[0]))
+			http.ServeFile(w, r, matches[0])
+			return
+		}
+		http.Error(w, "report not found", 404)
+		return
+	}
+	key := path + "::detailed"
+	v, ok := repmap[key]
+	if !ok {
+		baseName := sanitizeFilename(filepath.Base(path))
+		matches, _ := filepath.Glob(filepath.Join("reports", "*"+baseName+"*.html"))
+		if len(matches) > 0 {
+			http.ServeFile(w, r, matches[0])
+			return
+		}
+		http.Error(w, "suite report not found", 404)
+		return
+	}
+	dr, ok := v.(report.DetailedReport)
+	if !ok {
+		http.Error(w, "invalid report", 500)
+		return
+	}
+	switch format {
+	case "json":
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+sanitizeFilename(dr.Suite)+".json\"")
+		_ = report.WriteJSONDetailedTo(w, dr)
+	case "junit":
+		w.Header().Set("Content-Type", "application/xml")
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+sanitizeFilename(dr.Suite)+".xml\"")
+		_ = report.WriteJUnitDetailedTo(w, dr.Suite, dr.Summary, dr.TestCases)
+	case "html":
+		w.Header().Set("Content-Type", "text/html")
+		// ensure reports dir exists
+		if err := os.MkdirAll("reports", 0o755); err != nil {
+			http.Error(w, "failed to create reports directory", 500)
+			return
+		}
+		// Use runTS recorded during the run to match CLI naming (<sanitized>-<runTS>.html)
+		runTS := ""
+		if v, ok := s.reports[runId]["runTS"]; ok {
+			if sTS, ok2 := v.(string); ok2 {
+				runTS = sTS
+			}
+		}
+		if runTS == "" {
+			runTS = time.Now().Format("20060102-150405")
+		}
+		outPath := filepath.Join("reports", fmt.Sprintf("%s-%s.html", sanitizeFilename(dr.Suite), runTS))
+		if err := report.WriteHTMLDetailed(outPath, dr); err != nil {
+			http.Error(w, "failed to generate report", 500)
+			return
+		}
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+filepath.Base(outPath)+"\"")
+		http.ServeFile(w, r, outPath)
+	default:
+		http.Error(w, "unsupported format", 400)
+	}
+}
+
 func (s *server) runSuites(id string, suites []string, workers int, env map[string]string) {
 	out := func(ev any) {
 		b, _ := json.Marshal(ev)
@@ -1139,6 +1438,15 @@ func (s *server) runSuites(id string, suites []string, workers int, env map[stri
 	ctx, cancel := context.WithCancel(context.Background())
 	s.mu.Lock()
 	s.runs[id] = cancel
+	// initialize report map for this run and record runTS for filename parity with CLI
+	if s.reports == nil {
+		s.reports = map[string]map[string]any{}
+	}
+	if s.reports[id] == nil {
+		s.reports[id] = map[string]any{}
+	}
+	runTS := time.Now().Format("20060102-150405")
+	s.reports[id]["runTS"] = runTS
 	s.mu.Unlock()
 Loop:
 	for _, path := range suites {
@@ -1315,6 +1623,12 @@ func execLookPath(bin string) (string, error) { return exec.LookPath(bin) }
 func spawn(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	return cmd.Start()
+}
+
+func sanitizeFilename(s string) string {
+	s = strings.ReplaceAll(s, " ", "-")
+	s = strings.ReplaceAll(s, "/", "-")
+	return s
 }
 
 // withEnv temporarily applies env overrides while executing fn, then restores previous values.
