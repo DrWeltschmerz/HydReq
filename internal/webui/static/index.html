@@ -315,6 +315,15 @@
     </section>
   </main>
   <script>
+  // Early probe: mark that client-side script execution started. This helps E2E detect
+  // whether the script was aborted early by a runtime error.
+  try{
+    console.log('HYDREQ-INIT: script start');
+    try{ window.__HYDREQ_INIT = (window.__HYDREQ_INIT || 0) + 1; }catch(e){}
+    // If #results exists append a small marker so Playwright can snapshot it
+    (function(){ try{ const r=document.getElementById('results'); if (r){ const d=document.createElement('div'); d.textContent='HYDREQ-INIT: script start'; d.style.opacity='0.6'; d.style.fontSize='12px'; r.appendChild(d); } }catch(e){} })();
+  }catch(e){ /* ignore */ }
+
   // Utility: create a safe filename from a suite name
   function slugify(name) {
     return name.toLowerCase()
@@ -394,7 +403,14 @@
   });
   defToEl.addEventListener('input', () => localStorage.setItem('hydreq.defaultTimeout', defToEl.value));
 
-  let selected = new Set(JSON.parse(localStorage.getItem('hydreq.sel')||'[]'));
+  let selected;
+  try {
+    const rawSel = localStorage.getItem('hydreq.sel');
+    selected = new Set(JSON.parse(rawSel || '[]'));
+  } catch (e) {
+    console.error('HYDREQ: failed to parse hydreq.sel from localStorage, falling back to empty set', e);
+    selected = new Set();
+  }
     let batch = { done: 0, total: 0 };
     let suite = { done: 0, total: 0 };
   const testRows = new Map(); // Name -> {container, line}
@@ -424,6 +440,18 @@
     function renderSuites(list){
       suitesEl.innerHTML = '';
   console.log('renderSuites: rendering', list.length, 'items');
+  // Debug: if list is empty, surface a visible banner for E2E to catch
+  try{
+    if ((!list || list.length===0) && typeof window !== 'undefined'){
+      // avoid duplicating banner
+      if (!document.getElementById('hydreq-debug-banner')){
+        const banner = document.createElement('div'); banner.id='hydreq-debug-banner'; banner.style.padding='12px'; banner.style.background='rgba(255,0,0,0.06)'; banner.style.border='1px solid rgba(255,0,0,0.12)'; banner.style.margin='8px'; banner.style.borderRadius='6px'; banner.textContent = 'HYDREQ-DBG: No suites returned from /api/editor/suites';
+        const aside = document.querySelector('aside'); if (aside) aside.insertBefore(banner, aside.firstChild);
+      }
+    } else {
+      const b = document.getElementById('hydreq-debug-banner'); if (b && b.parentNode) b.parentNode.removeChild(b);
+    }
+  }catch(e){}
   list.forEach(item => {
         // new server shape: { path: string, name?: string }
         const path = (typeof item === 'string') ? item : (item.path || item.Path || item.file || JSON.stringify(item));
@@ -575,11 +603,14 @@
       console.log('refresh: fetching /api/editor/suites');
       try {
         const res = await fetch('/api/editor/suites');
-        console.log('refresh: fetch complete, status=', res && res.status);
+  console.log('refresh: fetch complete, status=', res && res.status);
+  try{ window.__HYDREQ_REFRESH = window.__HYDREQ_REFRESH || {}; window.__HYDREQ_REFRESH.status = res && res.status; }catch{}
         let list = [];
         try { list = await res.json(); } catch (e) { console.error('refresh: failed parsing JSON', e); }
-        console.log('refresh: got list (len=', (Array.isArray(list)?list.length:0), ')');
-        try { renderSuites(list || []); } catch (e) { console.error('refresh: renderSuites threw', e); }
+  console.log('refresh: got list (len=', (Array.isArray(list)?list.length:0), ')');
+  try{ window.__HYDREQ_REFRESH.list = list; window.__HYDREQ_REFRESH.len = Array.isArray(list)?list.length:0; }catch{}
+  try { renderSuites(list || []); } catch (e) { console.error('refresh: renderSuites threw', e); try{ window.__HYDREQ_REFRESH.err = String(e); }catch{} }
+  try { if (results) { const d=document.createElement('div'); d.textContent = 'DEBUG: refresh list len=' + (Array.isArray(list)?list.length:0); results.appendChild(d); } }catch(e){}
       } catch (err) {
         console.error('refresh: fetch failed', err);
       }
@@ -1253,7 +1284,7 @@
         }
       }, true);
     })();
-
+  }
     function normalizeParsed(inObj){
       if (!inObj || typeof inObj !== 'object') return { tests: [] };
       const out = {};
@@ -1711,23 +1742,7 @@
       if (Array.isArray(hooks)) hooks.forEach(h=> addRow(h));
       return ()=> Array.from(list.children).map(r=> r._get ? r._get() : null).filter(Boolean);
     }
-    // Attach add/delete handlers
-      if (typeof modal !== 'undefined' && modal) {
-        const addBtn = modal.querySelector('#ed_add_test');
-        const delBtn = modal.querySelector('#ed_del_test');
-        if (addBtn) {
-          addBtn.onclick = ()=>{
-            const defaultName = `test ${working.tests.length+1}`;
-            const name = prompt('Enter test name:', defaultName);
-            const finalName = (name && name.trim()) ? name.trim() : defaultName;
-            working.tests.push({ name: finalName, request:{ method:'GET', url:'' }, assert:{ status:200 } });
-            selIndex = working.tests.length-1; renderTests(); renderForm(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
-        }
-        if (delBtn) {
-          delBtn.onclick = ()=>{ if (working.tests.length===0) return; if (!confirm('Delete selected test?')) return; working.tests.splice(selIndex,1); selIndex = Math.max(0, selIndex-1); renderTests(); if (working.tests.length) renderForm(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
-        }
-      }
-    }
+    // (handlers attached earlier when modal is created)
 
   // hoisted getters/elements used by sync() so Visual->YAML mirroring works
 
@@ -2231,6 +2246,40 @@
   if (e.key === 'd') { const cur = (localStorage.getItem('hydreq.theme')||'dark'); const next = (cur==='dark')?'light':'dark'; if (themeSelect){ themeSelect.value = next; } applyTheme(next); e.preventDefault(); }
   });
   refresh();
+  // Local-only runtime diagnostics (kept out of commits as requested)
+  try{
+    // Surface any global errors to console so Playwright can capture them
+    window.addEventListener('error', function(ev){
+      try{ console.error('HYDREQ: window error', ev && ev.message, ev && ev.error); }catch{};
+    });
+    window.addEventListener('unhandledrejection', function(ev){ try{ console.error('HYDREQ: unhandledrejection', ev && ev.reason); }catch{} });
+    // Check after short delays whether refresh() populated suites
+    setTimeout(()=>{
+      try{
+        console.log('HYDREQ: post-load check 1, __HYDREQ_REFRESH=', window.__HYDREQ_REFRESH);
+        const count = document.querySelectorAll('#suites li').length;
+        console.log('HYDREQ: post-load check 1, suites li count=', count);
+        try{ if (results) { const d=document.createElement('div'); d.textContent = 'HYDREQ-DBG: post-load-1 count=' + count; results.appendChild(d); } }catch(e){}
+      }catch(e){ console.error('HYDREQ: post-load check 1 failed', e); }
+    }, 800);
+    setTimeout(()=>{
+      try{
+        console.log('HYDREQ: post-load check 2, __HYDREQ_REFRESH=', window.__HYDREQ_REFRESH);
+        const count = document.querySelectorAll('#suites li').length;
+        console.log('HYDREQ: post-load check 2, suites li count=', count);
+        try{ if (results) { const d=document.createElement('div'); d.textContent = 'HYDREQ-DBG: post-load-2 count=' + count; results.appendChild(d); } }catch(e){}
+      }catch(e){ console.error('HYDREQ: post-load check 2 failed', e); }
+    }, 2500);
+    // Final probe: after a slightly longer delay, surface any refresh error or list length
+    setTimeout(()=>{
+      try{
+        const probe = window.__HYDREQ_REFRESH || {};
+        const info = 'HYDREQ-FINAL: status=' + (probe.status||'') + ' len=' + (probe.len||0) + ' err=' + (probe.err||'');
+        console.log(info);
+        try{ if (results) { const d=document.createElement('div'); d.textContent = info; results.appendChild(d); } }catch(e){}
+      }catch(e){ console.error('HYDREQ: final probe failed', e); }
+    }, 3500);
+  }catch(e){}
   </script>
 </body>
 </html>
