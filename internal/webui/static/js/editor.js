@@ -9,6 +9,130 @@ const LS_VER = 'v1';
 const LS_ENC = (s) => { try { return btoa(unescape(encodeURIComponent(s||''))); } catch { return (s||''); } };
 const LS_KEY = (p) => `hydreq.${LS_VER}.runCache:` + LS_ENC(p||'');
 
+// Global renderForm function that can be called from renderTests
+function renderForm() {
+  if (!modal || !working) return;
+  
+  // Update suite-level fields
+  const suiteNameEl = modal.querySelector('#ed_suite_name');
+  const baseUrlEl = modal.querySelector('#ed_suite_baseurl');
+  const authBearerEl = modal.querySelector('#ed_auth_bearer');
+  const authBasicEl = modal.querySelector('#ed_auth_basic');
+  
+  if (suiteNameEl) suiteNameEl.value = working.name || '';
+  if (baseUrlEl) baseUrlEl.value = working.baseUrl || working.baseURL || '';
+  if (authBearerEl) authBearerEl.value = (working.auth && working.auth.bearer) || '';
+  if (authBasicEl) authBasicEl.value = (working.auth && working.auth.basic) || '';
+  
+  // Update test-specific fields if a test is selected
+  if (working.tests && Array.isArray(working.tests) && selIndex >= 0 && selIndex < working.tests.length) {
+    const test = working.tests[selIndex];
+    const testNameEl = modal.querySelector('#ed_test_name');
+    const methodEl = modal.querySelector('#ed_method');
+    const urlEl = modal.querySelector('#ed_url');
+    const timeoutEl = modal.querySelector('#ed_timeout');
+    const bodyEl = modal.querySelector('#ed_body');
+    
+    if (testNameEl) testNameEl.value = test.name || '';
+    if (methodEl && test.request) methodEl.value = test.request.method || 'GET';
+    if (urlEl && test.request) urlEl.value = test.request.url || '';
+    if (timeoutEl && test.request) timeoutEl.value = test.request.timeout || '';
+    if (bodyEl && test.request) {
+      try {
+        const body = test.request.body;
+        if (body && typeof body === 'object') {
+          bodyEl.value = JSON.stringify(body, null, 2);
+        } else {
+          bodyEl.value = body || '';
+        }
+      } catch (e) {
+        bodyEl.value = test.request.body || '';
+      }
+    }
+    
+    // Update assertions
+    if (test.assert) {
+      const statusEl = modal.querySelector('#ed_assert_status');
+      const maxDurationEl = modal.querySelector('#ed_assert_maxDuration');
+      
+      if (statusEl) statusEl.value = test.assert.status || '';
+      if (maxDurationEl) maxDurationEl.value = test.assert.maxDurationMs || test.assert.maxDuration || '';
+    }
+    
+    // Update flow settings  
+    if (test.stage !== undefined) {
+      const stageEl = modal.querySelector('#ed_stage');
+      if (stageEl) stageEl.value = test.stage;
+    }
+    
+    const skipEl = modal.querySelector('#ed_skip');
+    const onlyEl = modal.querySelector('#ed_only');
+    if (skipEl) skipEl.checked = test.skip || false;
+    if (onlyEl) onlyEl.checked = test.only || false;
+  }
+  
+  // Add validation event listeners to all form fields
+  addValidationListeners();
+}
+
+function addValidationListeners() {
+  if (!modal) return;
+  
+  // Suite-level validation
+  const suiteNameEl = modal.querySelector('#ed_suite_name');
+  if (suiteNameEl) {
+    suiteNameEl.addEventListener('blur', () => {
+      const errors = validateField('name', suiteNameEl.value, 'suite');
+      showFieldValidation(suiteNameEl, errors);
+    });
+  }
+  
+  const baseUrlEl = modal.querySelector('#ed_suite_baseurl');
+  if (baseUrlEl) {
+    baseUrlEl.addEventListener('blur', () => {
+      const errors = validateField('baseUrl', baseUrlEl.value, 'suite');
+      showFieldValidation(baseUrlEl, errors);
+    });
+  }
+  
+  // Test-level validation
+  const testNameEl = modal.querySelector('#ed_test_name');
+  if (testNameEl) {
+    testNameEl.addEventListener('blur', () => {
+      const errors = validateField('name', testNameEl.value, 'test');
+      showFieldValidation(testNameEl, errors);
+    });
+  }
+  
+  const urlEl = modal.querySelector('#ed_url');
+  if (urlEl) {
+    urlEl.addEventListener('blur', () => {
+      const errors = validateField('url', urlEl.value, 'request');
+      showFieldValidation(urlEl, errors);
+    });
+  }
+  
+  const statusEl = modal.querySelector('#ed_assert_status');
+  if (statusEl) {
+    statusEl.addEventListener('blur', () => {
+      const errors = validateField('status', statusEl.value, 'assert');
+      showFieldValidation(statusEl, errors);
+    });
+  }
+  
+  // Numeric field validation
+  ['#ed_timeout', '#ed_stage', '#ed_assert_maxDuration'].forEach(selector => {
+    const el = modal.querySelector(selector);
+    if (el) {
+      const fieldName = selector.replace('#ed_', '').replace('assert_', '');
+      el.addEventListener('blur', () => {
+        const errors = validateField(fieldName, el.value);
+        showFieldValidation(el, errors);
+      });
+    }
+  });
+}
+
 // Render the test list in the editor modal
 function renderTests() {
   const testsEl = modal.querySelector('#ed_tests');
@@ -52,7 +176,9 @@ function renderTests() {
     }
 
     // Click handler to select test
-    testDiv.onclick = () => {
+    testDiv.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       selIndex = index;
       renderTests(); // Re-render to update selection
       renderForm(); // Update the form for the selected test
@@ -215,6 +341,150 @@ function listTable(container, arr, onChange){
 function mapTable(container, obj, valuePlaceholder='value', onChange){
   // Like kvTable, but for arbitrary value types (free text) and returns map[string]string-like
   return kvTable(container, obj||{}, onChange);
+}
+
+// Create a matrix editor for data-driven test expansion
+function renderMatrix(container, matrix, onChange) {
+  const c = (typeof container === 'string') ? modal.querySelector(container) : container;
+  c.innerHTML = '';
+  
+  const table = document.createElement('div');
+  table.className = 'ed-matrix-table';
+  
+  function addRow(key = '', values = []) {
+    const row = document.createElement('div');
+    row.className = 'ed-matrix-row';
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = '120px 1fr 40px';
+    row.style.gap = '8px';
+    row.style.marginBottom = '8px';
+    row.style.alignItems = 'start';
+    
+    // Variable name input
+    const keyInput = document.createElement('input');
+    keyInput.type = 'text';
+    keyInput.placeholder = 'Variable name';
+    keyInput.value = key;
+    keyInput.className = 'ed-matrix-key';
+    if (onChange) {
+      ['input', 'change', 'blur'].forEach(ev => keyInput.addEventListener(ev, onChange));
+    }
+    
+    // Values container (list of strings)
+    const valuesContainer = document.createElement('div');
+    valuesContainer.className = 'ed-matrix-values';
+    
+    function addValueInput(value = '') {
+      const valueDiv = document.createElement('div');
+      valueDiv.style.display = 'flex';
+      valueDiv.style.gap = '4px';
+      valueDiv.style.marginBottom = '4px';
+      
+      const valueInput = document.createElement('input');
+      valueInput.type = 'text';
+      valueInput.placeholder = 'Value';
+      valueInput.value = value;
+      valueInput.style.flex = '1';
+      if (onChange) {
+        ['input', 'change', 'blur'].forEach(ev => valueInput.addEventListener(ev, onChange));
+      }
+      
+      const removeValueBtn = document.createElement('button');
+      removeValueBtn.textContent = '×';
+      removeValueBtn.className = 'btn btn-xs btn-ghost';
+      removeValueBtn.title = 'Remove value';
+      removeValueBtn.onclick = () => {
+        valueDiv.remove();
+        if (onChange) onChange();
+      };
+      
+      valueDiv.appendChild(valueInput);
+      valueDiv.appendChild(removeValueBtn);
+      valuesContainer.appendChild(valueDiv);
+    }
+    
+    // Add existing values
+    if (Array.isArray(values) && values.length > 0) {
+      values.forEach(value => addValueInput(value));
+    } else {
+      addValueInput(); // At least one empty value input
+    }
+    
+    // Add value button
+    const addValueBtn = document.createElement('button');
+    addValueBtn.textContent = '+ Value';
+    addValueBtn.className = 'btn btn-xs btn-secondary';
+    addValueBtn.onclick = () => {
+      addValueInput();
+      if (onChange) onChange();
+    };
+    valuesContainer.appendChild(addValueBtn);
+    
+    // Remove row button
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '×';
+    removeBtn.className = 'btn btn-xs btn-ghost';
+    removeBtn.title = 'Remove variable';
+    removeBtn.onclick = () => {
+      row.remove();
+      if (onChange) onChange();
+    };
+    
+    row.appendChild(keyInput);
+    row.appendChild(valuesContainer);
+    row.appendChild(removeBtn);
+    table.appendChild(row);
+  }
+  
+  // Add existing matrix entries
+  if (matrix && typeof matrix === 'object') {
+    Object.keys(matrix).forEach(key => {
+      const values = Array.isArray(matrix[key]) ? matrix[key] : [];
+      addRow(key, values);
+    });
+  }
+  
+  // If no entries, add one empty row
+  if (!matrix || Object.keys(matrix).length === 0) {
+    addRow();
+  }
+  
+  // Add variable button
+  const addBtn = document.createElement('button');
+  addBtn.textContent = '+ Add Variable';
+  addBtn.className = 'btn btn-sm btn-primary';
+  addBtn.style.marginTop = '8px';
+  addBtn.onclick = () => {
+    addRow();
+    if (onChange) onChange();
+  };
+  
+  c.appendChild(table);
+  c.appendChild(addBtn);
+  
+  // Return function to collect current matrix data
+  return () => {
+    const result = {};
+    const rows = table.querySelectorAll('.ed-matrix-row');
+    rows.forEach(row => {
+      const keyInput = row.querySelector('.ed-matrix-key');
+      const valueInputs = row.querySelectorAll('.ed-matrix-values input[type="text"]');
+      
+      if (keyInput && keyInput.value.trim()) {
+        const key = keyInput.value.trim();
+        const values = [];
+        valueInputs.forEach(input => {
+          if (input.value.trim()) {
+            values.push(input.value.trim());
+          }
+        });
+        if (values.length > 0) {
+          result[key] = values;
+        }
+      }
+    });
+    return result;
+  };
 }
 
 // Create a hook list editor
@@ -413,10 +683,10 @@ function openEditor(path, data){
               <details open class="ed-panel">
                 <summary class="ed-summary">Suite</summary>
                 <div class="ed-body ed-grid-2-140" id="ed_suite_form">
-                  <label>Name</label>
-                  <input id="ed_suite_name" type="text"/>
-                  <label>Base URL</label>
-                  <input id="ed_suite_baseurl" type="text" placeholder="https://api.example.com"/>
+                  <label>Name *</label>
+                  <input id="ed_suite_name" type="text" required/>
+                  <label>Base URL *</label>
+                  <input id="ed_suite_baseurl" type="text" placeholder="https://api.example.com" required/>
                   <label class="ed-col-span-full ed-mt-6 fw-600">Variables</label>
                   <div class="ed-col-span-full" id="ed_suite_vars"></div>
                   <label class="ed-col-span-full ed-mt-6 fw-600">Auth</label>
@@ -452,14 +722,14 @@ function openEditor(path, data){
               <details open class="ed-panel">
                 <summary class="ed-summary">Request</summary>
                 <div class="ed-body ed-grid-2-130" id="ed_req_form">
-                  <label>Method</label>
-                  <select id="ed_method">
+                  <label>Method *</label>
+                  <select id="ed_method" required>
                     <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option>
                   </select>
-                  <label>URL path</label>
-                  <input id="ed_url" type="text"/>
-                  <label>Test name</label>
-                  <input id="ed_test_name" type="text" placeholder="My test name" />
+                  <label>URL path *</label>
+                  <input id="ed_url" type="text" required/>
+                  <label>Test name *</label>
+                  <input id="ed_test_name" type="text" placeholder="My test name" required/>
                   <label>Timeout (ms)</label>
                   <input id="ed_timeout" type="number" min="0"/>
                   <label class="ed-col-span-full ed-mt-6 fw-600">Headers</label>
@@ -474,8 +744,8 @@ function openEditor(path, data){
               <details open class="ed-panel">
                 <summary class="ed-summary">Assertions</summary>
                 <div class="ed-body ed-grid-2-160" id="ed_assert_form">
-                  <label>Status</label>
-                  <input id="ed_assert_status" type="number" min="0"/>
+                  <label>Status *</label>
+                  <input id="ed_assert_status" type="number" min="0" required/>
                   <label>Header equals</label>
                   <div id="ed_assert_headerEquals" class="ed-grid-col-2"></div>
                   <label>JSON equals (path → value)</label>
@@ -670,15 +940,134 @@ function openEditor(path, data){
   async function serializeWorkingToYamlImmediate(){ 
     if (!working || !working.tests) return '';
     try { 
-      const yamlText = jsyaml.dump(working, { noRefs: true });
+      // Clean up the working object to remove null/undefined/empty values
+      const cleaned = cleanForSerialization(working);
+      const yamlText = jsyaml.dump(cleaned, { noRefs: true });
       return unquoteNumericKeys(yamlText || '');
     } catch (e) { 
       return ''; 
     }
   }
   
+  // Clean up object for serialization - remove null/undefined/empty values
+  function cleanForSerialization(obj) {
+    if (obj === null || obj === undefined) return undefined;
+    if (Array.isArray(obj)) {
+      const cleaned = obj.map(cleanForSerialization).filter(item => item !== undefined);
+      return cleaned.length > 0 ? cleaned : undefined;
+    }
+    if (typeof obj === 'object') {
+      const cleaned = {};
+      for (const [key, value] of Object.entries(obj)) {
+        const cleanedValue = cleanForSerialization(value);
+        if (cleanedValue !== undefined && cleanedValue !== '' && cleanedValue !== null) {
+          // Don't include empty objects or arrays
+          if (typeof cleanedValue === 'object' && !Array.isArray(cleanedValue) && Object.keys(cleanedValue).length === 0) {
+            continue;
+          }
+          if (Array.isArray(cleanedValue) && cleanedValue.length === 0) {
+            continue;
+          }
+          cleaned[key] = cleanedValue;
+        }
+      }
+      return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+    }
+    // For primitive values, return as-is unless empty string
+    return (obj === '') ? undefined : obj;
+  }
+  
+  // Schema validation for real-time feedback
+  function validateField(fieldName, value, parentType = 'suite') {
+    const errors = [];
+    
+    // Required fields validation based on schema
+    if (parentType === 'suite') {
+      if (fieldName === 'name' && (!value || value.trim() === '')) {
+        errors.push('Suite name is required');
+      }
+      if (fieldName === 'baseUrl' && (!value || value.trim() === '')) {
+        errors.push('Base URL is required');
+      }
+    }
+    
+    if (parentType === 'test') {
+      if (fieldName === 'name' && (!value || value.trim() === '')) {
+        errors.push('Test name is required');
+      }
+    }
+    
+    if (parentType === 'request') {
+      if (fieldName === 'method' && (!value || value.trim() === '')) {
+        errors.push('HTTP method is required');
+      }
+      if (fieldName === 'url' && (!value || value.trim() === '')) {
+        errors.push('URL path is required');
+      }
+    }
+    
+    if (parentType === 'assert') {
+      if (fieldName === 'status' && (!value || isNaN(parseInt(value)))) {
+        errors.push('Status code must be a valid number');
+      }
+      if (fieldName === 'status' && value && (parseInt(value) < 100 || parseInt(value) > 599)) {
+        errors.push('Status code must be between 100-599');
+      }
+    }
+    
+    // URL validation
+    if (fieldName === 'baseUrl' && value && value.trim()) {
+      try {
+        new URL(value.trim());
+      } catch {
+        errors.push('Base URL must be a valid URL');
+      }
+    }
+    
+    // Numeric validation
+    if (['timeout', 'maxDurationMs', 'stage', 'repeat'].includes(fieldName) && value && value.trim()) {
+      if (isNaN(parseInt(value)) || parseInt(value) < 0) {
+        errors.push(`${fieldName} must be a positive number`);
+      }
+    }
+    
+    return errors;
+  }
+  
+  // Show validation feedback on a field
+  function showFieldValidation(element, errors) {
+    // Remove existing validation styling
+    element.classList.remove('border-red-500', 'border-green-500');
+    
+    // Remove existing error messages
+    const existingError = element.parentNode.querySelector('.validation-error');
+    if (existingError) existingError.remove();
+    
+    if (errors.length > 0) {
+      // Add error styling
+      element.style.borderColor = '#ef4444';
+      element.style.borderWidth = '2px';
+      
+      // Add error message
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'validation-error';
+      errorDiv.style.color = '#ef4444';
+      errorDiv.style.fontSize = '12px';
+      errorDiv.style.marginTop = '2px';
+      errorDiv.textContent = errors[0]; // Show first error
+      element.parentNode.insertBefore(errorDiv, element.nextSibling);
+    } else {
+      // Add success styling for required fields
+      element.style.borderColor = '#10b981';
+      element.style.borderWidth = '1px';
+    }
+  }
+  
   async function mirrorYamlFromVisual(force=false){ 
     try {
+      // Before serializing, collect any current form data that might not be saved yet
+      collectFormData();
+      
       const yamlText = await serializeWorkingToYamlImmediate();
       if (yamlEditor && yamlText) {
         yamlEditor.setValue(yamlText);
@@ -686,6 +1075,162 @@ function openEditor(path, data){
       }
     } catch (e) {
       console.error('Failed to mirror YAML from visual:', e);
+    }
+  }
+  
+  function collectFormData() {
+    // Collect suite-level data
+    const suiteNameEl = modal.querySelector('#ed_suite_name');
+    const baseUrlEl = modal.querySelector('#ed_suite_baseurl');
+    const authBearerEl = modal.querySelector('#ed_auth_bearer');
+    const authBasicEl = modal.querySelector('#ed_auth_basic');
+    
+    if (suiteNameEl && suiteNameEl.value !== (working.name || '')) working.name = suiteNameEl.value;
+    if (baseUrlEl && baseUrlEl.value !== (working.baseUrl || '')) working.baseUrl = baseUrlEl.value;
+    
+    if (authBearerEl && authBearerEl.value) {
+      if (!working.auth) working.auth = {};
+      working.auth.bearer = authBearerEl.value;
+    }
+    if (authBasicEl && authBasicEl.value) {
+      if (!working.auth) working.auth = {};
+      working.auth.basic = authBasicEl.value;
+    }
+    
+    // Collect variables from kvTable
+    const varsEl = modal.querySelector('#ed_suite_vars');
+    if (varsEl) {
+      try {
+        const varsTable = varsEl.querySelector('table');
+        if (varsTable) {
+          const vars = {};
+          const rows = varsTable.querySelectorAll('tr');
+          rows.forEach(row => {
+            const keyInput = row.querySelector('input:first-child');
+            const valueInput = row.querySelector('input:last-child');
+            if (keyInput && valueInput && keyInput.value.trim()) {
+              vars[keyInput.value.trim()] = valueInput.value;
+            }
+          });
+          working.vars = vars;
+        }
+      } catch (e) {
+        console.warn('Failed to collect variables:', e);
+      }
+    }
+    
+    // Collect test-level data
+    if (working.tests && working.tests[selIndex]) {
+      const test = working.tests[selIndex];
+      
+      const testNameEl = modal.querySelector('#ed_test_name');
+      const methodEl = modal.querySelector('#ed_method');
+      const urlEl = modal.querySelector('#ed_url');
+      const timeoutEl = modal.querySelector('#ed_timeout');
+      const bodyEl = modal.querySelector('#ed_body');
+      const skipEl = modal.querySelector('#ed_skip');
+      const onlyEl = modal.querySelector('#ed_only');
+      const stageEl = modal.querySelector('#ed_stage');
+      const statusEl = modal.querySelector('#ed_assert_status');
+      const maxDurationEl = modal.querySelector('#ed_assert_maxDuration');
+      
+      if (testNameEl) test.name = testNameEl.value;
+      
+      if (!test.request) test.request = {};
+      if (methodEl) test.request.method = methodEl.value;
+      if (urlEl) test.request.url = urlEl.value;
+      if (timeoutEl && timeoutEl.value) test.request.timeout = parseInt(timeoutEl.value);
+      if (bodyEl) test.request.body = bodyEl.value;
+      
+      // Collect headers and query from kvTables
+      const headersEl = modal.querySelector('#ed_headers');
+      if (headersEl) {
+        try {
+          const headersTable = headersEl.querySelector('table');
+          if (headersTable) {
+            const headers = {};
+            const rows = headersTable.querySelectorAll('tr');
+            rows.forEach(row => {
+              const keyInput = row.querySelector('input:first-child');
+              const valueInput = row.querySelector('input:last-child');
+              if (keyInput && valueInput && keyInput.value.trim()) {
+                headers[keyInput.value.trim()] = valueInput.value;
+              }
+            });
+            test.request.headers = headers;
+          }
+        } catch (e) {
+          console.warn('Failed to collect headers:', e);
+        }
+      }
+      
+      const queryEl = modal.querySelector('#ed_query');
+      if (queryEl) {
+        try {
+          const queryTable = queryEl.querySelector('table');
+          if (queryTable) {
+            const query = {};
+            const rows = queryTable.querySelectorAll('tr');
+            rows.forEach(row => {
+              const keyInput = row.querySelector('input:first-child');
+              const valueInput = row.querySelector('input:last-child');
+              if (keyInput && valueInput && keyInput.value.trim()) {
+                query[keyInput.value.trim()] = valueInput.value;
+              }
+            });
+            test.request.query = query;
+          }
+        } catch (e) {
+          console.warn('Failed to collect query params:', e);
+        }
+      }
+      
+      // Collect assertions
+      if (!test.assert) test.assert = {};
+      if (statusEl && statusEl.value) test.assert.status = parseInt(statusEl.value);
+      if (maxDurationEl && maxDurationEl.value) test.assert.maxDurationMs = parseInt(maxDurationEl.value);
+      
+      // Collect flow settings
+      if (skipEl) test.skip = skipEl.checked;
+      if (onlyEl) test.only = onlyEl.checked;
+      if (stageEl && stageEl.value) test.stage = parseInt(stageEl.value);
+      
+      // Collect matrix data
+      const matrixEl = modal.querySelector('#ed_matrix');
+      if (matrixEl) {
+        try {
+          const matrixTable = matrixEl.querySelector('.ed-matrix-table');
+          if (matrixTable) {
+            const matrix = {};
+            const rows = matrixTable.querySelectorAll('.ed-matrix-row');
+            rows.forEach(row => {
+              const keyInput = row.querySelector('.ed-matrix-key');
+              const valueInputs = row.querySelectorAll('.ed-matrix-values input[type="text"]');
+              
+              if (keyInput && keyInput.value.trim()) {
+                const key = keyInput.value.trim();
+                const values = [];
+                valueInputs.forEach(input => {
+                  if (input.value.trim()) {
+                    values.push(input.value.trim());
+                  }
+                });
+                if (values.length > 0) {
+                  matrix[key] = values;
+                }
+              }
+            });
+            
+            if (Object.keys(matrix).length > 0) {
+              test.matrix = matrix;
+            } else {
+              delete test.matrix;
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to collect matrix data:', e);
+        }
+      }
     }
   }
   
@@ -781,7 +1326,158 @@ function openEditor(path, data){
   function hookList(container, hooks, options, onChange){ /* large implementation omitted for brevity */ }
   const runSuiteBtn = modal.querySelector('#ed_run_suite'); if (runSuiteBtn){ runSuiteBtn.addEventListener('click', async (e)=>{ /* omitted body */ }); }
   let suiteVarsGet, getPreSuite, getPostSuite, headersGet, queryGet, bodyEl, aHeadGet, aEqGet, aContGet, aBodyGet, extractGet, matrixGet, getPreHooks, getPostHooks, oapiSel;
-  function renderForm(){ /* large implementation omitted for brevity */ }
+
+  
+  function setupFormEventListeners() {
+    // Suite-level field listeners
+    const suiteNameEl = modal.querySelector('#ed_suite_name');
+    const baseUrlEl = modal.querySelector('#ed_suite_baseurl');
+    const authBearerEl = modal.querySelector('#ed_auth_bearer');
+    const authBasicEl = modal.querySelector('#ed_auth_basic');
+    
+    if (suiteNameEl) {
+      suiteNameEl.removeEventListener('input', handleSuiteNameChange);
+      suiteNameEl.addEventListener('input', handleSuiteNameChange);
+    }
+    if (baseUrlEl) {
+      baseUrlEl.removeEventListener('input', handleBaseUrlChange);
+      baseUrlEl.addEventListener('input', handleBaseUrlChange);
+    }
+    if (authBearerEl) {
+      authBearerEl.removeEventListener('input', handleAuthBearerChange);
+      authBearerEl.addEventListener('input', handleAuthBearerChange);
+    }
+    if (authBasicEl) {
+      authBasicEl.removeEventListener('input', handleAuthBasicChange);
+      authBasicEl.addEventListener('input', handleAuthBasicChange);
+    }
+    
+    // Test-level field listeners
+    const testNameEl = modal.querySelector('#ed_test_name');
+    const methodEl = modal.querySelector('#ed_method');
+    const urlEl = modal.querySelector('#ed_url');
+    const timeoutEl = modal.querySelector('#ed_timeout');
+    const bodyEl = modal.querySelector('#ed_body');
+    const skipEl = modal.querySelector('#ed_skip');
+    const onlyEl = modal.querySelector('#ed_only');
+    const stageEl = modal.querySelector('#ed_stage');
+    const statusEl = modal.querySelector('#ed_assert_status');
+    const maxDurationEl = modal.querySelector('#ed_assert_maxDuration');
+    
+    const testFields = [
+      {el: testNameEl, handler: handleTestNameChange},
+      {el: methodEl, handler: handleMethodChange},
+      {el: urlEl, handler: handleUrlChange},
+      {el: timeoutEl, handler: handleTimeoutChange},
+      {el: bodyEl, handler: handleBodyChange},
+      {el: skipEl, handler: handleSkipChange},
+      {el: onlyEl, handler: handleOnlyChange},
+      {el: stageEl, handler: handleStageChange},
+      {el: statusEl, handler: handleStatusChange},
+      {el: maxDurationEl, handler: handleMaxDurationChange}
+    ];
+    
+    testFields.forEach(({el, handler}) => {
+      if (el) {
+        ['input', 'change'].forEach(event => {
+          el.removeEventListener(event, handler);
+          el.addEventListener(event, handler);
+        });
+      }
+    });
+  }
+  
+  // Event handlers for form fields
+  function handleSuiteNameChange(e) { working.name = e.target.value; markDirty(); }
+  function handleBaseUrlChange(e) { working.baseUrl = e.target.value; markDirty(); }
+  function handleAuthBearerChange(e) { 
+    if (!working.auth) working.auth = {};
+    working.auth.bearer = e.target.value; 
+    markDirty(); 
+  }
+  function handleAuthBasicChange(e) { 
+    if (!working.auth) working.auth = {};
+    working.auth.basic = e.target.value; 
+    markDirty(); 
+  }
+  
+  function handleTestNameChange(e) { 
+    if (working.tests && working.tests[selIndex]) {
+      working.tests[selIndex].name = e.target.value;
+      markDirty();
+      renderTests(); // Update test list to show new name
+    }
+  }
+  
+  function handleMethodChange(e) { 
+    if (working.tests && working.tests[selIndex]) {
+      if (!working.tests[selIndex].request) working.tests[selIndex].request = {};
+      working.tests[selIndex].request.method = e.target.value;
+      markDirty();
+    }
+  }
+  
+  function handleUrlChange(e) { 
+    if (working.tests && working.tests[selIndex]) {
+      if (!working.tests[selIndex].request) working.tests[selIndex].request = {};
+      working.tests[selIndex].request.url = e.target.value;
+      markDirty();
+    }
+  }
+  
+  function handleTimeoutChange(e) { 
+    if (working.tests && working.tests[selIndex]) {
+      if (!working.tests[selIndex].request) working.tests[selIndex].request = {};
+      working.tests[selIndex].request.timeout = e.target.value ? parseInt(e.target.value) : undefined;
+      markDirty();
+    }
+  }
+  
+  function handleBodyChange(e) { 
+    if (working.tests && working.tests[selIndex]) {
+      if (!working.tests[selIndex].request) working.tests[selIndex].request = {};
+      working.tests[selIndex].request.body = e.target.value;
+      markDirty();
+    }
+  }
+  
+  function handleSkipChange(e) { 
+    if (working.tests && working.tests[selIndex]) {
+      working.tests[selIndex].skip = e.target.checked;
+      markDirty();
+    }
+  }
+  
+  function handleOnlyChange(e) { 
+    if (working.tests && working.tests[selIndex]) {
+      working.tests[selIndex].only = e.target.checked;
+      markDirty();
+    }
+  }
+  
+  function handleStageChange(e) { 
+    if (working.tests && working.tests[selIndex]) {
+      working.tests[selIndex].stage = e.target.value ? parseInt(e.target.value) : undefined;
+      markDirty();
+    }
+  }
+  
+  function handleStatusChange(e) { 
+    if (working.tests && working.tests[selIndex]) {
+      if (!working.tests[selIndex].assert) working.tests[selIndex].assert = {};
+      working.tests[selIndex].assert.status = e.target.value ? parseInt(e.target.value) : undefined;
+      markDirty();
+    }
+  }
+  
+  function handleMaxDurationChange(e) { 
+    if (working.tests && working.tests[selIndex]) {
+      if (!working.tests[selIndex].assert) working.tests[selIndex].assert = {};
+      working.tests[selIndex].assert.maxDurationMs = e.target.value ? parseInt(e.target.value) : undefined;
+      markDirty();
+    }
+  }
+  
   renderTests();
   renderForm();
   ensureYamlEditor();
@@ -792,10 +1488,96 @@ function openEditor(path, data){
   function renderQuickRunForSelection(){ const key = cacheKey(); const r = testRunCache.get(key); setQuickRunBox(r || null); const qrBox = modal.querySelector('#ed_quickrun_box'); if (qrBox) qrBox.open = true; }
   const renderIssues = (arr, yamlPreview)=>{ /* omitted */ };
   let lastValidated = null;
-  modal.querySelector('#ed_run_test').onclick = async ()=>{ /* omitted */ };
-  modal.querySelector('#ed_validate').onclick = async ()=>{ /* omitted */ };
-  modal.querySelector('#ed_save').onclick = async ()=>{ /* omitted */ };
-  modal.querySelector('#ed_save_close').onclick = async ()=>{ /* omitted */ };
+  modal.querySelector('#ed_run_test').onclick = async ()=>{ 
+    try {
+      // Collect current form data and validate
+      collectFormData();
+      if (!working.tests || !working.tests[selIndex]) {
+        alert('No test selected to run');
+        return;
+      }
+      
+      // Serialize to YAML and send to quick run endpoint
+      const yamlData = await serializeWorkingToYamlImmediate();
+      const testName = working.tests[selIndex].name || `test ${selIndex + 1}`;
+      
+      // TODO: Implement quick run API call for single test
+      console.log('Running single test:', testName, yamlData);
+      alert(`Running test: ${testName}\n(Quick run functionality pending)`);
+    } catch (e) {
+      console.error('Failed to run test:', e);
+      alert('Failed to run test: ' + e.message);
+    }
+  };
+  
+  modal.querySelector('#ed_validate').onclick = async ()=>{ 
+    try {
+      collectFormData();
+      const yamlData = await serializeWorkingToYamlImmediate();
+      
+      // Send to validation endpoint
+      const response = await fetch('/api/editor/validate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-yaml'},
+        body: yamlData
+      });
+      
+      const result = await response.json();
+      
+      if (result.valid) {
+        alert('✓ YAML is valid');
+      } else {
+        alert('✗ Validation failed:\n' + (result.errors || []).join('\n'));
+      }
+    } catch (e) {
+      console.error('Validation failed:', e);
+      alert('Validation error: ' + e.message);
+    }
+  };
+  
+  modal.querySelector('#ed_save').onclick = async ()=>{ 
+    try {
+      collectFormData();
+      const yamlData = await serializeWorkingToYamlImmediate();
+      
+      // Send to save endpoint
+      const response = await fetch('/api/editor/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          path: path,
+          content: yamlData
+        })
+      });
+      
+      if (response.ok) {
+        alert('✓ Suite saved successfully');
+        dirty = false;
+        const di = modal.querySelector('#ed_dirty_indicator');
+        if (di) di.style.display = 'none';
+      } else {
+        const error = await response.text();
+        alert('✗ Save failed: ' + error);
+      }
+    } catch (e) {
+      console.error('Save failed:', e);
+      alert('Save error: ' + e.message);
+    }
+  };
+  
+  modal.querySelector('#ed_save_close').onclick = async ()=>{ 
+    try {
+      // Save first
+      await modal.querySelector('#ed_save').onclick();
+      // Then close if save succeeded
+      if (!dirty) {
+        attemptClose();
+      }
+    } catch (e) {
+      console.error('Save and close failed:', e);
+    }
+  };
+  
   modal.querySelector('#ed_close').onclick = ()=> attemptClose();
   function syncEditorTheme(){ if (yamlEditor){ yamlEditor.setOption('theme', isDocDark() ? 'material-darker' : 'default'); yamlEditor.refresh(); } }
   const lastTab = (function(){ try{ return localStorage.getItem('hydreq.editor.tab') }catch{ return null } })() || 'yaml';
