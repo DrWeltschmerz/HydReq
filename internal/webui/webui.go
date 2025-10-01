@@ -95,6 +95,8 @@ func (s *server) routes() {
 	s.mux.HandleFunc("/api/editor/hookrun", s.handleEditorHookRun)
 	// Import collection endpoint
 	s.mux.HandleFunc("/api/import", s.handleImport)
+	// Optional: serve .env for UI preload (dev only; guard with HYDREQ_ENV_UI=1)
+	s.mux.HandleFunc("/api/env", s.handleEnvFile)
 	// report download endpoints
 	s.mux.HandleFunc("/api/report/run", s.handleReportRun)
 	s.mux.HandleFunc("/api/report/suite", s.handleReportSuite)
@@ -204,6 +206,29 @@ func (s *server) routes() {
 			}))
 		}
 	}
+}
+
+// handleEnvFile serves the contents of a .env file for UI preloading of env overrides.
+// Disabled by default; enable by setting HYDREQ_ENV_UI=1. Looks in working dir and bin/.env.
+func (s *server) handleEnvFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(405)
+		return
+	}
+	if os.Getenv("HYDREQ_ENV_UI") != "1" {
+		// Not enabled; pretend not found so we don't leak env accidentally
+		w.WriteHeader(404)
+		return
+	}
+	cands := []string{".env", filepath.Join("bin", ".env")}
+	for _, p := range cands {
+		if b, err := os.ReadFile(p); err == nil {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Write(b)
+			return
+		}
+	}
+	w.WriteHeader(404)
 }
 
 func (s *server) handleSuites(w http.ResponseWriter, r *http.Request) {

@@ -34,7 +34,7 @@ function initApp(){
   applyTheme(saved);
 
   // Get DOM elements
-  const envKV = document.getElementById('env_kv');
+  const envKVList = document.getElementById('env_kv_list');
   const envActive = document.getElementById('env_active');
   const onlyFailed = document.getElementById('onlyFailed');
   const autoScroll = document.getElementById('autoScroll');
@@ -57,6 +57,44 @@ function initApp(){
     defToEl.value = localStorage.getItem('hydreq.defaultTimeout') || '';
     defToEl.addEventListener('input', () => localStorage.setItem('hydreq.defaultTimeout', defToEl.value));
   }
+
+  // Build Env overrides KV UI
+  (function initEnvKV(){
+    if (!envKVList) return;
+    const root = envKVList;
+    root.innerHTML = '';
+    const head = document.createElement('div'); head.className='row'; head.innerHTML='<div class="fw-600">Overrides</div><div style="flex:1"></div><button id="env_add" class="btn btn-xs">+ Add</button>';
+    root.appendChild(head);
+    const list = document.createElement('div'); list.className='col'; root.appendChild(list);
+    function addRow(k='', v=''){
+      const row = document.createElement('div'); row.className='env-row row'; row.style.gap='6px';
+      const ki = document.createElement('input'); ki.className='env-k'; ki.placeholder='KEY'; ki.value=k; ki.style.width='40%';
+      const vi = document.createElement('input'); vi.className='env-v'; vi.placeholder='value'; vi.value=v; vi.style.flex='1';
+      const del = document.createElement('button'); del.className='btn btn-xs'; del.textContent='×'; del.title='Remove'; del.onclick = ()=>{ row.remove(); renderActiveEnv(parseEnv()); };
+      [ki,vi].forEach(el=> el.addEventListener('input', ()=> renderActiveEnv(parseEnv())));
+      row.appendChild(ki); row.appendChild(vi); row.appendChild(del); list.appendChild(row);
+    }
+    const addBtn = head.querySelector('#env_add'); addBtn.onclick = ()=> addRow();
+    // Preload from persisted string (backward compat from textarea-based storage)
+    try{ const raw = localStorage.getItem('hydreq.envRaw')||''; if (raw){ raw.split(/\n/).forEach(line=>{ const s=line.trim(); if(!s) return; const eq=s.indexOf('='); if (eq>0){ addRow(s.slice(0,eq).trim(), s.slice(eq+1).trim()); } }); } }catch{}
+    // Attempt to preload from /env if backend exposes it; fallback to /.env static if accessible
+    (async ()=>{
+      try{
+        const tryUrls = ['/api/env', '/env', '/.env'];
+        for (const u of tryUrls){
+          try{
+            const res = await fetch(u); if (!res.ok) continue; const txt = await res.text();
+            if (txt && txt.trim()){
+              const lines = txt.split(/\n/);
+              lines.forEach(line=>{ const s=line.trim(); if(!s || s.startsWith('#')) return; const eq=s.indexOf('='); if (eq>0){ const k=s.slice(0,eq).trim(); const v=s.slice(eq+1).trim(); const exists = Array.from(root.querySelectorAll('.env-row .env-k')).some(inp=> inp.value.trim()===k); if (!exists) addRow(k,v); } });
+              renderActiveEnv(parseEnv());
+              break;
+            }
+          }catch(e){}
+        }
+      }catch(e){}
+    })();
+  })();
 
   // Initialize suites
   initSuites();

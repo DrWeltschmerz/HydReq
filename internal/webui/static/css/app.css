@@ -22,7 +22,7 @@ body.modal-open { overflow: hidden; }
 #editorModal .editor-root { font-size: 14px; }
 /* Runner area: slightly smaller fonts for denser output */
 #results, .run { font-size: 12px; }
-#suites li { font-size: 13px; }
+#suites li { font-size: 13px; border: 1px solid var(--bd); }
 /* Anti-vertical-squish safety: allow flex children to shrink and scroll */
 .flex-col { display:flex; flex-direction:column; min-height:0; }
 .scroll { overflow:auto; min-height:0; }

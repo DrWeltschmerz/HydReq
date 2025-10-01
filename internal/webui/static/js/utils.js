@@ -18,13 +18,14 @@ function setBar(el, d, t){ if(!el) return; el.style.width = pct(d,t) + '%'; }
 // Parse environment variables from textarea
 function parseEnv(){
   const env = {};
-  const el = document.getElementById('env_kv');
-  if (!el) return env;
-  const lines = el.value.split(/\n/);
-  for (const line of lines){
-    const s = line.trim(); if (!s) continue; const eq = s.indexOf('=');
-    if (eq>0){ const k=s.slice(0,eq).trim(); const v=s.slice(eq+1).trim(); if(k) env[k]=v; }
-  }
+  const root = document.getElementById('env_kv_list');
+  if (!root) return env;
+  const rows = root.querySelectorAll('.env-row');
+  rows.forEach(row=>{
+    const k = (row.querySelector('.env-k')?.value||'').trim();
+    const v = (row.querySelector('.env-v')?.value||'').trim();
+    if (k) env[k] = v;
+  });
   return env;
 }
 

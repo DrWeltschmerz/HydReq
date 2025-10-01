@@ -4,8 +4,10 @@
 let selected = new Set();
 let batch = { done: 0, total: 0 };
 let suite = { done: 0, total: 0 };
-const testRows = new Map(); // Name -> {container, line}
+const testRows = new Map(); // key: path::Name -> {container, line}
 const agg = { passed:0, failed:0, skipped:0, total:0, suites:0, durationMs:0 };
+const lastStatus = new Map(); // path -> Map(name=>status)
+const lastSuiteSummary = new Map(); // path -> { summary, tests }
 let currentSuitePath = null; // canonical path/key for suite currently running
 const pendingTestEvents = new Map(); // path -> [events]
 
@@ -73,14 +75,12 @@ function renderSuites(list){
               row.style.padding='4px 6px';
               const nm = document.createElement('span'); nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent;
               const badge = document.createElement('span'); badge.className='pill';
-              const tr = testRows.get(nm.textContent);
-              if (tr && tr.line){
-                const cls = tr.line.className || '';
-                if (cls.indexOf('ok')>=0) { badge.textContent = '✓'; badge.style.background='rgba(16,185,129,0.12)'; }
-                else if (cls.indexOf('fail')>=0) { badge.textContent = '✗'; badge.style.background='rgba(239,68,68,0.08)'; }
-                else if (cls.indexOf('skip')>=0) { badge.textContent = '-'; badge.style.background='rgba(245,158,11,0.06)'; }
-                else { badge.textContent = '·'; badge.style.opacity = '.6'; }
-              } else { badge.textContent = '·'; badge.style.opacity = '.6'; }
+              const pathMap = lastStatus.get(pathKey);
+              const st = pathMap ? (pathMap.get(nm.textContent)||'') : '';
+              if (st==='passed'){ badge.textContent='✓'; badge.style.background='rgba(16,185,129,0.12)'; }
+              else if (st==='failed'){ badge.textContent='✗'; badge.style.background='rgba(239,68,68,0.08)'; }
+              else if (st==='skipped'){ badge.textContent='-'; badge.style.background='rgba(245,158,11,0.06)'; }
+              else { badge.textContent='·'; badge.style.opacity='.6'; }
               row.appendChild(nm); row.appendChild(badge); testsDiv.appendChild(row);
             });
             expandBtn.dataset.loaded = '1';
@@ -233,6 +233,8 @@ async function run(){
 // Listen for test run events
 function listen(id){
   batch = { done:0, total:0 }; suite = { done:0, total:0 };
+  // Reset aggregation for a fresh run
+  agg.passed=0; agg.failed=0; agg.skipped=0; agg.total=0; agg.suites=0; agg.durationMs=0;
   try{ window.__E2E_LISTENED = id; }catch(e){}
   const results = document.getElementById('results');
   const stages = document.getElementById('stages');
@@ -318,6 +320,8 @@ function listen(id){
       suite.total = payload.total; suite.done = 0; if (suiteBar) setBar(suiteBar,0,suite.total); if (suiteText) suiteText.textContent = '0/' + suite.total; if (stages) stages.innerHTML='';
       if (currentSuiteEl) currentSuiteEl.textContent = (payload.name || payload.path || '');
       currentSuitePath = payload.path || payload.name || null;
+      // Clear per-suite last statuses for the new run of this suite
+      try{ if (currentSuitePath) lastStatus.set(currentSuitePath, new Map()); }catch(e){}
       const nm = (payload.name || payload.path || '');
       const ln = document.createElement('div'); ln.textContent = `=== running: ${nm} ===`; if (results) results.appendChild(ln);
       scrollBottom();
@@ -333,12 +337,15 @@ function listen(id){
       const {Name, Status, DurationMs, Stage, Messages, Tags} = payload;
       agg.total++;
       if (Status==='passed') agg.passed++; else if (Status==='failed') agg.failed++; else if (Status==='skipped') agg.skipped++;
-      let row = testRows.get(Name);
+      const key = (currentSuitePath||'') + '::' + Name;
+      let row = testRows.get(key);
       if (!row){
         const wrap = document.createElement('div');
         const line = document.createElement('div'); wrap.appendChild(line); if (results) results.appendChild(wrap);
-        row = {container: wrap, line}; testRows.set(Name, row);
+        row = {container: wrap, line}; testRows.set(key, row);
       }
+      // Update last status for this suite/test
+      try{ const m = lastStatus.get(currentSuitePath) || new Map(); m.set(Name, (Status||'').toLowerCase()); lastStatus.set(currentSuitePath, m); }catch(e){}
       row.line.className = (Status==='passed'?'ok':(Status==='failed'?'fail':'skip'));
       if (Status==='skipped') {
         row.line.textContent = `- ${Name} (tags)`;
@@ -463,7 +470,22 @@ function listen(id){
       const s = payload.summary || {};
       const line = `=== ${name} — ${s.passed||0} passed, ${s.failed||0} failed, ${s.skipped||0} skipped, total ${s.total||0} in ${s.durationMs||0} ms`;
       const div = document.createElement('div'); div.textContent = line; if (results) results.appendChild(div);
+      // Aggregate strictly from suite summary
       agg.suites++; agg.durationMs += (s.durationMs||0);
+      agg.passed += (s.passed||0); agg.failed += (s.failed||0); agg.skipped += (s.skipped||0); agg.total += (s.total||0);
+      // Update per-test lastStatus if suite provided tests array
+      try{
+        const pth = payload.path || payload.name || currentSuitePath;
+        if (Array.isArray(payload.tests) && pth){
+          const map = lastStatus.get(pth) || new Map();
+          payload.tests.forEach(t=>{ const nm=t.name||t.Name; const st=(t.status||t.Status||'').toLowerCase(); if (nm) map.set(nm, st); });
+          lastStatus.set(pth, map);
+        }
+        // Cache last suite summary for editor prepopulation
+        if (pth){
+          lastSuiteSummary.set(pth, { summary: s, tests: Array.isArray(payload.tests)? payload.tests: [] });
+        }
+      }catch(e){}
       try{
         const li = document.querySelector('#suites li[data-path="'+(payload.path||payload.name||'')+'"]'); 
         if (li){ 
@@ -635,3 +657,7 @@ window.listen = listen;
 window.promptNewSuite = promptNewSuite;
 window.importCollection = importCollection;
 window.initSuites = initSuites;
+// Expose last run info for editor prepopulation
+window.getSuiteLastStatus = function(path){ try{ const m = lastStatus.get(path)||new Map(); return Object.fromEntries(m.entries()); }catch(e){ return {}; } };
+window.getSuiteSummary = function(path){ try{ return lastSuiteSummary.get(path) || null; }catch(e){ return null; } };
+window.getSuiteBadgeStatus = function(path){ try{ const li = document.querySelector('#suites li[data-path="'+path+'"]'); const sb = li && li.querySelector && li.querySelector('.suite-badge'); return (sb && sb.dataset && sb.dataset.status) ? sb.dataset.status : 'unknown'; }catch(e){ return 'unknown'; } };

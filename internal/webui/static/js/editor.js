@@ -854,7 +854,7 @@ function hookList(container, hooks, options, onChange){
       const js = { code: (jsg.querySelector('.hk_js_code').value || '') };
       const name = nameI.value||''; const vars = varsGet(); const payload = { name, vars };
       if (row._mode==='http') payload.request = req; else if (row._mode==='sql') payload.sql = sql; else if (row._mode==='js') payload.js = js;
-      const env = (function(){ const env = {}; const lines=(document.getElementById('env_kv').value||'').split(/\n/); for(const line of lines){ const s=line.trim(); if(!s) return; const eq=s.indexOf('='); if(eq>0){ env[s.slice(0,eq).trim()] = s.slice(eq+1).trim(); } } return env; })();
+  const env = (typeof parseEnv==='function') ? parseEnv() : {};
       const scope = (options && options.scope) || 'suitePre';
       out.innerHTML = 'Running...';
       let res; try { res = await fetch('/api/editor/hookrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working, scope, testIndex: selIndex, hook: payload, env })}); } catch(e){ out.textContent = 'Network error'; return; }
@@ -1156,6 +1156,7 @@ function openEditor(path, data){
   const paneVisual = modal.querySelector('#pane_visual');
   const paneYaml = modal.querySelector('#col-yaml .ed-col-content');
   let inMemoryYaml = '';
+  let baselineYaml = '';
   const densityToggle = modal.querySelector('#ed_density');
   const editorRoot = modal.querySelector('.editor-root');
   const splitter = modal.querySelector('#ed_splitter');
@@ -1176,6 +1177,7 @@ function openEditor(path, data){
   } else {
     rawEl.value = '';
   }
+  baselineYaml = inMemoryYaml || '';
   let yamlDirty = false;
   let yamlEditor = null;
   let __suppressDirty = false;
@@ -1240,7 +1242,16 @@ function openEditor(path, data){
   testRunCache = new Map(Object.entries(persisted));
   let lastSuiteRun = null;
   let dirty = false;
-  function markDirty(){ dirty = true; try{ const di = modal && modal.querySelector && modal.querySelector('#ed_dirty_indicator'); if (di) di.style.display = ''; }catch{} }
+  function markDirty(){
+    try{
+      // Compute dirty by comparing to baseline YAML
+      const cur = yamlEditor ? yamlEditor.getValue() : inMemoryYaml;
+      const isDirty = (baselineYaml || '') !== (cur || '');
+      dirty = isDirty;
+      const di = modal && modal.querySelector && modal.querySelector('#ed_dirty_indicator');
+      if (di) di.style.display = isDirty ? '' : 'none';
+    }catch{}
+  }
   // Wrap markDirty to respect suppression flag
   const __origMarkDirty = markDirty;
   markDirty = function(){ if (__suppressDirty) return; __origMarkDirty(); };
@@ -1607,10 +1618,7 @@ function openEditor(path, data){
       issuesEl.appendChild(line);
     });
   }
-  function parseEnvFromPage(){
-    const env = {}; try{ const el = document.getElementById('env_kv'); if (!el) return env; const lines=(el.value||'').split(/\n/); for(const line of lines){ const s=line.trim(); if(!s) continue; const eq=s.indexOf('='); if(eq>0){ env[s.slice(0,eq).trim()] = s.slice(eq+1).trim(); } } }catch{}
-    return env;
-  }
+  function parseEnvFromPage(){ try{ return (typeof parseEnv==='function') ? parseEnv() : {}; }catch{ return {}; } }
   let lastValidated = null;
   modal.querySelector('#ed_run_test').onclick = async ()=>{ 
     try{
@@ -1714,9 +1722,9 @@ function openEditor(path, data){
       
       if (response.ok) {
         alert('✓ Suite saved successfully');
-        dirty = false;
-        const di = modal.querySelector('#ed_dirty_indicator');
-        if (di) di.style.display = 'none';
+        // Update baseline to latest YAML and recompute dirty
+        baselineYaml = yamlData || '';
+        markDirty();
       } else {
         const error = await response.text();
         alert('✗ Save failed: ' + error);
@@ -1745,6 +1753,32 @@ function openEditor(path, data){
   const lastTab = (function(){ try{ return localStorage.getItem('hydreq.editor.tab') }catch{ return null } })() || 'yaml';
   switchTab(lastTab === 'visual' ? 'visual' : 'yaml');
   if (working.tests && working.tests.length) { try{ renderQuickRunForSelection(); }catch{} }
+
+  // Pre-seed Quick run cache from runner view if available
+  try{
+    const summary = (typeof window.getSuiteSummary==='function') ? window.getSuiteSummary(path) : null;
+    const lastMap = (typeof window.getSuiteLastStatus==='function') ? window.getSuiteLastStatus(path) : {};
+    const badgeStatus = (typeof window.getSuiteBadgeStatus==='function') ? window.getSuiteBadgeStatus(path) : 'unknown';
+    if (summary || Object.keys(lastMap).length){
+      // Persist per-test records
+      Object.keys(lastMap).forEach(nm=>{
+        const st = (lastMap[nm]||'').toLowerCase();
+        if (!st) return;
+        setTestRecord(nm, st, 0, []);
+        const idx = getTestIndexByName(nm);
+        if (idx>=0) updateTestBadgeByIndex(idx, st);
+      });
+      // Suite-level record based on summary or badge
+      if (summary && summary.summary){
+        const s = summary.summary; const st = ((s.failed||0)>0)?'failed':(((s.passed||0)>0)?'passed':(((s.skipped||0)>0)?'skipped':'unknown'));
+        setSuiteRecord(st, s.durationMs||0, []);
+      } else if (badgeStatus && badgeStatus!=='unknown'){
+        setSuiteRecord(badgeStatus, 0, []);
+      }
+      // Refresh Quick run pane for current selection
+      try{ renderQuickRunForSelection(); }catch{}
+    }
+  }catch(e){}
 
   // Note: Removed handlers for non-modal controls (clearLog/download buttons) to avoid referencing missing elements here.
   // Initial population of suites list
