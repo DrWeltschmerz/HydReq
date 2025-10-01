@@ -89,6 +89,14 @@
     .CodeMirror { height: 100%; min-height: 180px; }
     #col-yaml .ed-col-content { overflow: hidden; }
     #ed_yaml_editor, #pane_yaml { height: 100%; }
+
+    /* Ensure editable test list selection is visibly highlighted */
+    #col-tests .ed-test-item { display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-radius:6px; cursor:pointer; }
+    #col-tests .ed-test-item:not(.selected):hover { background: var(--li-hov); }
+    #col-tests .ed-test-item.selected { background: var(--li-sel); border: 1px solid var(--bd); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bd) 40%, transparent); position: relative; outline: 1px solid var(--link); outline-offset: -1px; }
+    #col-tests .ed-test-item.selected::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background: var(--link); border-top-left-radius:6px; border-bottom-left-radius:6px; }
+    #col-tests .ed-test-item .ed-test-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #col-tests .ed-test-item.selected .ed-test-name { font-weight:600; }
   `;
   document.head.appendChild(style);
 })();
@@ -385,6 +393,7 @@ function renderTests() {
   working.tests.forEach((test, index) => {
     const testDiv = document.createElement('div');
     testDiv.className = 'ed-test-item';
+    testDiv.dataset.index = String(index);
     if (index === selIndex) {
       testDiv.classList.add('selected');
     }
@@ -419,15 +428,25 @@ function renderTests() {
     testDiv.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      selIndex = index;
-      renderTests(); // Re-render to update selection
-      renderForm(); // Update the form for the selected test
-      try{ renderQuickRunForSelection(); }catch{}
+      try{ if (typeof window.selectTestByIndex==='function') window.selectTestByIndex(index); }catch{}
     };
 
     testsEl.appendChild(testDiv);
   });
 }
+
+// Global selection helper so click handlers can always find it
+function selectTestByIndex(index){
+  try{
+    if (!Array.isArray(working.tests)) return;
+    if (index < 0 || index >= working.tests.length) return;
+    selIndex = index;
+    renderTests();
+    renderForm();
+    try{ if (typeof window.__ed_renderQuickRunForSelection==='function') window.__ed_renderQuickRunForSelection(); }catch{}
+  }catch(e){}
+}
+try{ window.selectTestByIndex = selectTestByIndex; }catch(e){}
 
 // Normalize parsed suite data into the working model
 function normalizeParsed(inObj){
@@ -1594,8 +1613,57 @@ function openEditor(path, data){
   function saveRunRecord(rec){ try{ const k = RUNREC_KEY((modal.querySelector('#ed_path')||{}).textContent||''); localStorage.setItem(k, JSON.stringify(rec)); }catch{} }
   function setSuiteRecord(status, durationMs, messages){ const rec = getRunRecord(); rec.suite = { status, durationMs: durationMs||0, messages: messages||[], ts: Date.now() }; saveRunRecord(rec); try{ updateSuiteBadgeUI((modal.querySelector('#ed_path')||{}).textContent||'', status); }catch{} }
   function setTestRecord(name, status, durationMs, messages){ const rec = getRunRecord(); rec.tests = rec.tests||{}; rec.tests[name||''] = { name, status, durationMs: durationMs||0, messages: messages||[], ts: Date.now() }; saveRunRecord(rec); try{ if (status==='failed' || status==='passed' || status==='skipped'){ updateSuiteBadgeUI((modal.querySelector('#ed_path')||{}).textContent||'', status); } }catch{} }
-  function renderLatestForSelection(){ try{ const rec = getRunRecord(); const t = (working.tests && working.tests[selIndex]) || {}; const nm = t.name||''; const tr = (rec.tests||{})[nm]; const sr = rec.suite; let pick = null; if (tr && sr){ pick = (tr.ts>=sr.ts)? tr : sr; } else { pick = tr || sr; } clearQuickRun(); if (!pick){ appendQuickRunLine('No previous run'); return; } const s=(pick.status||'').toLowerCase(); const icon=s==='passed'?'✓':(s==='failed'?'✗':(s==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${(pick.name||nm||'')}${pick.durationMs?` (${pick.durationMs}ms)`:''}`, s==='passed'?'text-success':(s==='failed'?'text-error':'text-warning')); if (Array.isArray(pick.messages) && pick.messages.length){ const pre=document.createElement('pre'); pre.className=(s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent=pick.messages.join('\n'); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(pre); } }catch(e){} }
+  function renderLatestForSelection(){
+    try{
+      const rec = getRunRecord();
+      const t = (working.tests && working.tests[selIndex]) || {};
+      const nm = t.name || '';
+      const tr = (rec.tests||{})[nm];
+      clearQuickRun();
+      // Prefer exact per-test record when present
+      if (tr){
+        const s=(tr.status||'').toLowerCase();
+        const icon=s==='passed'?'✓':(s==='failed'?'✗':(s==='skipped'?'○':'·'));
+        appendQuickRunLine(`${icon} ${nm}${tr.durationMs?` (${tr.durationMs}ms)`:''}`, s==='passed'?'text-success':(s==='failed'?'text-error':'text-warning'));
+        if (Array.isArray(tr.messages) && tr.messages.length){
+          const pre=document.createElement('pre'); pre.className=(s==='failed'?'fail':(s==='skipped'?'skip':'ok'));
+          pre.textContent=tr.messages.join('\n'); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(pre);
+        }
+        return;
+      }
+      // Fallback: if runner view summary is available, try to extract this test's status
+      try{
+        if (typeof window.getSuiteSummary==='function'){
+          const path = (modal.querySelector('#ed_path')||{}).textContent||'';
+          const sm = window.getSuiteSummary(path);
+          const tc = sm && Array.isArray(sm.tests) ? sm.tests.find(c=> (c.name||c.Name) === nm) : null;
+          if (tc){
+            const s = (tc.status||tc.Status||'').toLowerCase();
+            const d = tc.durationMs||tc.DurationMs||0;
+            const icon=s==='passed'?'✓':(s==='failed'?'✗':(s==='skipped'?'○':'·'));
+            appendQuickRunLine(`${icon} ${nm}${d?` (${d}ms)`:''}`, s==='passed'?'text-success':(s==='failed'?'text-error':'text-warning'));
+            return;
+          }
+        }
+      }catch(e){}
+      // As a last resort, show last suite record if present
+      const sr = rec.suite;
+      if (sr){
+        const s=(sr.status||'').toLowerCase();
+        const icon=s==='passed'?'✓':(s==='failed'?'✗':(s==='skipped'?'○':'·'));
+        appendQuickRunLine(`${icon} ${nm}${sr.durationMs?` (${sr.durationMs}ms)`:''}`, s==='passed'?'text-success':(s==='failed'?'text-error':'text-warning'));
+        if (Array.isArray(sr.messages) && sr.messages.length){
+          const pre=document.createElement('pre'); pre.className=(s==='failed'?'fail':(s==='skipped'?'skip':'ok'));
+          pre.textContent=sr.messages.join('\n'); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(pre);
+        }
+        return;
+      }
+      appendQuickRunLine('No previous run');
+    }catch(e){}
+  }
   function renderQuickRunForSelection(){ renderLatestForSelection(); const qrBox = modal.querySelector('#ed_quickrun_box'); if (qrBox) qrBox.open = true; }
+  // Expose for global selector
+  try{ window.__ed_renderQuickRunForSelection = renderQuickRunForSelection; }catch(e){}
   function updateSuiteBadgeUI(path, status){ try{ if (!path) return; const li = document.querySelector('#suites li[data-path="'+path+'"]'); if (!li) return; const sb = li.querySelector('.suite-badge'); if (!sb) return; if (status==='failed'){ sb.textContent='✗'; sb.style.background='rgba(239,68,68,0.08)'; sb.style.opacity='1'; sb.dataset.status='failed'; } else if (status==='passed'){ if (sb.dataset.status!=='failed'){ sb.textContent='✓'; sb.style.background='rgba(16,185,129,0.12)'; sb.style.opacity='1'; sb.dataset.status='passed'; } } else if (status==='skipped'){ if (sb.dataset.status!=='failed' && sb.dataset.status!=='passed'){ sb.textContent='-'; sb.style.background='rgba(245,158,11,0.06)'; sb.style.opacity='1'; sb.dataset.status='skipped'; } } }catch(e){} }
   function getTestIndexByName(name){ if (!name) return -1; if (!Array.isArray(working.tests)) return -1; for (let i=0;i<working.tests.length;i++){ if ((working.tests[i].name||'') === name) return i; } return -1; }
   function updateTestBadgeByIndex(idx, status){ try{ if (idx<0) return; const t = (working.tests && working.tests[idx]) || {}; const key = idx + ':' + (t.name||('test '+(idx+1))); testRunCache.set(key, { status: status, name: t.name }); try{ localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); }catch{} renderTests(); }catch(e){} }
@@ -1753,6 +1821,21 @@ function openEditor(path, data){
   const lastTab = (function(){ try{ return localStorage.getItem('hydreq.editor.tab') }catch{ return null } })() || 'yaml';
   switchTab(lastTab === 'visual' ? 'visual' : 'yaml');
   if (working.tests && working.tests.length) { try{ renderQuickRunForSelection(); }catch{} }
+
+  // Delegated click on tests container to catch clicks anywhere inside item
+  try{
+    const testsContainer = modal.querySelector('#ed_tests');
+    if (testsContainer && !testsContainer.dataset.bound){
+      testsContainer.addEventListener('click', (e)=>{
+        const item = e.target && e.target.closest ? e.target.closest('.ed-test-item') : null;
+        if (item && item.dataset && item.dataset.index){
+          const idx = parseInt(item.dataset.index,10);
+          if (!isNaN(idx)) { try{ if (typeof window.selectTestByIndex==='function') window.selectTestByIndex(idx); }catch{} }
+        }
+      });
+      testsContainer.dataset.bound = '1';
+    }
+  }catch(e){}
 
   // Pre-seed Quick run cache from runner view if available
   try{

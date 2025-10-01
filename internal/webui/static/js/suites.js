@@ -33,7 +33,7 @@ function renderSuites(list){
         const pathKey = path;
         const base = (typeof path === 'string' ? path.split('/').pop() : String(path));
         const friendly = (item && (item.name || item.Name)) ? (item.name || item.Name) : null;
-  const li = document.createElement('li'); li.style.display='flex'; li.style.alignItems='center'; li.style.justifyContent='space-between'; li.style.gap='8px';
+  const li = document.createElement('li'); li.style.display='flex'; li.style.alignItems='flex-start'; li.style.justifyContent='space-between'; li.style.gap='8px';
   li.dataset.path = pathKey;
         const name = document.createElement('span'); name.style.flex='1'; name.style.display='flex'; name.style.flexDirection='column'; name.style.alignItems='flex-start'; name.style.gap='2px';
     const titleRow = document.createElement('div'); titleRow.style.display='flex'; titleRow.style.flexDirection='row'; titleRow.style.alignItems='baseline'; titleRow.style.gap='8px';
@@ -74,6 +74,10 @@ function renderSuites(list){
               row.style.justifyContent='space-between';
               row.style.padding='4px 6px';
               const nm = document.createElement('span'); nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent;
+              try{
+                const tt = t.tags || t.Tags || [];
+                if (Array.isArray(tt) && tt.length){ const tw=document.createElement('span'); tw.className='row wrap gap-4px'; tw.style.marginLeft='6px'; tt.slice(0,4).forEach(x=>{ const b=document.createElement('span'); b.className='pill'; b.textContent='#'+x; b.style.opacity='.7'; b.style.fontSize='10px'; tw.appendChild(b); }); nm.appendChild(tw); }
+              }catch(e){}
               const badge = document.createElement('span'); badge.className='pill';
               const pathMap = lastStatus.get(pathKey);
               const st = pathMap ? (pathMap.get(nm.textContent)||'') : '';
@@ -95,6 +99,15 @@ function renderSuites(list){
     });
   const titleSpan = document.createElement('span'); titleSpan.className = 'spec-title'; titleSpan.style.fontWeight='600'; titleSpan.style.fontSize='16px';
         titleSpan.textContent = friendly && (typeof friendly === 'string') && friendly.trim() !== '' ? friendly : base;
+        // suite tags placed to the right of title (not above)
+        let suiteTagsWrap = null;
+        try{
+          const suiteTags = (item && (item.tags || item.Tags)) ? (item.tags || item.Tags) : [];
+          if (Array.isArray(suiteTags) && suiteTags.length){
+            suiteTagsWrap = document.createElement('span'); suiteTagsWrap.className='row wrap gap-4px'; suiteTagsWrap.style.marginLeft='6px';
+            suiteTags.slice(0,4).forEach(tg=>{ const b=document.createElement('span'); b.className='pill'; b.textContent='#'+tg; b.style.opacity='.8'; b.style.fontSize='11px'; suiteTagsWrap.appendChild(b); });
+          }
+        }catch(e){}
   const suiteBadge = document.createElement('span'); suiteBadge.className = 'pill suite-badge'; suiteBadge.textContent = '·'; suiteBadge.style.opacity = '.6'; suiteBadge.title = 'suite status'; suiteBadge.dataset.status = 'unknown';
   titleRow.appendChild(expandBtn); titleRow.appendChild(titleSpan); titleRow.appendChild(suiteBadge);
         name.appendChild(titleRow);
@@ -121,7 +134,7 @@ function renderSuites(list){
           const data = await res.json();
           try { openEditor(pth, data); } catch (err) { console.error('openEditor failed', err); alert('Failed to open editor: '+ (err && err.message ? err.message : err)); }
         });
-        const dlWrap = document.createElement('span'); dlWrap.style.position='relative'; dlWrap.style.display='inline-block';
+  const dlWrap = document.createElement('span'); dlWrap.className='suite-download'; dlWrap.style.position='relative'; dlWrap.style.display='inline-block';
         const dlBtn = document.createElement('button');
         dlBtn.className = 'btn btn-ghost btn-xs';
         dlBtn.title = 'Download';
@@ -143,7 +156,17 @@ function renderSuites(list){
         dlBtn.addEventListener('click', (e)=>{ e.stopPropagation(); dlMenu.style.display = (dlMenu.style.display === 'none') ? 'block' : 'none'; });
         document.addEventListener('click', ()=>{ try{ dlMenu.style.display='none'; }catch{} });
         dlWrap.appendChild(dlBtn); dlWrap.appendChild(dlMenu);
-  li.appendChild(name); li.appendChild(dlWrap); li.appendChild(editBtn);
+  // Actions inline with title on the right
+  const actions = document.createElement('span'); actions.className='suite-actions'; actions.style.display='flex'; actions.style.gap='6px'; actions.style.marginLeft='auto';
+  actions.appendChild(dlWrap); actions.appendChild(editBtn);
+  // Assemble header row: [expand] [title] [tags] [suite badge] [actions]
+  titleRow.appendChild(expandBtn);
+  titleRow.appendChild(titleSpan);
+  if (suiteTagsWrap) titleRow.appendChild(suiteTagsWrap);
+  titleRow.appendChild(suiteBadge);
+  titleRow.appendChild(actions);
+  // Append content into li
+  li.appendChild(name);
   li.style.marginBottom = '6px';
         if (selected.has(pathKey)) li.classList.add('selected');
         li.onclick = () => { if (selected.has(pathKey)) selected.delete(pathKey); else selected.add(pathKey); localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected))); const selCount = document.getElementById('selCount'); if (selCount) selCount.textContent = selected.size + ' selected'; renderSuites(list); };

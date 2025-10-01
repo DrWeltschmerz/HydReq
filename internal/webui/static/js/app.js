@@ -36,6 +36,8 @@ function initApp(){
   // Get DOM elements
   const envKVList = document.getElementById('env_kv_list');
   const envActive = document.getElementById('env_active');
+  const tagsKVList = document.getElementById('tags_kv_list');
+  const tagsActive = document.getElementById('tags_active');
   const onlyFailed = document.getElementById('onlyFailed');
   const autoScroll = document.getElementById('autoScroll');
   const cancelBtn = document.getElementById('cancel');
@@ -96,8 +98,84 @@ function initApp(){
     })();
   })();
 
+  // Build Tags selector UI (rows with [x] checkbox + tag input + delete)
+  (function initTagsUI(){
+    if (!tagsKVList) return;
+    const root = tagsKVList;
+    root.innerHTML = '';
+    const head = document.createElement('div'); head.className='row'; head.innerHTML='<div class="fw-600">Tags</div><div style="flex:1"></div><button id="tag_add" class="btn btn-xs">+ Add</button>';
+    root.appendChild(head);
+    const list = document.createElement('div'); list.className='col'; root.appendChild(list);
+    function addRow(tag='', checked=false){
+      const row = document.createElement('div'); row.className='row'; row.style.gap='6px'; row.style.marginBottom='6px';
+      const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = !!checked; cb.title='Include this tag in filter';
+      const ti = document.createElement('input'); ti.type='text'; ti.placeholder='tag'; ti.value=tag; ti.style.flex='1';
+      const del = document.createElement('button'); del.className='btn btn-xs'; del.textContent='×'; del.title='Remove';
+      del.onclick = ()=>{ row.remove(); renderActiveTags(); persistTags(); };
+      [cb, ti].forEach(el=> el.addEventListener('input', ()=>{ renderActiveTags(); persistTags(); }));
+      row.appendChild(cb); row.appendChild(ti); row.appendChild(del); list.appendChild(row);
+    }
+    function persistTags(){
+      const rows = Array.from(list.children);
+      const tags = []; const selected = [];
+      rows.forEach(r=>{ const cb=r.querySelector('input[type="checkbox"]'); const ti=r.querySelector('input[type="text"]'); if (!ti) return; const v=(ti.value||'').trim(); if (!v) return; tags.push(v); if (cb && cb.checked) selected.push(v); });
+      try{
+        localStorage.setItem('hydreq.tags.list', JSON.stringify(tags));
+        localStorage.setItem('hydreq.tags.selected', JSON.stringify(selected));
+      }catch{}
+      // Back-compat with existing input wiring: keep #tags value in sync
+      try{ const legacy = document.getElementById('tags'); if (legacy) legacy.value = selected.join(','); }catch{}
+    }
+    function renderActiveTags(){
+      if (!tagsActive) return;
+      tagsActive.innerHTML='';
+      try{
+        const sel = JSON.parse(localStorage.getItem('hydreq.tags.selected')||'[]');
+        sel.forEach(v=>{ const b=document.createElement('span'); b.className='pill'; b.textContent='#'+v; tagsActive.appendChild(b); });
+      }catch{}
+    }
+    // preload
+    try{
+      const savedList = JSON.parse(localStorage.getItem('hydreq.tags.list')||'[]');
+      const savedSel = new Set(JSON.parse(localStorage.getItem('hydreq.tags.selected')||'[]'));
+      if (Array.isArray(savedList) && savedList.length){ savedList.forEach(t=> addRow(t, savedSel.has(t))); }
+      else {
+        addRow('smoke', true);
+        addRow('slow', false);
+      }
+    }catch{ addRow('smoke', true); addRow('slow', false); }
+    const addBtn = head.querySelector('#tag_add'); addBtn.onclick = ()=> addRow('', true);
+    renderActiveTags();
+    persistTags();
+  })();
+
   // Initialize suites
   initSuites();
+
+  // Optional: periodically refresh the suites list to pick up new/removed files (e.g., after importing)
+  // Enabled by default in dev mode; persists toggle in localStorage
+  (function setupSuitesAutoRefresh(){
+    try{
+      const key = 'hydreq.autoRefreshSuites';
+      const defaultOn = true; // default on; user can toggle off
+      let on = (localStorage.getItem(key) || (defaultOn ? '1':'0')) === '1';
+      // If a checkbox exists in the toolbar use it; otherwise run silently in the background
+      const cb = document.getElementById('autoRefreshSuites');
+      if (cb){ cb.checked = on; cb.onchange = ()=>{ on = cb.checked; localStorage.setItem(key, on ? '1':'0'); }; }
+      let t = null;
+      function loop(){
+        try{
+          if (!on){ t = setTimeout(loop, 5000); return; }
+          // Refresh only if the page/tab is visible to avoid background noise
+          if (document.visibilityState !== 'visible'){ t = setTimeout(loop, 5000); return; }
+          refresh();
+        }catch(e){}
+        t = setTimeout(loop, 5000);
+      }
+      loop();
+      window.addEventListener('beforeunload', ()=>{ try{ if (t) clearTimeout(t); }catch{} });
+    }catch(e){}
+  })();
 
   // Set up event handlers
   if (onlyFailed) {

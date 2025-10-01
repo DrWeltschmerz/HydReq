@@ -265,15 +265,37 @@ func (s *server) handleEditorSuites(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	list := findSuites()
 	type item struct {
-		Path string `json:"path"`
-		Name string `json:"name,omitempty"`
+		Path string   `json:"path"`
+		Name string   `json:"name,omitempty"`
+		Tags []string `json:"tags,omitempty"`
 	}
 	out := make([]item, 0, len(list))
 	for _, p := range list {
 		item := item{Path: p}
-		// Try to load suite to get the name
-		if suite, err := runner.LoadSuite(p); err == nil && suite.Name != "" {
-			item.Name = suite.Name
+		// Try to load suite to get the name and tags
+		if suite, err := runner.LoadSuite(p); err == nil {
+			if suite.Name != "" {
+				item.Name = suite.Name
+			}
+			// derive suite-level tags from union of test tags
+			if len(suite.Tests) > 0 {
+				set := map[string]struct{}{}
+				for _, tc := range suite.Tests {
+					for _, tg := range tc.Tags {
+						if tg == "" {
+							continue
+						}
+						set[tg] = struct{}{}
+					}
+				}
+				if len(set) > 0 {
+					item.Tags = make([]string, 0, len(set))
+					for k := range set {
+						item.Tags = append(item.Tags, k)
+					}
+					sort.Strings(item.Tags)
+				}
+			}
 		}
 		out = append(out, item)
 	}

@@ -1,0 +1,76 @@
+name: Complex Postman Collection
+baseUrl: https://staging.example.com
+vars:
+    apiKey: test-key-123
+    baseUrl: https://api.example.com
+tests:
+    - name: Authentication Folder > Basic Auth Request
+      request:
+        method: GET
+        url: '{{baseUrl}}/users'
+        headers:
+            Accept: application/json
+      assert:
+        status: 200
+      pre:
+        - name: postman script
+          js:
+            code: console.log('Pre-request script running');
+        - name: postman script
+          js:
+            code: setVar('timestamp', new Date().toISOString());
+      post:
+        - name: postman script
+          js:
+            code: |-
+                pm.test('Status code is 200', function () {
+                    pm.response.to.have.status(200);
+        - name: postman script
+          js:
+            code: '});'
+    - name: Authentication Folder > Bearer Token Request
+      request:
+        method: GET
+        url: '{{baseUrl}}/secure'
+        headers:
+            Authorization: Bearer {{apiKey}}
+      assert:
+        status: 200
+    - name: Body Types Folder > JSON Body
+      request:
+        method: POST
+        url: '{{baseUrl}}/users'
+        headers:
+            Content-Type: application/json
+        body: '{"name": "John Doe", "email": "john@example.com", "nested": {"key": "value"}}'
+      assert:
+        status: 200
+    - name: Body Types Folder > Form URL Encoded
+      request:
+        method: POST
+        url: '{{baseUrl}}/login'
+        headers:
+            Content-Type: application/x-www-form-urlencoded
+        body:
+            password: secret123
+            remember: "true"
+            username: johndoe
+      assert:
+        status: 200
+    - name: Body Types Folder > Multipart Form Data
+      request:
+        method: POST
+        url: '{{baseUrl}}/upload'
+        headers:
+            Content-Type: multipart/form-data
+        body:
+            description: Test file upload
+            file: file:/path/to/file.txt
+      assert:
+        status: 200
+    - name: Query Parameters Request
+      request:
+        method: GET
+        url: '{{baseUrl}}/search?q=javascript&limit=10&sort=desc'
+      assert:
+        status: 200

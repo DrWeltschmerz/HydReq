@@ -24,6 +24,65 @@
   <script src="js/suites.js"></script>
   <script src="js/editor.js"></script>
   <script src="js/app.js"></script>
+
+  <!-- Make toolbar buttons stretch to fill the toolbar container -->
+  <style>
+    /* Target the toolbar row and ensure flex layout with gaps */
+    .toolbar.row {
+      display: flex;          /* ensure flex behavior */
+      gap: 8px;               /* consistent spacing between buttons */
+      flex-wrap: wrap;        /* allow buttons to wrap on small screens */
+      align-items: center;
+    }
+
+    /* Make each button take equal share of available width */
+    .toolbar.row > .btn {
+      flex: 1 1 0%;           /* grow/shrink equally, base 0 to distribute evenly */
+      min-width: 0;           /* prevent overflow when contents are long */
+    }
+
+    /* Keep a sensible minimum on very small screens: stack buttons */
+    @media (max-width: 480px) {
+      .toolbar.row > .btn {
+        flex-basis: 100%;     /* each button becomes full width on small devices */
+      }
+    }
+
+    /* Make the workers/tags/timeout labels spread evenly across the container */
+    .full-width-labels {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      width: 100%;
+    }
+
+    /* Each label becomes a flex item that takes equal space */
+    .full-width-labels > label {
+      flex: 1 1 0%;
+      min-width: 0; /* prevent overflow of long contents */
+      display: flex;
+      align-items: center;
+      justify-content: space-between; /* keep label text left and input right */
+      gap: 8px;
+    }
+
+    /* Keep the inputs from stretching awkwardly; they retain their intended widths */
+    .full-width-labels > label input {
+      flex: 0 0 auto;
+      min-width: 0;
+    }
+
+    /* On very small screens, stack the labels for readability */
+    @media (max-width: 480px) {
+      .full-width-labels {
+        flex-direction: column;
+        gap: 6px;
+      }
+      .full-width-labels > label {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -32,6 +91,10 @@
       <div>HydReq — Hydra Request</div>
     </div>
     <div class="row m-0">
+              <label class="row m-0" style="gap:6px; align-items:center;">
+          <input id="autoRefreshSuites" type="checkbox"/>
+          Auto-refresh
+        </label>
   <label class="row m-0"><input id="onlyFailed" type="checkbox"/> Only failed</label>
   <label class="row m-0"><input id="autoScroll" type="checkbox"/> Auto-scroll</label>
   <label class="row m-0" title="Theme"><span style="margin-right:6px">Theme</span>
@@ -51,13 +114,16 @@
   </header>
   <main>
     <aside>
-  <div class="row">
-  <button id="refresh" class="btn btn-sm" title="Rescan testdata for *.yaml suites">Refresh</button>
-    <button id="newSuiteBtn" class="btn btn-sm" title="Create a new test suite">New Suite</button>
-    <label>Workers <input id="workers" type="number" min="1" max="64" value="4" class="w-64px"/></label>
-        <label>Tags <input id="tags" type="text" placeholder="smoke,slow" class="w-120px"/></label>
-        <label>Default timeout (ms) <input id="defaultTimeout" type="number" min="0" placeholder="30000" class="w-120px"/></label>
+      <!-- Add class 'full-width-labels' so the labels fill the whole width evenly -->
+      <div class="row gap-8 mb-8 ai-center full-width-labels">
+        <label>Workers <input id="workers" type="number" min="1" max="64" value="4" class="w-120px"/></label>
+        <label>Timeout (ms) <input id="defaultTimeout" type="number" placeholder="30000" class="w-120px"/></label>
       </div>
+      <details>
+        <summary>Selected Tags</summary>
+        <div id="tags_kv_list"></div>
+        <div class="row wrap gap-4px" id="tags_active"></div>
+      </details>
       <details>
         <summary>Env overrides</summary>
         <div id="env_kv_list"></div>
@@ -84,12 +150,16 @@
           <span id="importStatus" class="text-sm ml-2"></span>
         </div>
       </details>
-      <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+      <details>
+        <summary>Test Suites</summary>
+              <div class="toolbar row">
+        <button id="refresh" class="btn btn-sm" title="Rescan testdata for *.yaml suites">Refresh</button>
+        <button id="newSuiteBtn" class="btn btn-sm" title="Create a new test suite">New Suite</button>
         <button id="expandAll" class="btn btn-sm">Expand all</button>
         <button id="collapseAll" class="btn btn-sm">Collapse all</button>
-        <div style="flex:1"></div>
       </div>
       <ul id="suites"></ul>
+      </details>
     </aside>
     <section>
       <div class="row"><div class="flex-1">Batch progress</div><div class="pill" id="batchText">0/0</div></div>
