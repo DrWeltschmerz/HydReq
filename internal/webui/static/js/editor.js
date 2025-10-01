@@ -80,12 +80,13 @@ function renderForm() {
 function addValidationListeners() {
   if (!modal) return;
   
-  // Suite-level validation
+  // Suite-level validation with YAML sync
   const suiteNameEl = modal.querySelector('#ed_suite_name');
   if (suiteNameEl) {
     suiteNameEl.addEventListener('blur', () => {
       const errors = validateField('name', suiteNameEl.value, 'suite');
       showFieldValidation(suiteNameEl, errors);
+      mirrorYamlFromVisual();
     });
   }
   
@@ -94,15 +95,17 @@ function addValidationListeners() {
     baseUrlEl.addEventListener('blur', () => {
       const errors = validateField('baseUrl', baseUrlEl.value, 'suite');
       showFieldValidation(baseUrlEl, errors);
+      mirrorYamlFromVisual();
     });
   }
   
-  // Test-level validation
+  // Test-level validation with YAML sync
   const testNameEl = modal.querySelector('#ed_test_name');
   if (testNameEl) {
     testNameEl.addEventListener('blur', () => {
       const errors = validateField('name', testNameEl.value, 'test');
       showFieldValidation(testNameEl, errors);
+      mirrorYamlFromVisual();
     });
   }
   
@@ -133,6 +136,92 @@ function addValidationListeners() {
       });
     }
   });
+}
+
+// Schema validation for real-time feedback
+function validateField(fieldName, value, parentType = 'suite') {
+  const errors = [];
+  
+  // Required fields validation based on schema
+  if (parentType === 'suite') {
+    if (fieldName === 'name' && (!value || value.trim() === '')) {
+      errors.push('Suite name is required');
+    }
+    if (fieldName === 'baseUrl' && (!value || value.trim() === '')) {
+      errors.push('Base URL is required');
+    }
+  }
+  
+  if (parentType === 'test') {
+    if (fieldName === 'name' && (!value || value.trim() === '')) {
+      errors.push('Test name is required');
+    }
+  }
+  
+  if (parentType === 'request') {
+    if (fieldName === 'method' && (!value || value.trim() === '')) {
+      errors.push('HTTP method is required');
+    }
+    if (fieldName === 'url' && (!value || value.trim() === '')) {
+      errors.push('URL path is required');
+    }
+  }
+  
+  if (parentType === 'assert') {
+    if (fieldName === 'status' && (!value || isNaN(parseInt(value)))) {
+      errors.push('Status code must be a valid number');
+    }
+    if (fieldName === 'status' && value && (parseInt(value) < 100 || parseInt(value) > 599)) {
+      errors.push('Status code must be between 100-599');
+    }
+  }
+  
+  // URL validation
+  if (fieldName === 'baseUrl' && value && value.trim()) {
+    try {
+      new URL(value.trim());
+    } catch {
+      errors.push('Base URL must be a valid URL');
+    }
+  }
+  
+  // Numeric validation
+  if (['timeout', 'maxDurationMs', 'stage', 'repeat'].includes(fieldName) && value && value.trim()) {
+    if (isNaN(parseInt(value)) || parseInt(value) < 0) {
+      errors.push(`${fieldName} must be a positive number`);
+    }
+  }
+  
+  return errors;
+}
+
+// Show validation feedback on a field
+function showFieldValidation(element, errors) {
+  // Remove existing validation styling
+  element.classList.remove('border-red-500', 'border-green-500');
+  
+  // Remove existing error messages
+  const existingError = element.parentNode.querySelector('.validation-error');
+  if (existingError) existingError.remove();
+  
+  if (errors.length > 0) {
+    // Add error styling
+    element.style.borderColor = '#ef4444';
+    element.style.borderWidth = '2px';
+    
+    // Add error message
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'validation-error';
+    errorDiv.style.color = '#ef4444';
+    errorDiv.style.fontSize = '12px';
+    errorDiv.style.marginTop = '2px';
+    errorDiv.textContent = errors[0]; // Show first error
+    element.parentNode.insertBefore(errorDiv, element.nextSibling);
+  } else {
+    // Add success styling for required fields
+    element.style.borderColor = '#10b981';
+    element.style.borderWidth = '1px';
+  }
 }
 
 // Render the test list in the editor modal
@@ -988,92 +1077,6 @@ function openEditor(path, data){
     return (obj === '') ? undefined : obj;
   }
   
-  // Schema validation for real-time feedback
-  function validateField(fieldName, value, parentType = 'suite') {
-    const errors = [];
-    
-    // Required fields validation based on schema
-    if (parentType === 'suite') {
-      if (fieldName === 'name' && (!value || value.trim() === '')) {
-        errors.push('Suite name is required');
-      }
-      if (fieldName === 'baseUrl' && (!value || value.trim() === '')) {
-        errors.push('Base URL is required');
-      }
-    }
-    
-    if (parentType === 'test') {
-      if (fieldName === 'name' && (!value || value.trim() === '')) {
-        errors.push('Test name is required');
-      }
-    }
-    
-    if (parentType === 'request') {
-      if (fieldName === 'method' && (!value || value.trim() === '')) {
-        errors.push('HTTP method is required');
-      }
-      if (fieldName === 'url' && (!value || value.trim() === '')) {
-        errors.push('URL path is required');
-      }
-    }
-    
-    if (parentType === 'assert') {
-      if (fieldName === 'status' && (!value || isNaN(parseInt(value)))) {
-        errors.push('Status code must be a valid number');
-      }
-      if (fieldName === 'status' && value && (parseInt(value) < 100 || parseInt(value) > 599)) {
-        errors.push('Status code must be between 100-599');
-      }
-    }
-    
-    // URL validation
-    if (fieldName === 'baseUrl' && value && value.trim()) {
-      try {
-        new URL(value.trim());
-      } catch {
-        errors.push('Base URL must be a valid URL');
-      }
-    }
-    
-    // Numeric validation
-    if (['timeout', 'maxDurationMs', 'stage', 'repeat'].includes(fieldName) && value && value.trim()) {
-      if (isNaN(parseInt(value)) || parseInt(value) < 0) {
-        errors.push(`${fieldName} must be a positive number`);
-      }
-    }
-    
-    return errors;
-  }
-  
-  // Show validation feedback on a field
-  function showFieldValidation(element, errors) {
-    // Remove existing validation styling
-    element.classList.remove('border-red-500', 'border-green-500');
-    
-    // Remove existing error messages
-    const existingError = element.parentNode.querySelector('.validation-error');
-    if (existingError) existingError.remove();
-    
-    if (errors.length > 0) {
-      // Add error styling
-      element.style.borderColor = '#ef4444';
-      element.style.borderWidth = '2px';
-      
-      // Add error message
-      const errorDiv = document.createElement('div');
-      errorDiv.className = 'validation-error';
-      errorDiv.style.color = '#ef4444';
-      errorDiv.style.fontSize = '12px';
-      errorDiv.style.marginTop = '2px';
-      errorDiv.textContent = errors[0]; // Show first error
-      element.parentNode.insertBefore(errorDiv, element.nextSibling);
-    } else {
-      // Add success styling for required fields
-      element.style.borderColor = '#10b981';
-      element.style.borderWidth = '1px';
-    }
-  }
-  
   async function mirrorYamlFromVisual(force=false){ 
     try {
       // Before serializing, collect any current form data that might not be saved yet
@@ -1244,6 +1247,9 @@ function openEditor(path, data){
       }
     }
   }
+  
+  // Alias for collectFormData - used by event handlers
+  const sync = collectFormData;
   
   const syncYamlPreviewFromVisual = debounce(()=>{ 
     if (paneYaml.style.display === 'none') { 
