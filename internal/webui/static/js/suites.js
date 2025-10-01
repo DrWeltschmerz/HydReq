@@ -470,29 +470,20 @@ function listen(id){
           const sb = li.querySelector('.suite-badge'); 
           if (sb){ 
             // Prioritize failed > skipped > passed
-            if ((s.failed||0) > 0){ 
+            if ((s.failed||0) > 0 || sb.dataset.status === 'failed'){ 
               sb.textContent = '✗'; 
               sb.style.background='rgba(239,68,68,0.08)'; 
               sb.style.opacity='1'; 
               sb.dataset.status = 'failed'; 
             } else if ((s.skipped||0) > 0 && (s.passed||0) === 0) { 
               // All tests skipped, no passes
-              sb.textContent = '-'; 
-              sb.style.background='rgba(245,158,11,0.06)'; 
-              sb.style.opacity='1'; 
-              sb.dataset.status = 'skipped'; 
+              if (sb.dataset.status !== 'failed') { sb.textContent = '-'; sb.style.background='rgba(245,158,11,0.06)'; sb.style.opacity='1'; sb.dataset.status = 'skipped'; }
             } else if ((s.passed||0) > 0) { 
               // Some tests passed (with possible skips)
-              sb.textContent = '✓'; 
-              sb.style.background='rgba(16,185,129,0.12)'; 
-              sb.style.opacity='1'; 
-              sb.dataset.status = 'passed'; 
+              if (sb.dataset.status !== 'failed') { sb.textContent = '✓'; sb.style.background='rgba(16,185,129,0.12)'; sb.style.opacity='1'; sb.dataset.status = 'passed'; }
             } else {
               // No tests or unknown state
-              sb.textContent = '·'; 
-              sb.style.background=''; 
-              sb.style.opacity = '.6'; 
-              sb.dataset.status = 'unknown'; 
+              if (sb.dataset.status !== 'failed') { sb.textContent = '·'; sb.style.background=''; sb.style.opacity = '.6'; sb.dataset.status = 'unknown'; }
             }
             sb.classList.add('animate'); 
             setTimeout(()=> sb.classList.remove('animate'), 220); 
@@ -507,7 +498,7 @@ function listen(id){
       scrollBottom();
     }
 
-    if (type === 'error'){ const d = document.createElement('div'); d.className='fail'; d.textContent = 'Error: ' + (payload.error||''); if (results) results.appendChild(d); }
+  if (type === 'error'){ const d = document.createElement('div'); d.className='fail'; d.textContent = 'Error: ' + (payload.error||''); if (results) results.appendChild(d); try{ if (currentSuitePath){ const li = document.querySelector('#suites li[data-path="'+currentSuitePath+'"]'); if (li){ const sb = li.querySelector('.suite-badge'); if (sb){ sb.textContent='✗'; sb.style.background='rgba(239,68,68,0.08)'; sb.style.opacity='1'; sb.dataset.status='failed'; } } } }catch(e){} }
 
     if (type === 'done'){ es.close(); window.lastRunId = id; window.currentRunId = null; }
       }; // end es.onmessage

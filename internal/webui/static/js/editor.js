@@ -101,6 +101,7 @@ let working = { tests: [] };
 const LS_VER = 'v1';
 const LS_ENC = (s) => { try { return btoa(unescape(encodeURIComponent(s||''))); } catch { return (s||''); } };
 const LS_KEY = (p) => `hydreq.${LS_VER}.runCache:` + LS_ENC(p||'');
+const RUNREC_KEY = (p) => `hydreq.${LS_VER}.editorRun:` + LS_ENC(p||'');
 
 // Global renderForm function that can be called from renderTests
 function renderForm() {
@@ -152,11 +153,9 @@ function renderForm() {
       if (maxDurationEl) maxDurationEl.value = test.assert.maxDurationMs || test.assert.maxDuration || '';
     }
     
-    // Update flow settings  
-    if (test.stage !== undefined) {
-      const stageEl = modal.querySelector('#ed_stage');
-      if (stageEl) stageEl.value = test.stage;
-    }
+    // Update flow settings: don't prefill 0; clear when unset
+    const stageEl = modal.querySelector('#ed_stage');
+    if (stageEl) stageEl.value = (test.stage !== undefined && test.stage !== 0) ? test.stage : '';
     
     const skipEl = modal.querySelector('#ed_skip');
     const onlyEl = modal.querySelector('#ed_only');
@@ -183,9 +182,16 @@ function collectFormData() {
   if (suiteNameEl) working.name = suiteNameEl.value;
   if (baseUrlEl) working.baseUrl = baseUrlEl.value;
   
-  if (!working.auth) working.auth = {};
-  if (authBearerEl) working.auth.bearer = authBearerEl.value;
-  if (authBasicEl) working.auth.basic = authBasicEl.value;
+  // Only include auth if any value is provided
+  const bearerVal = authBearerEl ? (authBearerEl.value||'').trim() : '';
+  const basicVal = authBasicEl ? (authBasicEl.value||'').trim() : '';
+  if (bearerVal || basicVal) {
+    working.auth = {};
+    if (bearerVal) working.auth.bearer = bearerVal;
+    if (basicVal) working.auth.basic = basicVal;
+  } else {
+    delete working.auth;
+  }
   
   // Collect test-level data if a test is selected
   if (working.tests && Array.isArray(working.tests) && selIndex >= 0 && selIndex < working.tests.length) {
@@ -202,32 +208,41 @@ function collectFormData() {
     const statusEl = modal.querySelector('#ed_assert_status');
     const maxDurationEl = modal.querySelector('#ed_assert_maxDuration');
     
-    if (testNameEl) test.name = testNameEl.value;
+  if (testNameEl && testNameEl.value) test.name = testNameEl.value;
     
     if (!test.request) test.request = {};
     if (methodEl) test.request.method = methodEl.value;
     if (urlEl) test.request.url = urlEl.value;
-    if (timeoutEl) test.request.timeout = timeoutEl.value ? parseInt(timeoutEl.value) : undefined;
+    if (timeoutEl) {
+      const to = timeoutEl.value ? parseInt(timeoutEl.value,10) : NaN;
+      if (!isNaN(to)) test.request.timeout = to; else delete test.request.timeout;
+    }
     if (bodyEl) {
       try {
         const bodyValue = bodyEl.value.trim();
-        if (bodyValue) {
-          test.request.body = JSON.parse(bodyValue);
-        } else {
-          test.request.body = undefined;
-        }
+        if (bodyValue) { test.request.body = JSON.parse(bodyValue); } else { delete test.request.body; }
       } catch (e) {
-        test.request.body = bodyEl.value;
+        if ((bodyEl.value||'').trim()) test.request.body = bodyEl.value; else delete test.request.body;
       }
     }
-    
-    if (!test.assert) test.assert = {};
-    if (statusEl) test.assert.status = statusEl.value ? parseInt(statusEl.value) : undefined;
-    if (maxDurationEl) test.assert.maxDurationMs = maxDurationEl.value ? parseInt(maxDurationEl.value) : undefined;
-    
-    if (skipEl) test.skip = skipEl.checked;
-    if (onlyEl) test.only = onlyEl.checked;
-    if (stageEl) test.stage = stageEl.value ? parseInt(stageEl.value) : 0;
+    // Assertions: include only when provided
+    if (statusEl || maxDurationEl) { if (!test.assert) test.assert = {}; }
+    if (statusEl) {
+      const st = statusEl.value ? parseInt(statusEl.value,10) : NaN;
+      if (!isNaN(st)) test.assert.status = st; else if (test.assert) delete test.assert.status;
+    }
+    if (maxDurationEl) {
+      const md = maxDurationEl.value ? parseInt(maxDurationEl.value,10) : NaN;
+      if (!isNaN(md)) test.assert.maxDurationMs = md; else if (test.assert) delete test.assert.maxDurationMs;
+    }
+    if (test.assert && Object.keys(test.assert).length === 0) delete test.assert;
+    // Flags and meta: only include when set
+    if (skipEl) { if (skipEl.checked) test.skip = true; else delete test.skip; }
+    if (onlyEl) { if (onlyEl.checked) test.only = true; else delete test.only; }
+    if (stageEl) {
+      const stg = stageEl.value ? parseInt(stageEl.value,10) : NaN;
+      if (!isNaN(stg)) test.stage = stg; else delete test.stage;
+    }
   }
 }
 
@@ -407,6 +422,7 @@ function renderTests() {
       selIndex = index;
       renderTests(); // Re-render to update selection
       renderForm(); // Update the form for the selected test
+      try{ renderQuickRunForSelection(); }catch{}
     };
 
     testsEl.appendChild(testDiv);
@@ -440,16 +456,16 @@ function normalizeParsed(inObj){
         query: rq.Query || rq.query || {},
         body: (rq.Body !== undefined ? rq.Body : rq.body)
       };
-      // assert
+      // assert (only set provided fields)
       const as = tc.Assert || tc.assert || {};
-      t.assert = {
-        status: as.Status || as.status || 0,
-        headerEquals: as.HeaderEquals || as.headerEquals || {},
-        jsonEquals: as.JSONEquals || as.jsonEquals || {},
-        jsonContains: as.JSONContains || as.jsonContains || {},
-        bodyContains: as.BodyContains || as.bodyContains || [],
-        maxDurationMs: as.MaxDurationMs || as.maxDurationMs || 0,
-      };
+      const aOut = {};
+      if (as.Status !== undefined || as.status !== undefined) aOut.status = as.Status ?? as.status;
+      if (as.HeaderEquals || as.headerEquals) aOut.headerEquals = as.HeaderEquals || as.headerEquals;
+      if (as.JSONEquals || as.jsonEquals) aOut.jsonEquals = as.JSONEquals || as.jsonEquals;
+      if (as.JSONContains || as.jsonContains) aOut.jsonContains = as.JSONContains || as.jsonContains;
+      if (as.BodyContains || as.bodyContains) aOut.bodyContains = as.BodyContains || as.bodyContains;
+      if (as.MaxDurationMs !== undefined || as.maxDurationMs !== undefined) aOut.maxDurationMs = as.MaxDurationMs ?? as.maxDurationMs;
+      if (Object.keys(aOut).length) t.assert = aOut;
       // extract
       const ex = tc.Extract || tc.extract || {};
       const exOut = {};
@@ -458,24 +474,31 @@ function normalizeParsed(inObj){
       });
       t.extract = exOut;
       // flow/meta
-      t.skip = !!(tc.Skip ?? tc.skip);
-      t.only = !!(tc.Only ?? tc.only);
-      t.timeoutMs = tc.TimeoutMs ?? tc.timeoutMs ?? 0;
-      t.repeat = tc.Repeat ?? tc.repeat ?? 0;
-      t.tags = tc.Tags || tc.tags || [];
-      t.stage = tc.Stage ?? tc.stage ?? 0;
+      if ((tc.Skip ?? tc.skip) === true) t.skip = true;
+      if ((tc.Only ?? tc.only) === true) t.only = true;
+      if ((tc.TimeoutMs ?? tc.timeoutMs) !== undefined) t.timeoutMs = tc.TimeoutMs ?? tc.timeoutMs;
+      if ((tc.Repeat ?? tc.repeat) !== undefined) t.repeat = tc.Repeat ?? tc.repeat;
+  t.tags = tc.Tags || tc.tags || [];
+  const __stg = (tc.Stage ?? tc.stage);
+  if (__stg !== undefined && __stg !== 0) t.stage = __stg;
       t.vars = tc.Vars || tc.vars || {};
       t.dependsOn = tc.DependsOn || tc.dependsOn || [];
       t.pre = tc.Pre || tc.pre || [];
       t.post = tc.Post || tc.post || [];
       // retry
       const rt = tc.Retry || tc.retry || null;
-      t.retry = rt ? { max: rt.Max ?? rt.max ?? 0, backoffMs: rt.BackoffMs ?? rt.backoffMs ?? 0, jitterPct: rt.JitterPct ?? rt.jitterPct ?? 0 } : null;
+      if (rt){
+        const rOut = {};
+        if (rt.Max !== undefined || rt.max !== undefined) rOut.max = rt.Max ?? rt.max;
+        if (rt.BackoffMs !== undefined || rt.backoffMs !== undefined) rOut.backoffMs = rt.BackoffMs ?? rt.backoffMs;
+        if (rt.JitterPct !== undefined || rt.jitterPct !== undefined) rOut.jitterPct = rt.JitterPct ?? rt.jitterPct;
+        if (Object.keys(rOut).length) t.retry = rOut;
+      }
       // matrix
       t.matrix = tc.Matrix || tc.matrix || {};
       // openapi
       const oa = tc.OpenAPI || tc.openApi || null;
-      t.openApi = oa ? { enabled: (oa.Enabled ?? oa.enabled) } : null;
+      if (oa && (oa.Enabled !== undefined || oa.enabled !== undefined)) t.openApi = { enabled: (oa.Enabled ?? oa.enabled) };
       return t;
     });
   } else {
@@ -1137,12 +1160,13 @@ function openEditor(path, data){
   const editorRoot = modal.querySelector('.editor-root');
   const splitter = modal.querySelector('#ed_splitter');
   const rightPane = splitter ? splitter.nextElementSibling : null;
-  if (data.raw && data.raw.trim() !== '') {
+  const __hadRaw = !!(data.raw && data.raw.trim() !== '');
+  if (__hadRaw) {
     rawEl.value = data.raw;
     inMemoryYaml = data.raw;
   } else if (data.parsed) {
     try {
-      const dumped = jsyaml.dump(data.parsed || {}, { noRefs: true });
+      const dumped = jsyaml.dump(data.parsed || {}, { noRefs: true, quotingType: '"' });
       inMemoryYaml = unquoteNumericKeys(dumped || '');
       rawEl.value = inMemoryYaml;
     } catch (e) {
@@ -1154,6 +1178,7 @@ function openEditor(path, data){
   }
   let yamlDirty = false;
   let yamlEditor = null;
+  let __suppressDirty = false;
   function ensureYamlEditor(){
     if (yamlEditor) return yamlEditor;
     
@@ -1191,6 +1216,7 @@ function openEditor(path, data){
       } catch (e) {
         console.error('Error updating visual from YAML:', e);
       }
+      if (!__suppressDirty) markDirty();
     });
     
     // Make sure the CodeMirror instance takes up full height
@@ -1215,13 +1241,16 @@ function openEditor(path, data){
   let lastSuiteRun = null;
   let dirty = false;
   function markDirty(){ dirty = true; try{ const di = modal && modal.querySelector && modal.querySelector('#ed_dirty_indicator'); if (di) di.style.display = ''; }catch{} }
+  // Wrap markDirty to respect suppression flag
+  const __origMarkDirty = markDirty;
+  markDirty = function(){ if (__suppressDirty) return; __origMarkDirty(); };
   function attemptClose(){ if (dirty && !confirm('Discard unsaved changes?')) return; modal.remove(); document.body.classList.remove('modal-open'); }
   async function serializeWorkingToYamlImmediate(){ 
     if (!working || !working.tests) return '';
     try { 
       // Clean up the working object to remove null/undefined/empty values
       const cleaned = cleanForSerialization(working);
-      const yamlText = jsyaml.dump(cleaned, { noRefs: true });
+      const yamlText = jsyaml.dump(cleaned, { noRefs: true, quotingType: '"' });
       return unquoteNumericKeys(yamlText || '');
     } catch (e) { 
       return ''; 
@@ -1263,8 +1292,13 @@ function openEditor(path, data){
       
       const yamlText = await serializeWorkingToYamlImmediate();
       if (yamlEditor && yamlText) {
-        yamlEditor.setValue(yamlText);
-        yamlDirty = false;
+        const cur = yamlEditor.getValue();
+        if (force || cur !== yamlText) {
+          __suppressDirty = true;
+          yamlEditor.setValue(yamlText);
+          yamlDirty = false;
+          __suppressDirty = false;
+        }
         
         // Ensure the YAML editor is visible if toggle is checked
         const yamlToggle = modal.querySelector('#toggle_yaml');
@@ -1279,8 +1313,8 @@ function openEditor(path, data){
       console.error('Failed to mirror YAML from visual:', e);
     }
     
-    // Mark as dirty to track changes
-    markDirty();
+    // Only mark dirty on actual user changes (not during programmatic sync)
+    if (!__suppressDirty) markDirty();
     return true;
   }
     
@@ -1388,16 +1422,24 @@ function openEditor(path, data){
   // Ensure YAML editor is setup and visible
   setTimeout(() => {
     ensureYamlEditor();
-    mirrorYamlFromVisual(true); // Update YAML content from visual editor
+    __suppressDirty = true;
+    // If we already have raw content, keep it as-is and just sync visual from YAML
+    if (__hadRaw) {
+      try { updateVisualFromYaml(); } catch {}
+    } else {
+      // No raw provided, mirror from visual to create initial YAML
+      mirrorYamlFromVisual(true);
+    }
     if (yamlEditor) {
       yamlEditor.refresh();
+      __suppressDirty = false;
       
       // Add change listener to the YAML editor to update visual form in real-time
       yamlEditor.off('change', updateVisualFromYaml); // Remove previous listener if any
       yamlEditor.on('change', () => {
         updateVisualFromYaml();
         yamlDirty = true;
-        markDirty();
+        if (!__suppressDirty) markDirty();
       });
     }
   }, 100);
@@ -1528,13 +1570,22 @@ function openEditor(path, data){
   renderTests();
   renderForm();
   ensureYamlEditor();
+  __suppressDirty = true;
   yamlEditor.setValue((inMemoryYaml || '').replace(/\t/g, '  '));
+  __suppressDirty = false;
   yamlDirty = false;
   const cacheKey = ()=>{ const t = (working.tests && working.tests[selIndex]) || {}; return selIndex + ':' + (t.name||('test '+(selIndex+1))); };
   function clearQuickRun(){ const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.innerHTML = ''; }
   function appendQuickRunLine(text, cls){ const qr = modal.querySelector('#ed_quickrun'); if (!qr) return; const d=document.createElement('div'); if (cls) d.className=cls; d.textContent=text; qr.appendChild(d); qr.scrollTop = qr.scrollHeight; }
   function setQuickRunBox(result){ const qr = modal.querySelector('#ed_quickrun'); if (!qr) return; qr.innerHTML=''; if (!result) return; const icon = result.status==='passed'?'✓':(result.status==='failed'?'✗':(result.status==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${result.name||''}`,(result.status==='passed'?'text-success':(result.status==='failed'?'text-error':'text-warning'))); }
-  function renderQuickRunForSelection(){ const key = cacheKey(); const r = testRunCache.get(key); setQuickRunBox(r || null); const qrBox = modal.querySelector('#ed_quickrun_box'); if (qrBox) qrBox.open = true; }
+  // Run record persistence and rendering
+  function getRunRecord(){ try{ const k = RUNREC_KEY((modal.querySelector('#ed_path')||{}).textContent||''); return JSON.parse(localStorage.getItem(k)||'{}'); }catch{return {}} }
+  function saveRunRecord(rec){ try{ const k = RUNREC_KEY((modal.querySelector('#ed_path')||{}).textContent||''); localStorage.setItem(k, JSON.stringify(rec)); }catch{} }
+  function setSuiteRecord(status, durationMs, messages){ const rec = getRunRecord(); rec.suite = { status, durationMs: durationMs||0, messages: messages||[], ts: Date.now() }; saveRunRecord(rec); try{ updateSuiteBadgeUI((modal.querySelector('#ed_path')||{}).textContent||'', status); }catch{} }
+  function setTestRecord(name, status, durationMs, messages){ const rec = getRunRecord(); rec.tests = rec.tests||{}; rec.tests[name||''] = { name, status, durationMs: durationMs||0, messages: messages||[], ts: Date.now() }; saveRunRecord(rec); try{ if (status==='failed' || status==='passed' || status==='skipped'){ updateSuiteBadgeUI((modal.querySelector('#ed_path')||{}).textContent||'', status); } }catch{} }
+  function renderLatestForSelection(){ try{ const rec = getRunRecord(); const t = (working.tests && working.tests[selIndex]) || {}; const nm = t.name||''; const tr = (rec.tests||{})[nm]; const sr = rec.suite; let pick = null; if (tr && sr){ pick = (tr.ts>=sr.ts)? tr : sr; } else { pick = tr || sr; } clearQuickRun(); if (!pick){ appendQuickRunLine('No previous run'); return; } const s=(pick.status||'').toLowerCase(); const icon=s==='passed'?'✓':(s==='failed'?'✗':(s==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${(pick.name||nm||'')}${pick.durationMs?` (${pick.durationMs}ms)`:''}`, s==='passed'?'text-success':(s==='failed'?'text-error':'text-warning')); if (Array.isArray(pick.messages) && pick.messages.length){ const pre=document.createElement('pre'); pre.className=(s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent=pick.messages.join('\n'); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(pre); } }catch(e){} }
+  function renderQuickRunForSelection(){ renderLatestForSelection(); const qrBox = modal.querySelector('#ed_quickrun_box'); if (qrBox) qrBox.open = true; }
+  function updateSuiteBadgeUI(path, status){ try{ if (!path) return; const li = document.querySelector('#suites li[data-path="'+path+'"]'); if (!li) return; const sb = li.querySelector('.suite-badge'); if (!sb) return; if (status==='failed'){ sb.textContent='✗'; sb.style.background='rgba(239,68,68,0.08)'; sb.style.opacity='1'; sb.dataset.status='failed'; } else if (status==='passed'){ if (sb.dataset.status!=='failed'){ sb.textContent='✓'; sb.style.background='rgba(16,185,129,0.12)'; sb.style.opacity='1'; sb.dataset.status='passed'; } } else if (status==='skipped'){ if (sb.dataset.status!=='failed' && sb.dataset.status!=='passed'){ sb.textContent='-'; sb.style.background='rgba(245,158,11,0.06)'; sb.style.opacity='1'; sb.dataset.status='skipped'; } } }catch(e){} }
   function getTestIndexByName(name){ if (!name) return -1; if (!Array.isArray(working.tests)) return -1; for (let i=0;i<working.tests.length;i++){ if ((working.tests[i].name||'') === name) return i; } return -1; }
   function updateTestBadgeByIndex(idx, status){ try{ if (idx<0) return; const t = (working.tests && working.tests[idx]) || {}; const key = idx + ':' + (t.name||('test '+(idx+1))); testRunCache.set(key, { status: status, name: t.name }); try{ localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); }catch{} renderTests(); }catch(e){} }
   function updateBadgesFromSuiteResult(res){ try{ if (!res) return; if (Array.isArray(res.cases)){ res.cases.forEach(c=>{ const nm = c.Name || c.name; const st = (c.Status || c.status || '').toLowerCase(); const idx = getTestIndexByName(nm); if (idx>=0) updateTestBadgeByIndex(idx, st); }); } else if (res.name && res.status){ const idx = getTestIndexByName(res.name); if (idx>=0) updateTestBadgeByIndex(idx, (res.status||'').toLowerCase()); } }catch(e){} }
@@ -1575,7 +1626,7 @@ function openEditor(path, data){
       else {
         // Immediate result mode
         renderImmediateRunResult(data, working.tests[selIndex].name || `test ${selIndex+1}`);
-        const status = (data.status||'').toLowerCase(); updateTestBadgeByIndex(selIndex, status);
+        const status = (data.status||'').toLowerCase(); const name = data.name || (working.tests[selIndex].name || `test ${selIndex+1}`); setTestRecord(name, status, data.durationMs||0, data.messages||[]); updateTestBadgeByIndex(selIndex, status);
       }
     }catch(e){ console.error(e); appendQuickRunLine('Run failed: '+e.message, 'text-error'); }
   };
@@ -1598,15 +1649,18 @@ function openEditor(path, data){
           const line = document.createElement('div'); line.textContent = `${icon} ${name}${dur?` (${dur}ms)`:''}`;
           if (s==='passed') line.className='text-success'; else if (s==='failed') line.className='text-error'; else if (s==='skipped') line.className='text-warning';
           quickRunBox.appendChild(line); quickRunBox.scrollTop = quickRunBox.scrollHeight;
-          try{ const idx = getTestIndexByName(name); if (idx>=0) updateTestBadgeByIndex(idx, s); else { const key = cacheKey(); testRunCache.set(key, { status: s, name }); localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); } }catch{}
+          try{ const idx = getTestIndexByName(name); setTestRecord(name, s, dur||0, payload.Messages||[]); if (idx>=0) updateTestBadgeByIndex(idx, s); else { const key = cacheKey(); testRunCache.set(key, { status: s, name }); localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); } }catch{}
           if (Array.isArray(payload.Messages) && payload.Messages.length){ const pre=document.createElement('pre'); pre.className = (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = payload.Messages.join('\n'); quickRunBox.appendChild(pre); }
         } else if (type === 'suiteEnd'){
           const s = payload.summary || {};
           appendQuickRunLine(`=== ${payload.name || payload.path || 'suite'} — ${(s.passed||0)} passed, ${(s.failed||0)} failed, ${(s.skipped||0)} skipped, total ${(s.total||0)} in ${(s.durationMs||0)} ms`);
+          const st = ((s.failed||0)>0)? 'failed' : (((s.passed||0)>0)? 'passed' : (((s.skipped||0)>0)? 'skipped' : 'unknown'));
+          setSuiteRecord(st, s.durationMs||0, []);
           // We may not get individual test events; try to update badges from payload if available
           try{ if (Array.isArray(payload.tests)){ payload.tests.forEach(t=>{ const idx=getTestIndexByName(t.name||t.Name); const st=(t.status||t.Status||'').toLowerCase(); if (idx>=0) updateTestBadgeByIndex(idx, st); }); } }catch{}
         } else if (type === 'error'){
           appendQuickRunLine('Error: '+(payload.error||''), 'text-error');
+          setSuiteRecord('failed', 0, [payload.error||'']);
         } else if (type === 'done'){
           appendQuickRunLine('Done.'); es.close();
         }
@@ -1635,7 +1689,7 @@ function openEditor(path, data){
       if (!response.ok){ let txt=''; try{ txt=await response.text(); }catch{} throw new Error('HTTP '+response.status+(txt?(': '+txt):'')); }
       const data = await response.json();
       if (data && data.runId){ listenToQuickRun(data.runId, working.name || 'suite'); }
-      else { renderImmediateRunResult(data, working.name || 'suite'); updateBadgesFromSuiteResult(data); }
+      else { renderImmediateRunResult(data, working.name || 'suite'); updateBadgesFromSuiteResult(data); setSuiteRecord((data.status||'').toLowerCase(), data.durationMs||0, data.messages||[]); }
     }catch(e){ console.error(e); appendQuickRunLine('Suite run failed: '+e.message, 'text-error'); }
   }; }
 
