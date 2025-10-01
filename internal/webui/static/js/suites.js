@@ -106,7 +106,8 @@ function renderSuites(list){
           fileRow.appendChild(fileSpan);
           name.appendChild(fileRow);
         }
-  const testsDiv = document.createElement('div'); testsDiv.className = 'suite-tests'; testsDiv.style.display='none'; testsDiv.style.marginTop='6px'; testsDiv.style.paddingLeft='6px'; testsDiv.style.borderLeft='2px solid rgba(0,0,0,0.04)'; name.appendChild(testsDiv);
+ 
+        const testsDiv = document.createElement('div'); testsDiv.className = 'suite-tests'; testsDiv.style.display='none'; testsDiv.style.marginTop='6px'; testsDiv.style.paddingLeft='6px'; testsDiv.style.borderLeft='2px solid rgba(0,0,0,0.04)'; name.appendChild(testsDiv);
         const editBtn = document.createElement('button'); editBtn.textContent='Edit'; editBtn.title='Open editor';
         editBtn.dataset.path = pathKey;
         editBtn.addEventListener('click', async (e)=>{
@@ -121,7 +122,20 @@ function renderSuites(list){
           try { openEditor(pth, data); } catch (err) { console.error('openEditor failed', err); alert('Failed to open editor: '+ (err && err.message ? err.message : err)); }
         });
         const dlWrap = document.createElement('span'); dlWrap.style.position='relative'; dlWrap.style.display='inline-block';
-        const dlBtn = document.createElement('button'); dlBtn.className='btn btn-ghost btn-xs'; dlBtn.textContent='▾'; dlBtn.title='Download';
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'btn btn-ghost btn-xs';
+        dlBtn.title = 'Download';
+        dlBtn.setAttribute('aria-label', 'Download suite'); // improve accessibility
+        // create an icon span and a text span so we can style/separate them easily
+        const dlIcon = document.createElement('span');
+        dlIcon.className = 'dl-icon';
+        dlIcon.textContent = '▾';
+        dlIcon.style.marginRight = '6px';
+        const dlText = document.createElement('span');
+        dlText.className = 'dl-text';
+        dlText.textContent = 'Download';
+        dlBtn.appendChild(dlIcon);
+        dlBtn.appendChild(dlText);
         dlBtn.dataset.path = pathKey;
         const dlMenu = document.createElement('div'); dlMenu.style.position='absolute'; dlMenu.style.right='0'; dlMenu.style.top='28px'; dlMenu.style.minWidth='140px'; dlMenu.style.border='1px solid var(--bd)'; dlMenu.style.background='var(--bg)'; dlMenu.style.padding='6px'; dlMenu.style.borderRadius='6px'; dlMenu.style.boxShadow='0 6px 12px rgba(0,0,0,0.08)'; dlMenu.style.display='none'; dlMenu.style.zIndex='10';
         const addDl = (label, fmt)=>{ const b = document.createElement('div'); b.textContent = label; b.style.padding='6px'; b.style.cursor='pointer'; b.style.borderRadius='4px'; b.onclick = (e)=>{ e.stopPropagation(); const p = dlBtn.getAttribute && dlBtn.getAttribute('data-path'); if (!p) { console.error('download: missing data-path'); return; } downloadSuite(p, fmt); dlMenu.style.display='none'; }; b.onmouseenter = ()=> b.style.background='var(--li-hov)'; b.onmouseleave = ()=> b.style.background='transparent'; dlMenu.appendChild(b); };
