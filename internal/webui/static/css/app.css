@@ -208,6 +208,7 @@ a { color: var(--link); }
 .gap-8 { gap:8px; }
 .mb-8 { margin-bottom:8px; }
 .ai-center { align-items:center; }
+.ml-8 { margin-left: 8px; }
 
 /* Keep suite-level download button at top */
 #suites li { position: relative; }
@@ -237,3 +238,7 @@ a { color: var(--link); }
 }
 .ed-test-item.selected .ed-test-name { font-weight: 600; }
 .ed-test-item .badge.ed-test-status { margin-left: 6px; }
+
+/* Tag chip selection state */
+.tag-chip { cursor: pointer; opacity: .8; }
+.tag-chip.selected { outline: 1px solid var(--link); outline-offset: 0; opacity: 1; }

@@ -10,6 +10,9 @@ const lastStatus = new Map(); // path -> Map(name=>status)
 const lastSuiteSummary = new Map(); // path -> { summary, tests }
 let currentSuitePath = null; // canonical path/key for suite currently running
 const pendingTestEvents = new Map(); // path -> [events]
+// Track open/expanded suites to preserve state across re-renders
+let openSuites = new Set();
+try{ openSuites = new Set(JSON.parse(localStorage.getItem('hydreq.openSuites')||'[]')); }catch(e){ openSuites = new Set(); }
 
 // Render the list of test suites
 function renderSuites(list){
@@ -33,9 +36,9 @@ function renderSuites(list){
         const pathKey = path;
         const base = (typeof path === 'string' ? path.split('/').pop() : String(path));
         const friendly = (item && (item.name || item.Name)) ? (item.name || item.Name) : null;
-  const li = document.createElement('li'); li.style.display='flex'; li.style.alignItems='flex-start'; li.style.justifyContent='space-between'; li.style.gap='8px';
+  const li = document.createElement('li'); li.style.display='flex'; li.style.flexDirection='column'; li.style.gap='8px';
   li.dataset.path = pathKey;
-        const name = document.createElement('span'); name.style.flex='1'; name.style.display='flex'; name.style.flexDirection='column'; name.style.alignItems='flex-start'; name.style.gap='2px';
+        const name = document.createElement('span'); name.style.display='flex'; name.style.flexDirection='column'; name.style.alignItems='stretch'; name.style.gap='2px';
     const titleRow = document.createElement('div'); titleRow.style.display='flex'; titleRow.style.flexDirection='row'; titleRow.style.alignItems='baseline'; titleRow.style.gap='8px';
     const expandBtn = document.createElement('button'); expandBtn.className = 'btn btn-ghost btn-xs'; expandBtn.textContent = '▸'; expandBtn.title = 'Show tests'; expandBtn.style.width = '28px';
     expandBtn.setAttribute('aria-expanded','false'); expandBtn.setAttribute('aria-label','Toggle tests'); expandBtn.tabIndex = 0;
@@ -51,11 +54,13 @@ function renderSuites(list){
         expandBtn.setAttribute('aria-expanded','false');
         testsDiv.classList.remove('open');
         testsDiv.style.display = 'none';
+        try{ openSuites.delete(pathKey); localStorage.setItem('hydreq.openSuites', JSON.stringify(Array.from(openSuites))); }catch{}
         return;
       }
       expandBtn.dataset.open = '1';
       expandBtn.textContent = '▾';
       expandBtn.setAttribute('aria-expanded','true');
+      try{ openSuites.add(pathKey); localStorage.setItem('hydreq.openSuites', JSON.stringify(Array.from(openSuites))); }catch{}
       let spinner = null;
       if (!expandBtn.dataset.loaded){ spinner = document.createElement('span'); spinner.className = 'spinner'; expandBtn.insertBefore(spinner, expandBtn.firstChild); }
       if (!expandBtn._expandPromise){ expandBtn._expandPromise = new Promise((res)=>{ expandBtn._resolveExpand = res; }); }
@@ -76,7 +81,16 @@ function renderSuites(list){
               const nm = document.createElement('span'); nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent;
               try{
                 const tt = t.tags || t.Tags || [];
-                if (Array.isArray(tt) && tt.length){ const tw=document.createElement('span'); tw.className='row wrap gap-4px'; tw.style.marginLeft='6px'; tt.slice(0,4).forEach(x=>{ const b=document.createElement('span'); b.className='pill'; b.textContent='#'+x; b.style.opacity='.7'; b.style.fontSize='10px'; tw.appendChild(b); }); nm.appendChild(tw); }
+                if (Array.isArray(tt) && tt.length){ 
+                  const tw=document.createElement('span'); tw.className='row wrap gap-4px'; tw.style.marginLeft='6px'; 
+                  const selected = (window.getSelectedTags && window.getSelectedTags()) || [];
+                  tt.slice(0,4).forEach(x=>{ 
+                    const b=document.createElement('span'); b.className='pill tag-chip'; b.dataset.tag=x; b.textContent='#'+x; b.style.fontSize='10px'; if (selected.includes(x)) b.classList.add('selected');
+                    b.addEventListener('click', (ev)=>{ ev.stopPropagation(); if (window.toggleSelectedTag) window.toggleSelectedTag(x); });
+                    tw.appendChild(b); 
+                  }); 
+                  nm.appendChild(tw); 
+                }
               }catch(e){}
               const badge = document.createElement('span'); badge.className='pill';
               const pathMap = lastStatus.get(pathKey);
@@ -99,24 +113,30 @@ function renderSuites(list){
     });
   const titleSpan = document.createElement('span'); titleSpan.className = 'spec-title'; titleSpan.style.fontWeight='600'; titleSpan.style.fontSize='16px';
         titleSpan.textContent = friendly && (typeof friendly === 'string') && friendly.trim() !== '' ? friendly : base;
-        // suite tags placed to the right of title (not above)
-        let suiteTagsWrap = null;
-        try{
-          const suiteTags = (item && (item.tags || item.Tags)) ? (item.tags || item.Tags) : [];
-          if (Array.isArray(suiteTags) && suiteTags.length){
-            suiteTagsWrap = document.createElement('span'); suiteTagsWrap.className='row wrap gap-4px'; suiteTagsWrap.style.marginLeft='6px';
-            suiteTags.slice(0,4).forEach(tg=>{ const b=document.createElement('span'); b.className='pill'; b.textContent='#'+tg; b.style.opacity='.8'; b.style.fontSize='11px'; suiteTagsWrap.appendChild(b); });
-          }
-        }catch(e){}
   const suiteBadge = document.createElement('span'); suiteBadge.className = 'pill suite-badge'; suiteBadge.textContent = '·'; suiteBadge.style.opacity = '.6'; suiteBadge.title = 'suite status'; suiteBadge.dataset.status = 'unknown';
-  titleRow.appendChild(expandBtn); titleRow.appendChild(titleSpan); titleRow.appendChild(suiteBadge);
-        name.appendChild(titleRow);
+  // Build the header only once; actions will be appended to the right
+  titleRow.appendChild(expandBtn); 
+  titleRow.appendChild(titleSpan); 
+  titleRow.appendChild(suiteBadge);
+  name.appendChild(titleRow);
         
-        // Add filename below the title if it differs from the suite name
-        if (friendly && (typeof friendly === 'string') && friendly.trim() !== '' && friendly !== base) {
-          const fileRow = document.createElement('div'); fileRow.style.marginLeft = '32px'; // Align with title after expand button
+        // Always show a filename row and place suite tags next to filename
+        {
+          const fileRow = document.createElement('div'); fileRow.style.marginLeft = '32px';
+          fileRow.style.display='flex'; fileRow.style.alignItems='center'; fileRow.style.gap='6px';
           const fileSpan = document.createElement('span'); fileSpan.textContent = base; fileSpan.style.opacity = 0.5; fileSpan.style.fontSize = '11px'; fileSpan.className = 'spec-file';
           fileRow.appendChild(fileSpan);
+          try{
+            const suiteTags = (item && (item.tags || item.Tags)) ? (item.tags || item.Tags) : [];
+            if (Array.isArray(suiteTags) && suiteTags.length){
+              const selected = (window.getSelectedTags && window.getSelectedTags()) || [];
+              suiteTags.slice(0,4).forEach(tg=>{ 
+                const b=document.createElement('span'); b.className='pill tag-chip'; b.dataset.tag=tg; b.textContent='#'+tg; b.style.fontSize='10px'; if (selected.includes(tg)) b.classList.add('selected');
+                b.addEventListener('click', (ev)=>{ ev.stopPropagation(); if (window.toggleSelectedTag) window.toggleSelectedTag(tg); });
+                fileRow.appendChild(b); 
+              });
+            }
+          }catch(e){}
           name.appendChild(fileRow);
         }
  
@@ -159,18 +179,17 @@ function renderSuites(list){
   // Actions inline with title on the right
   const actions = document.createElement('span'); actions.className='suite-actions'; actions.style.display='flex'; actions.style.gap='6px'; actions.style.marginLeft='auto';
   actions.appendChild(dlWrap); actions.appendChild(editBtn);
-  // Assemble header row: [expand] [title] [tags] [suite badge] [actions]
-  titleRow.appendChild(expandBtn);
-  titleRow.appendChild(titleSpan);
-  if (suiteTagsWrap) titleRow.appendChild(suiteTagsWrap);
-  titleRow.appendChild(suiteBadge);
+  // Assemble header row: [expand] [title] [suite badge] [actions]
   titleRow.appendChild(actions);
   // Append content into li
   li.appendChild(name);
   li.style.marginBottom = '6px';
         if (selected.has(pathKey)) li.classList.add('selected');
-        li.onclick = () => { if (selected.has(pathKey)) selected.delete(pathKey); else selected.add(pathKey); localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected))); const selCount = document.getElementById('selCount'); if (selCount) selCount.textContent = selected.size + ' selected'; renderSuites(list); };
+    li.onclick = () => { if (selected.has(pathKey)) selected.delete(pathKey); else selected.add(pathKey); localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected))); const selCount = document.getElementById('selCount'); if (selCount) selCount.textContent = selected.size + ' selected'; /* don't re-render to preserve expanded state */ li.classList.toggle('selected'); };
         suitesEl.appendChild(li);
+
+    // Auto-open suites remembered in state
+    try{ if (openSuites.has(pathKey)) { setTimeout(()=>{ try{ if (expandBtn.dataset.open !== '1') expandBtn.click(); }catch(e){} }, 0); } }catch(e){}
       });
       const selCount = document.getElementById('selCount');
       if (selCount) selCount.textContent = selected.size + ' selected';
@@ -237,7 +256,15 @@ async function run(){
   renderActiveEnv(env);
   const tagsEl = document.getElementById('tags');
   const defToEl = document.getElementById('defaultTimeout');
-  const tags = (tagsEl && tagsEl.value)? tagsEl.value.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  // Prefer the new tag selector state
+  let tags = [];
+  try{ if (window.getSelectedTags) tags = window.getSelectedTags(); }catch(e){}
+  if (!tags || !tags.length){
+    try{ tags = JSON.parse(localStorage.getItem('hydreq.tags.selected')||'[]') || []; }catch(e){}
+  }
+  if (!tags || !tags.length){
+    tags = (tagsEl && tagsEl.value)? tagsEl.value.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  }
   console.log('tags:', tags);
   const defaultTimeoutMs = (defToEl && defToEl.value)? (parseInt(defToEl.value,10)||0) : 0;
   const workersEl = document.getElementById('workers');
@@ -684,3 +711,12 @@ window.initSuites = initSuites;
 window.getSuiteLastStatus = function(path){ try{ const m = lastStatus.get(path)||new Map(); return Object.fromEntries(m.entries()); }catch(e){ return {}; } };
 window.getSuiteSummary = function(path){ try{ return lastSuiteSummary.get(path) || null; }catch(e){ return null; } };
 window.getSuiteBadgeStatus = function(path){ try{ const li = document.querySelector('#suites li[data-path="'+path+'"]'); const sb = li && li.querySelector && li.querySelector('.suite-badge'); return (sb && sb.dataset && sb.dataset.status) ? sb.dataset.status : 'unknown'; }catch(e){ return 'unknown'; } };
+// Keep chip selection highlighting in sync with sidebar tag selector
+document.addEventListener('hydreq:tags-changed', ()=>{
+  try{
+    const sel = (window.getSelectedTags && window.getSelectedTags()) || [];
+    document.querySelectorAll('#suites .tag-chip').forEach(el=>{
+      try{ const t = el.dataset.tag; if (!t) return; if (sel.includes(t)) el.classList.add('selected'); else el.classList.remove('selected'); }catch(e){}
+    });
+  }catch(e){}
+});

@@ -150,7 +150,7 @@
           <span id="importStatus" class="text-sm ml-2"></span>
         </div>
       </details>
-      <details>
+      <details open>
         <summary>Test Suites</summary>
               <div class="toolbar row">
         <button id="refresh" class="btn btn-sm" title="Rescan testdata for *.yaml suites">Refresh</button>
@@ -162,7 +162,13 @@
       </details>
     </aside>
     <section>
-      <div class="row"><div class="flex-1">Batch progress</div><div class="pill" id="batchText">0/0</div></div>
+      <div class="row">
+        <div class="flex-1 row ed-ai-center">
+          <div>Batch progress</div>
+          <div id="activeTagsTop" class="row wrap gap-4px ml-8"></div>
+        </div>
+        <div class="pill" id="batchText">0/0</div>
+      </div>
       <div class="progress"><div id="batchBar"></div></div>
       <div class="ed-spacer-8"></div>
   <div class="row"><div class="flex-1">Suite progress — <span id="currentSuite">(none)</span></div><div class="pill" id="suiteText">0/0</div></div>

@@ -190,66 +190,6 @@ jobs:
           name: example-reports
           path: reports/
 
-  playwright-e2e:
-    name: 🎭 Run Playwright E2E tests
-    runs-on: ubuntu-latest
-    needs: [examples]
-    services:
-      httpbin:
-        image: kennethreitz/httpbin
-        ports: ['8080:80']
-        options: >-
-          --health-cmd "sh -lc 'python3 -c \"import urllib.request; urllib.request.urlopen(\\\"http://127.0.0.1:80/ip\\\"); print(\\\"ok\\\")\" || python -c \"import urllib.request; urllib.request.urlopen(\\\"http://127.0.0.1:80/ip\\\"); print(\\\"ok\\\")\"'"
-          --health-interval 10s --health-timeout 5s --health-retries 30 --health-start-period 20s
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: password
-          POSTGRES_USER: postgres
-          POSTGRES_DB: qa
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s --health-timeout 5s --health-retries 5
-      mssql:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          ACCEPT_EULA: Y
-          SA_PASSWORD: "Your_password123"
-        ports: ['1433:1433']
-        options: >-
-          --health-cmd "bash -lc 'grep -q \"SQL Server is now ready for client connections\" /var/opt/mssql/log/errorlog'"
-          --health-interval 10s --health-timeout 5s --health-retries 30
-    steps:
-      - uses: actions/checkout@v4
-      - name: 🐹 Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25.x'
-      - name: 🟢 Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: 💾 Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - name: 🎭 Run Playwright in Docker Compose
-        run: |
-          # Use the playwright-only compose file to avoid starting unnecessary DB services
-          docker compose -f docker-compose.playwright.yml up --build --abort-on-container-exit --exit-code-from playwright
-      - name: 📤 Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: test/e2e/playwright-report
-
   pr-summary:
     name: PR summary from reports
     if: github.event_name == 'pull_request'

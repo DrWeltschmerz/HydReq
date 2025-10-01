@@ -44,6 +44,7 @@ function initApp(){
   const tagsEl = document.getElementById('tags');
   const defToEl = document.getElementById('defaultTimeout');
   const results = document.getElementById('results');
+  const activeTagsTop = document.getElementById('activeTagsTop');
 
   // Restore persisted values
   console.log('tagsEl:', tagsEl);
@@ -98,6 +99,25 @@ function initApp(){
     })();
   })();
 
+  // Central tag selection helpers (shared across modules)
+  function readTagState(){
+    let list = [], sel = [];
+    try{ list = JSON.parse(localStorage.getItem('hydreq.tags.list')||'[]')||[]; }catch{}
+    try{ sel = JSON.parse(localStorage.getItem('hydreq.tags.selected')||'[]')||[]; }catch{}
+    return { list: Array.isArray(list)? list: [], selected: Array.isArray(sel)? sel: [] };
+  }
+  function writeTagState(list, selected){
+    try{ localStorage.setItem('hydreq.tags.list', JSON.stringify(list||[])); }catch{}
+    try{ localStorage.setItem('hydreq.tags.selected', JSON.stringify(selected||[])); }catch{}
+    // Back-compat with existing input wiring: keep #tags value in sync
+    try{ const legacy = document.getElementById('tags'); if (legacy) legacy.value = (selected||[]).join(','); }catch{}
+    // Broadcast to any listeners (suites/test chips)
+    try{ document.dispatchEvent(new CustomEvent('hydreq:tags-changed')); }catch{}
+  }
+  window.getSelectedTags = function(){ return readTagState().selected; };
+  window.setSelectedTags = function(arr){ const st = readTagState(); const uniq = Array.from(new Set((arr||[]).filter(Boolean))); writeTagState(st.list, uniq); renderActiveTags(); syncTagRowsFromState(); };
+  window.toggleSelectedTag = function(tag){ if (!tag) return; const st = readTagState(); const s = new Set(st.selected); if (s.has(tag)) s.delete(tag); else s.add(tag); writeTagState(st.list.includes(tag)? st.list : st.list.concat([tag]), Array.from(s)); renderActiveTags(); syncTagRowsFromState(); };
+
   // Build Tags selector UI (rows with [x] checkbox + tag input + delete)
   (function initTagsUI(){
     if (!tagsKVList) return;
@@ -111,42 +131,52 @@ function initApp(){
       const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = !!checked; cb.title='Include this tag in filter';
       const ti = document.createElement('input'); ti.type='text'; ti.placeholder='tag'; ti.value=tag; ti.style.flex='1';
       const del = document.createElement('button'); del.className='btn btn-xs'; del.textContent='×'; del.title='Remove';
-      del.onclick = ()=>{ row.remove(); renderActiveTags(); persistTags(); };
-      [cb, ti].forEach(el=> el.addEventListener('input', ()=>{ renderActiveTags(); persistTags(); }));
+      del.onclick = ()=>{ row.remove(); persistTags(); renderActiveTags(); };
+      [cb, ti].forEach(el=> el.addEventListener('input', ()=>{ persistTags(); renderActiveTags(); }));
       row.appendChild(cb); row.appendChild(ti); row.appendChild(del); list.appendChild(row);
     }
     function persistTags(){
       const rows = Array.from(list.children);
       const tags = []; const selected = [];
       rows.forEach(r=>{ const cb=r.querySelector('input[type="checkbox"]'); const ti=r.querySelector('input[type="text"]'); if (!ti) return; const v=(ti.value||'').trim(); if (!v) return; tags.push(v); if (cb && cb.checked) selected.push(v); });
-      try{
-        localStorage.setItem('hydreq.tags.list', JSON.stringify(tags));
-        localStorage.setItem('hydreq.tags.selected', JSON.stringify(selected));
-      }catch{}
-      // Back-compat with existing input wiring: keep #tags value in sync
-      try{ const legacy = document.getElementById('tags'); if (legacy) legacy.value = selected.join(','); }catch{}
+      writeTagState(tags, selected);
     }
     function renderActiveTags(){
       if (!tagsActive) return;
       tagsActive.innerHTML='';
       try{
-        const sel = JSON.parse(localStorage.getItem('hydreq.tags.selected')||'[]');
-        sel.forEach(v=>{ const b=document.createElement('span'); b.className='pill'; b.textContent='#'+v; tagsActive.appendChild(b); });
+        const sel = readTagState().selected;
+        sel.forEach(v=>{ const b=document.createElement('span'); b.className='pill tag-chip selected'; b.textContent='#'+v; b.dataset.tag=v; b.title='Click to unselect';
+          b.addEventListener('click', ()=> window.toggleSelectedTag(v));
+          tagsActive.appendChild(b); 
+        });
+        if (activeTagsTop){
+          activeTagsTop.innerHTML = '';
+          sel.forEach(v=>{ const b=document.createElement('span'); b.className='pill tag-chip selected'; b.textContent='#'+v; b.dataset.tag=v; b.title='Click to unselect'; b.addEventListener('click', ()=> window.toggleSelectedTag(v)); activeTagsTop.appendChild(b); });
+        }
       }catch{}
+    }
+    function syncTagRowsFromState(){
+      const st = readTagState();
+      // rebuild rows to reflect any external changes
+      const current = Array.from(list.children).map(r=> ({ cb: r.querySelector('input[type="checkbox"]'), ti: r.querySelector('input[type="text"]') }));
+      // Simple approach: clear and rebuild
+      list.innerHTML='';
+      st.list.forEach(tag=> addRow(tag, st.selected.includes(tag)));
     }
     // preload
     try{
-      const savedList = JSON.parse(localStorage.getItem('hydreq.tags.list')||'[]');
-      const savedSel = new Set(JSON.parse(localStorage.getItem('hydreq.tags.selected')||'[]'));
-      if (Array.isArray(savedList) && savedList.length){ savedList.forEach(t=> addRow(t, savedSel.has(t))); }
-      else {
-        addRow('smoke', true);
-        addRow('slow', false);
-      }
-    }catch{ addRow('smoke', true); addRow('slow', false); }
+      const st = readTagState();
+      if (st.list.length){ st.list.forEach(t=> addRow(t, st.selected.includes(t))); }
+      else { addRow('smoke', true); addRow('slow', false); writeTagState(['smoke','slow'], ['smoke']); }
+    }catch{ addRow('smoke', true); addRow('slow', false); writeTagState(['smoke','slow'], ['smoke']); }
     const addBtn = head.querySelector('#tag_add'); addBtn.onclick = ()=> addRow('', true);
     renderActiveTags();
     persistTags();
+    // Re-render chips when external change occurs
+    document.addEventListener('hydreq:tags-changed', renderActiveTags);
+    window.__hydreq_renderActiveTags = renderActiveTags;
+    window.__hydreq_syncTagRows = syncTagRowsFromState;
   })();
 
   // Initialize suites
