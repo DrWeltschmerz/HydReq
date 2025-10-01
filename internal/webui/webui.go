@@ -241,10 +241,16 @@ func (s *server) handleEditorSuites(w http.ResponseWriter, r *http.Request) {
 	list := findSuites()
 	type item struct {
 		Path string `json:"path"`
+		Name string `json:"name,omitempty"`
 	}
 	out := make([]item, 0, len(list))
 	for _, p := range list {
-		out = append(out, item{Path: p})
+		item := item{Path: p}
+		// Try to load suite to get the name
+		if suite, err := runner.LoadSuite(p); err == nil && suite.Name != "" {
+			item.Name = suite.Name
+		}
+		out = append(out, item)
 	}
 	_ = json.NewEncoder(w).Encode(out)
 }

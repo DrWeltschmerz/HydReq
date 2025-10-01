@@ -41,6 +41,8 @@
       <option value="catppuccin-latte">Catppuccin Latte</option>
     </select>
   </label>
+  <button id="run" class="btn btn-sm btn-primary" title="Run selected test suites">Run Selected</button>
+  <span class="pill badge" id="selCount">0 selected</span>
   <button id="cancel" class="btn btn-sm btn-error" title="Cancel current run (s)">Stop</button>
     </div>
   </header>
@@ -87,10 +89,6 @@
         <div style="flex:1"></div>
       </div>
       <ul id="suites"></ul>
-      <div class="row ed-row-6">
-        <button id="run" class="btn btn-primary btn-sm">Run Selected</button>
-        <span class="pill badge" id="selCount">0 selected</span>
-      </div>
     </aside>
     <section>
       <div class="row"><div class="flex-1">Batch progress</div><div class="pill" id="batchText">0/0</div></div>

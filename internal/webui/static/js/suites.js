@@ -30,7 +30,7 @@ function renderSuites(list){
         const path = (typeof item === 'string') ? item : (item.path || item.Path || item.file || JSON.stringify(item));
         const pathKey = path;
         const base = (typeof path === 'string' ? path.split('/').pop() : String(path));
-        const friendly = (item && item.name) ? item.name : null;
+        const friendly = (item && (item.name || item.Name)) ? (item.name || item.Name) : null;
   const li = document.createElement('li'); li.style.display='flex'; li.style.alignItems='center'; li.style.justifyContent='space-between'; li.style.gap='8px';
   li.dataset.path = pathKey;
         const name = document.createElement('span'); name.style.flex='1'; name.style.display='flex'; name.style.flexDirection='column'; name.style.alignItems='flex-start'; name.style.gap='2px';
@@ -93,12 +93,19 @@ function renderSuites(list){
       testsDiv.classList.add('open'); testsDiv.style.display='block';
       try{ if (expandBtn._resolveExpand) { expandBtn._resolveExpand(); expandBtn._expandPromise = null; expandBtn._resolveExpand = null; } }catch(e){}
     });
-  const titleSpan = document.createElement('span'); titleSpan.className = 'spec-title'; titleSpan.style.fontWeight='600'; titleSpan.style.fontSize='14px';
+  const titleSpan = document.createElement('span'); titleSpan.className = 'spec-title'; titleSpan.style.fontWeight='600'; titleSpan.style.fontSize='16px';
         titleSpan.textContent = friendly && (typeof friendly === 'string') && friendly.trim() !== '' ? friendly : base;
   const suiteBadge = document.createElement('span'); suiteBadge.className = 'pill suite-badge'; suiteBadge.textContent = '·'; suiteBadge.style.opacity = '.6'; suiteBadge.title = 'suite status'; suiteBadge.dataset.status = 'unknown';
-        const fileSpan = document.createElement('span'); fileSpan.textContent = base; fileSpan.style.opacity = 0.6; fileSpan.style.fontSize = '12px'; fileSpan.className = 'spec-file';
-  titleRow.appendChild(expandBtn); titleRow.appendChild(titleSpan); titleRow.appendChild(suiteBadge); titleRow.appendChild(fileSpan);
+  titleRow.appendChild(expandBtn); titleRow.appendChild(titleSpan); titleRow.appendChild(suiteBadge);
         name.appendChild(titleRow);
+        
+        // Add filename below the title if it differs from the suite name
+        if (friendly && (typeof friendly === 'string') && friendly.trim() !== '' && friendly !== base) {
+          const fileRow = document.createElement('div'); fileRow.style.marginLeft = '32px'; // Align with title after expand button
+          const fileSpan = document.createElement('span'); fileSpan.textContent = base; fileSpan.style.opacity = 0.5; fileSpan.style.fontSize = '11px'; fileSpan.className = 'spec-file';
+          fileRow.appendChild(fileSpan);
+          name.appendChild(fileRow);
+        }
   const testsDiv = document.createElement('div'); testsDiv.className = 'suite-tests'; testsDiv.style.display='none'; testsDiv.style.marginTop='6px'; testsDiv.style.paddingLeft='6px'; testsDiv.style.borderLeft='2px solid rgba(0,0,0,0.04)'; name.appendChild(testsDiv);
         const editBtn = document.createElement('button'); editBtn.textContent='Edit'; editBtn.title='Open editor';
         editBtn.dataset.path = pathKey;
@@ -340,9 +347,31 @@ function listen(id){
               if (!li) return;
               try{
                 const sBadge = li.querySelector('.suite-badge');
-                if (Status === 'failed') { if (sBadge) { sBadge.textContent = '✗'; sBadge.style.background='rgba(239,68,68,0.08)'; sBadge.style.opacity='1'; sBadge.dataset.status = 'failed'; } }
-                else if (Status === 'passed') { if (sBadge && sBadge.textContent !== '✗') { sBadge.textContent = '✓'; sBadge.style.background='rgba(16,185,129,0.12)'; sBadge.style.opacity='1'; sBadge.dataset.status = 'passed'; } }
-                else if (Status === 'skipped') { if (sBadge && sBadge.textContent !== '✗') { sBadge.textContent = '-'; sBadge.style.background='rgba(245,158,11,0.06)'; sBadge.style.opacity='1'; sBadge.dataset.status = 'skipped'; } }
+                // Use priority: failed > skipped > passed, but don't override failed status
+                if (Status === 'failed') { 
+                  if (sBadge) { 
+                    sBadge.textContent = '✗'; 
+                    sBadge.style.background='rgba(239,68,68,0.08)'; 
+                    sBadge.style.opacity='1'; 
+                    sBadge.dataset.status = 'failed'; 
+                  } 
+                }
+                else if (Status === 'passed') { 
+                  if (sBadge && sBadge.textContent !== '✗' && sBadge.dataset.status !== 'failed') { 
+                    sBadge.textContent = '✓'; 
+                    sBadge.style.background='rgba(16,185,129,0.12)'; 
+                    sBadge.style.opacity='1'; 
+                    sBadge.dataset.status = 'passed'; 
+                  } 
+                }
+                else if (Status === 'skipped') { 
+                  if (sBadge && sBadge.textContent !== '✗' && sBadge.dataset.status !== 'failed' && sBadge.dataset.status !== 'passed') { 
+                    sBadge.textContent = '-'; 
+                    sBadge.style.background='rgba(245,158,11,0.06)'; 
+                    sBadge.style.opacity='1'; 
+                    sBadge.dataset.status = 'skipped'; 
+                  } 
+                }
                 const testsDiv = li.querySelector('.suite-tests');
                 if (testsDiv){
                   const expandBtnLocal = li.querySelector('button[aria-controls]');
@@ -350,7 +379,28 @@ function listen(id){
                   if (!loaded){
                     try{ const p = li.getAttribute('data-path') || (li.querySelector('.spec-title') && li.querySelector('.spec-title').textContent) || ''; if (p){ const arr = pendingTestEvents.get(p) || []; arr.push({ Name, Status, DurationMs, Messages }); pendingTestEvents.set(p, arr); } }catch(e){}
                   } else {
-                    Array.from(testsDiv.children).forEach(r => { try{ const nmEl=r.children[0], badgeEl=r.children[1]; if (!nmEl||!badgeEl) return; if (nmEl.textContent===Name){ if (Status==='passed'){ badgeEl.textContent='✓'; badgeEl.style.background='rgba(16,185,129,0.12)'; badgeEl.style.opacity='1'; } else if (Status==='failed'){ badgeEl.textContent='✗'; badgeEl.style.background='rgba(239,68,68,0.08)'; badgeEl.style.opacity='1'; } else if (Status==='skipped'){ badgeEl.textContent='-'; badgeEl.style.background='rgba(245,158,11,0.06)'; badgeEl.style.opacity='1'; } } }catch(e){} });
+                    // Update individual test badges for expanded suites
+                    Array.from(testsDiv.children).forEach(r => { 
+                      try{ 
+                        const nmEl=r.children[0], badgeEl=r.children[1]; 
+                        if (!nmEl||!badgeEl) return; 
+                        if (nmEl.textContent===Name){ 
+                          if (Status==='passed'){ 
+                            badgeEl.textContent='✓'; 
+                            badgeEl.style.background='rgba(16,185,129,0.12)'; 
+                            badgeEl.style.opacity='1'; 
+                          } else if (Status==='failed'){ 
+                            badgeEl.textContent='✗'; 
+                            badgeEl.style.background='rgba(239,68,68,0.08)'; 
+                            badgeEl.style.opacity='1'; 
+                          } else if (Status==='skipped'){ 
+                            badgeEl.textContent='-'; 
+                            badgeEl.style.background='rgba(245,158,11,0.06)'; 
+                            badgeEl.style.opacity='1'; 
+                          } 
+                        } 
+                      }catch(e){} 
+                    });
                     const found = Array.from(testsDiv.children).some(r=> r.children && r.children[0] && r.children[0].textContent === Name);
                     if (!found && sBadge) {
                       sBadge.textContent = '·';
@@ -359,11 +409,34 @@ function listen(id){
                       sBadge.dataset.status = 'unknown';
                     }
                   }
-                };
-                if (currentSuitePath){ const li = document.querySelector('#suites li[data-path="'+currentSuitePath+'"]'); if (li) updateBadgeForLi(li); }
-                document.querySelectorAll('#suites li').forEach(li=>{ try{ if (li.getAttribute('data-path') === currentSuitePath) return; const testsDiv = li.querySelector('.suite-tests'); if (!testsDiv) return; const found = Array.from(testsDiv.children).some(r=> r.children && r.children[0] && r.children[0].textContent === Name); if (found) { updateBadgeForLi(li); } else { const sBadge = li.querySelector('.suite-badge'); if (sBadge) { sBadge.textContent = '·'; sBadge.style.opacity = '.6'; sBadge.style.background = ''; sBadge.dataset.status = 'unknown'; } } } catch(e) {} });
-              } catch(e) {}
+                }
+              }catch(e){}
+            };
+            
+            // Update suite badges for the current suite and any other suites that contain this test
+            if (currentSuitePath){ 
+              const li = document.querySelector('#suites li[data-path="'+currentSuitePath+'"]'); 
+              if (li) updateBadgeForLi(li); 
             }
+            document.querySelectorAll('#suites li').forEach(li=>{ 
+              try{ 
+                if (li.getAttribute('data-path') === currentSuitePath) return; 
+                const testsDiv = li.querySelector('.suite-tests'); 
+                if (!testsDiv) return; 
+                const found = Array.from(testsDiv.children).some(r=> r.children && r.children[0] && r.children[0].textContent === Name); 
+                if (found) { 
+                  updateBadgeForLi(li); 
+                } else { 
+                  const sBadge = li.querySelector('.suite-badge'); 
+                  if (sBadge) { 
+                    sBadge.textContent = '·'; 
+                    sBadge.style.opacity = '.6'; 
+                    sBadge.style.background = ''; 
+                    sBadge.dataset.status = 'unknown'; 
+                  } 
+                } 
+              } catch(e) {} 
+            });
           } catch(e) {}
         } // end of if (!document.getElementById('editorModal')) branch
       } catch(e) {} // end of outer try that wraps UI update logic
@@ -378,7 +451,39 @@ function listen(id){
       const div = document.createElement('div'); div.textContent = line; if (results) results.appendChild(div);
       agg.suites++; agg.durationMs += (s.durationMs||0);
       try{
-        const li = document.querySelector('#suites li[data-path="'+(payload.path||payload.name||'')+'"]'); if (li){ const sb = li.querySelector('.suite-badge'); if (sb){ if ((s.failed||0) > 0){ sb.textContent = '✗'; sb.style.background='rgba(239,68,68,0.08)'; sb.style.opacity='1'; sb.dataset.status = 'failed'; } else { sb.textContent = '✓'; sb.style.background='rgba(16,185,129,0.12)'; sb.style.opacity='1'; sb.dataset.status = 'passed'; } sb.classList.add('animate'); setTimeout(()=> sb.classList.remove('animate'), 220); } }
+        const li = document.querySelector('#suites li[data-path="'+(payload.path||payload.name||'')+'"]'); 
+        if (li){ 
+          const sb = li.querySelector('.suite-badge'); 
+          if (sb){ 
+            // Prioritize failed > skipped > passed
+            if ((s.failed||0) > 0){ 
+              sb.textContent = '✗'; 
+              sb.style.background='rgba(239,68,68,0.08)'; 
+              sb.style.opacity='1'; 
+              sb.dataset.status = 'failed'; 
+            } else if ((s.skipped||0) > 0 && (s.passed||0) === 0) { 
+              // All tests skipped, no passes
+              sb.textContent = '-'; 
+              sb.style.background='rgba(245,158,11,0.06)'; 
+              sb.style.opacity='1'; 
+              sb.dataset.status = 'skipped'; 
+            } else if ((s.passed||0) > 0) { 
+              // Some tests passed (with possible skips)
+              sb.textContent = '✓'; 
+              sb.style.background='rgba(16,185,129,0.12)'; 
+              sb.style.opacity='1'; 
+              sb.dataset.status = 'passed'; 
+            } else {
+              // No tests or unknown state
+              sb.textContent = '·'; 
+              sb.style.background=''; 
+              sb.style.opacity = '.6'; 
+              sb.dataset.status = 'unknown'; 
+            }
+            sb.classList.add('animate'); 
+            setTimeout(()=> sb.classList.remove('animate'), 220); 
+          } 
+        }
       }catch(e){}
       scrollBottom();
     }
