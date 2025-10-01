@@ -273,6 +273,19 @@ async function refresh(){
 async function run(){
   console.log('run called');
   let suites = Array.from(selected);
+  // Filter out non-existent suites by intersecting with latest list from server
+  try{
+    const resList = await fetch('/api/editor/suites');
+    if (resList.ok){
+      const list = await resList.json();
+      const valid = new Set(list.map(i=> (typeof i === 'string') ? i : (i.path || i.Path || i.file || JSON.stringify(i))));
+      suites = suites.filter(p=> valid.has(p));
+      // Drop stale selections from state
+      let changed = false;
+      Array.from(selected).forEach(p=>{ if (!valid.has(p)) { selected.delete(p); changed = true; } });
+      if (changed){ try{ localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected))); }catch(e){} }
+    }
+  }catch(e){}
   if (suites.length === 0) {
     const resAll = await fetch('/api/editor/suites');
     if (!resAll.ok) { alert('No suites selected and failed to load suites'); return; }
@@ -387,7 +400,8 @@ function listen(id){
       wrap.appendChild(line);
       if (results) results.appendChild(wrap);
       try{ window.__E2E_TESTSTART = true; }catch(e){}
-      testRows.set(Name, {container: wrap, line});
+      const key = (currentSuitePath||'') + '::' + Name;
+      testRows.set(key, {container: wrap, line});
       scrollBottom();
     }
     if (type === 'batchStart'){
@@ -399,8 +413,10 @@ function listen(id){
       currentSuitePath = payload.path || payload.name || null;
       // Clear per-suite last statuses for the new run of this suite
       try{ if (currentSuitePath) lastStatus.set(currentSuitePath, new Map()); }catch(e){}
-      const nm = (payload.name || payload.path || '');
-      const ln = document.createElement('div'); ln.textContent = `=== running: ${nm} ===`; if (results) results.appendChild(ln);
+  const nm = (payload.name || payload.path || '');
+  const pth = payload.path || '';
+  const base = pth ? pth.split('/').pop() : '';
+  const ln = document.createElement('div'); ln.textContent = base && nm ? `=== running: ${nm} (${base}) ===` : `=== running: ${nm} ===`; if (results) results.appendChild(ln);
       scrollBottom();
       const stageMap = payload.stages || {};
       for(const k in stageMap){
@@ -412,8 +428,7 @@ function listen(id){
     }
     if (type === 'test'){
       const {Name, Status, DurationMs, Stage, Messages, Tags} = payload;
-      agg.total++;
-      if (Status==='passed') agg.passed++; else if (Status==='failed') agg.failed++; else if (Status==='skipped') agg.skipped++;
+      // Do not mutate batch-level aggregator here; rely on suiteEnd summaries to avoid double counting
       const key = (currentSuitePath||'') + '::' + Name;
       let row = testRows.get(key);
       if (!row){
@@ -738,6 +753,32 @@ window.initSuites = initSuites;
 window.getSuiteLastStatus = function(path){ try{ const m = lastStatus.get(path)||new Map(); return Object.fromEntries(m.entries()); }catch(e){ return {}; } };
 window.getSuiteSummary = function(path){ try{ return lastSuiteSummary.get(path) || null; }catch(e){ return null; } };
 window.getSuiteBadgeStatus = function(path){ try{ const li = document.querySelector('#suites li[data-path="'+path+'"]'); const sb = li && li.querySelector && li.querySelector('.suite-badge'); return (sb && sb.dataset && sb.dataset.status) ? sb.dataset.status : 'unknown'; }catch(e){ return 'unknown'; } };
+// Allow external callers (e.g., editor) to set per-test status for a suite and update UI if expanded
+window.setSuiteTestStatus = function(path, name, status){
+  try{
+    if (!path || !name) return;
+    const st = (status||'').toLowerCase();
+    const map = lastStatus.get(path) || new Map();
+    map.set(name, st);
+    lastStatus.set(path, map);
+    const li = document.querySelector('#suites li[data-path="'+path+'"]');
+    if (!li) return;
+    const testsDiv = li.querySelector('.suite-tests');
+    if (!testsDiv || testsDiv.style.display==='none') return; // not expanded; will reflect on expand
+    Array.from(testsDiv.children).forEach(r=>{
+      try{
+        const nmEl = r.children && r.children[0];
+        const badgeEl = r.children && r.children[1];
+        if (!nmEl || !badgeEl) return;
+        if (nmEl.textContent === name){
+          if (st==='passed'){ badgeEl.textContent='✓'; badgeEl.style.background='rgba(16,185,129,0.12)'; badgeEl.style.opacity='1'; }
+          else if (st==='failed'){ badgeEl.textContent='✗'; badgeEl.style.background='rgba(239,68,68,0.08)'; badgeEl.style.opacity='1'; }
+          else if (st==='skipped'){ badgeEl.textContent='-'; badgeEl.style.background='rgba(245,158,11,0.06)'; badgeEl.style.opacity='1'; }
+        }
+      }catch(e){}
+    });
+  }catch(e){}
+};
 // Keep chip selection highlighting in sync with sidebar tag selector
 document.addEventListener('hydreq:tags-changed', ()=>{
   try{

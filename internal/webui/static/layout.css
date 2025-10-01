@@ -1,7 +1,7 @@
 body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; background: var(--bg); color: var(--txt); }
 header { background: var(--hdr-bg); color: var(--hdr-fg); padding: 16px; font-weight: 700; display:flex; align-items:center; justify-content:space-between; }
-/* Make the left pane wider for better suite names and controls */
-main { display: grid; grid-template-columns: 600px 1fr; height: calc(100vh - 64px); }
+/* Make the left pane ~30% of the page with sensible min/max for readability */
+main { display: grid; grid-template-columns: minmax(400px, 35%) 1fr; height: calc(100vh - 64px); }
 aside { border-right: 1px solid var(--bd); padding: 12px; overflow: auto; }
 section { padding: 12px; overflow: auto; }
 ul { list-style: none; padding: 0; margin: 0; }
@@ -13,3 +13,13 @@ li.selected { background: var(--li-sel); }
 .scroll { overflow:auto; min-height:0; }
 /* spacing between suites */
 #suites { display:flex; flex-direction:column; gap:8px; }
+
+/* On small screens, collapse aside to a fixed width to keep content accessible */
+@media (max-width: 900px) {
+	main { grid-template-columns: minmax(240px, 40%) 1fr; }
+}
+
+@media (max-width: 640px) {
+	main { grid-template-columns: 1fr; }
+	aside { border-right: none; border-bottom: 1px solid var(--bd); }
+}

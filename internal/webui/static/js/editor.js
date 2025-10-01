@@ -19,7 +19,8 @@
       max-width: none;
       transition: width 0.2s ease, flex-basis 0.2s ease;
       overflow: hidden;
-    }
+        // Only include auth if any value is provided
+        const includePrevStages = !!(modal.querySelector('#ed_run_with_prevstages')?.checked);
     .ed-col.collapsed {
       flex: 0 0 40px !important;
       min-width: 40px;
@@ -123,8 +124,9 @@ function renderForm() {
   
   if (suiteNameEl) suiteNameEl.value = working.name || '';
   if (baseUrlEl) baseUrlEl.value = working.baseUrl || working.baseURL || '';
-  if (authBearerEl) authBearerEl.value = (working.auth && working.auth.bearer) || '';
-  if (authBasicEl) authBasicEl.value = (working.auth && working.auth.basic) || '';
+  // Use bearerEnv/basicEnv keys consistently with Suite model
+  if (authBearerEl) authBearerEl.value = (working.auth && (working.auth.bearerEnv || working.auth.bearer)) || '';
+  if (authBasicEl) authBasicEl.value = (working.auth && (working.auth.basicEnv || working.auth.basic)) || '';
   
   // Update test-specific fields if a test is selected
   if (working.tests && Array.isArray(working.tests) && selIndex >= 0 && selIndex < working.tests.length) {
@@ -163,7 +165,7 @@ function renderForm() {
     
     // Update flow settings: don't prefill 0; clear when unset
     const stageEl = modal.querySelector('#ed_stage');
-    if (stageEl) stageEl.value = (test.stage !== undefined && test.stage !== 0) ? test.stage : '';
+    if (stageEl) stageEl.value = test.stage || 0;
     
     const skipEl = modal.querySelector('#ed_skip');
     const onlyEl = modal.querySelector('#ed_only');
@@ -194,9 +196,13 @@ function collectFormData() {
   const bearerVal = authBearerEl ? (authBearerEl.value||'').trim() : '';
   const basicVal = authBasicEl ? (authBasicEl.value||'').trim() : '';
   if (bearerVal || basicVal) {
-    working.auth = {};
-    if (bearerVal) working.auth.bearer = bearerVal;
-    if (basicVal) working.auth.basic = basicVal;
+    working.auth = working.auth || {};
+    // Persist using bearerEnv/basicEnv to match model
+    if (bearerVal) working.auth.bearerEnv = bearerVal; else delete working.auth.bearerEnv;
+    if (basicVal) working.auth.basicEnv = basicVal; else delete working.auth.basicEnv;
+    // Clean up legacy keys if present
+    delete working.auth.bearer; delete working.auth.basic;
+    if (!working.auth.bearerEnv && !working.auth.basicEnv) delete working.auth;
   } else {
     delete working.auth;
   }
@@ -437,7 +443,14 @@ function renderTests() {
       try{ working.tests.splice(index, 1); }catch{}
       selIndex = Math.max(0, Math.min(selIndex, (working.tests.length-1)));
       renderTests(); if (working.tests.length) renderForm();
-      try{ (window.__ed_sync||sync)(); await (window.__ed_writeYamlFromWorking||writeYamlFromWorking)(true); }catch{}
+      try {
+        if (typeof window.__ed_sync === 'function') window.__ed_sync();
+        if (typeof window.__ed_writeYamlFromWorking === 'function') {
+          await window.__ed_writeYamlFromWorking(true);
+        } else if (typeof window.__ed_mirrorYamlFromVisual === 'function') {
+          await window.__ed_mirrorYamlFromVisual(true);
+        }
+      } catch {}
     };
 
     // Click handler to select test
@@ -943,6 +956,10 @@ function openEditor(path, data){
               <span class="label-text">with deps</span>
               <input id="ed_run_with_deps" type="checkbox" class="toggle toggle-sm">
             </label>
+            <label class="label cursor-pointer ed-row-6 ed-ai-center" title="Include all tests from previous stages before the selected one">
+              <span class="label-text">with previous stages</span>
+              <input id="ed_run_with_prevstages" type="checkbox" class="toggle toggle-sm">
+            </label>
             <button id="ed_run_test" class="btn btn-sm" title="Validate and run the selected test without saving">Run test</button>
             <button id="ed_run_suite" class="btn btn-sm" title="Validate and run the whole suite without saving">Run suite</button>
             <button id="ed_validate" class="btn btn-sm">Validate</button>
@@ -1175,7 +1192,22 @@ function openEditor(path, data){
           selIndex = working.tests.length-1; renderTests(); renderForm(); try{ sync(); ensureYamlEditor(); await mirrorYamlFromVisual(true); }catch{} };
       }
       if (delBtn) {
-        delBtn.onclick = async ()=>{ if (working.tests.length===0) return; if (!confirm('Delete selected test?')) return; working.tests.splice(selIndex,1); selIndex = Math.max(0, selIndex-1); renderTests(); if (working.tests.length) renderForm(); try{ (window.__ed_sync||sync)(); await (window.__ed_writeYamlFromWorking||writeYamlFromWorking)(true); }catch{} };
+        delBtn.onclick = async ()=>{
+          if (working.tests.length===0) return;
+          if (!confirm('Delete selected test?')) return;
+          working.tests.splice(selIndex,1);
+          selIndex = Math.max(0, selIndex-1);
+          renderTests();
+          if (working.tests.length) renderForm();
+          try {
+            if (typeof window.__ed_sync === 'function') window.__ed_sync();
+            if (typeof window.__ed_writeYamlFromWorking === 'function') {
+              await window.__ed_writeYamlFromWorking(true);
+            } else if (typeof window.__ed_mirrorYamlFromVisual === 'function') {
+              await window.__ed_mirrorYamlFromVisual(true);
+            }
+          } catch {}
+        };
       }
     } catch(e){}
     document.body.classList.add('modal-open');
@@ -1561,12 +1593,15 @@ function openEditor(path, data){
   function handleBaseUrlChange(e) { working.baseUrl = e.target.value; markDirty(); }
   function handleAuthBearerChange(e) { 
     if (!working.auth) working.auth = {};
-    working.auth.bearer = e.target.value; 
+    working.auth.bearerEnv = e.target.value; 
+    // remove legacy key if present
+    delete working.auth.bearer;
     markDirty(); 
   }
   function handleAuthBasicChange(e) { 
     if (!working.auth) working.auth = {};
-    working.auth.basic = e.target.value; 
+    working.auth.basicEnv = e.target.value; 
+    delete working.auth.basic;
     markDirty(); 
   }
   
@@ -1717,7 +1752,27 @@ function openEditor(path, data){
   function updateSuiteBadgeUI(path, status){ try{ if (!path) return; const li = document.querySelector('#suites li[data-path="'+path+'"]'); if (!li) return; const sb = li.querySelector('.suite-badge'); if (!sb) return; if (status==='failed'){ sb.textContent='✗'; sb.style.background='rgba(239,68,68,0.08)'; sb.style.opacity='1'; sb.dataset.status='failed'; } else if (status==='passed'){ if (sb.dataset.status!=='failed'){ sb.textContent='✓'; sb.style.background='rgba(16,185,129,0.12)'; sb.style.opacity='1'; sb.dataset.status='passed'; } } else if (status==='skipped'){ if (sb.dataset.status!=='failed' && sb.dataset.status!=='passed'){ sb.textContent='-'; sb.style.background='rgba(245,158,11,0.06)'; sb.style.opacity='1'; sb.dataset.status='skipped'; } } }catch(e){} }
   function getTestIndexByName(name){ if (!name) return -1; if (!Array.isArray(working.tests)) return -1; for (let i=0;i<working.tests.length;i++){ if ((working.tests[i].name||'') === name) return i; } return -1; }
   function updateTestBadgeByIndex(idx, status){ try{ if (idx<0) return; const t = (working.tests && working.tests[idx]) || {}; const key = idx + ':' + (t.name||('test '+(idx+1))); testRunCache.set(key, { status: status, name: t.name }); try{ localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); }catch{} renderTests(); }catch(e){} }
-  function updateBadgesFromSuiteResult(res){ try{ if (!res) return; if (Array.isArray(res.cases)){ res.cases.forEach(c=>{ const nm = c.Name || c.name; const st = (c.Status || c.status || '').toLowerCase(); const idx = getTestIndexByName(nm); if (idx>=0) updateTestBadgeByIndex(idx, st); }); } else if (res.name && res.status){ const idx = getTestIndexByName(res.name); if (idx>=0) updateTestBadgeByIndex(idx, (res.status||'').toLowerCase()); } }catch(e){} }
+  function updateBadgesFromSuiteResult(res){
+    try{
+      if (!res) return;
+      if (Array.isArray(res.cases)){
+        res.cases.forEach(c=>{
+          const nm = c.Name || c.name;
+          const st = (c.Status || c.status || '').toLowerCase();
+          const dur = c.DurationMs || c.durationMs || 0;
+          const msgs = c.Messages || c.messages || [];
+          const idx = getTestIndexByName(nm);
+          if (idx>=0) updateTestBadgeByIndex(idx, st);
+          // persist per-test record for freshness
+          setTestRecord(nm, st, dur, Array.isArray(msgs)? msgs: []);
+        });
+      } else if (res.name && res.status){
+        const idx = getTestIndexByName(res.name);
+        if (idx>=0) updateTestBadgeByIndex(idx, (res.status||'').toLowerCase());
+        setTestRecord(res.name, (res.status||'').toLowerCase(), res.durationMs||0, res.messages||[]);
+      }
+    }catch(e){}
+  }
   function renderImmediateRunResult(res, label){ const details = modal.querySelector('#ed_quickrun_box'); if (details) details.open = true; const s = (res.status||'').toLowerCase(); if (res.name){ const icon = s==='passed'?'✓':(s==='failed'?'✗':(s==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${res.name}${res.durationMs?` (${res.durationMs}ms)`:''}`, s==='passed'?'text-success':(s==='failed'?'text-error':'text-warning')); }
     if (Array.isArray(res.messages) && res.messages.length){ const pre=document.createElement('pre'); pre.className = (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = res.messages.join('\n'); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(pre); }
     if (Array.isArray(res.cases) && res.cases.length){ res.cases.forEach(c=>{ const cs=(c.Status||'').toLowerCase(); const icon = cs==='passed'?'✓':(cs==='failed'?'✗':(cs==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${c.Name}${c.DurationMs?` (${c.DurationMs}ms)`:''}`, cs==='passed'?'text-success':(cs==='failed'?'text-error':'text-warning')); if (Array.isArray(c.Messages) && c.Messages?.length){ const pre=document.createElement('pre'); pre.className = (cs==='failed'?'fail':(cs==='skipped'?'skip':'ok')); pre.textContent = c.Messages.join('\n'); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(pre); } }); }
@@ -1742,8 +1797,9 @@ function openEditor(path, data){
     try{
       collectFormData(); if (!working.tests || !working.tests[selIndex]){ appendQuickRunLine('No test selected','text-warning'); return; }
       const includeDeps = !!(modal.querySelector('#ed_run_with_deps')?.checked);
+      const includePrevStages = !!(modal.querySelector('#ed_run_with_prevstages')?.checked);
       const env = parseEnvFromPage();
-      const payload = { parsed: working, testIndex: selIndex, env, runAll: false, includeDeps };
+      const payload = { parsed: working, testIndex: selIndex, env, runAll: false, includeDeps, includePrevStages };
       clearQuickRun(); appendQuickRunLine('Starting test...', 'dim');
       const res = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (!res.ok){ let txt=''; try{ txt=await res.text(); }catch{} throw new Error('HTTP '+res.status+(txt?(': '+txt):'')); }
@@ -1776,6 +1832,8 @@ function openEditor(path, data){
           if (s==='passed') line.className='text-success'; else if (s==='failed') line.className='text-error'; else if (s==='skipped') line.className='text-warning';
           quickRunBox.appendChild(line); quickRunBox.scrollTop = quickRunBox.scrollHeight;
           try{ const idx = getTestIndexByName(name); setTestRecord(name, s, dur||0, payload.Messages||[]); if (idx>=0) updateTestBadgeByIndex(idx, s); else { const key = cacheKey(); testRunCache.set(key, { status: s, name }); localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); } }catch{}
+          // propagate to suites list
+          try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, name, s); }catch{}
           if (Array.isArray(payload.Messages) && payload.Messages.length){ const pre=document.createElement('pre'); pre.className = (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = payload.Messages.join('\n'); quickRunBox.appendChild(pre); }
         } else if (type === 'suiteEnd'){
           const s = payload.summary || {};
@@ -1814,8 +1872,8 @@ function openEditor(path, data){
       const response = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working, env, runAll: true, includeDeps: true }) });
       if (!response.ok){ let txt=''; try{ txt=await response.text(); }catch{} throw new Error('HTTP '+response.status+(txt?(': '+txt):'')); }
       const data = await response.json();
-      if (data && data.runId){ listenToQuickRun(data.runId, working.name || 'suite'); }
-      else { renderImmediateRunResult(data, working.name || 'suite'); updateBadgesFromSuiteResult(data); setSuiteRecord((data.status||'').toLowerCase(), data.durationMs||0, data.messages||[]); }
+  if (data && data.runId){ listenToQuickRun(data.runId, working.name || 'suite'); }
+  else { renderImmediateRunResult(data, working.name || 'suite'); updateBadgesFromSuiteResult(data); setSuiteRecord((data.status||'').toLowerCase(), data.durationMs||0, data.messages||[]); }
     }catch(e){ console.error(e); appendQuickRunLine('Suite run failed: '+e.message, 'text-error'); }
   }; }
 

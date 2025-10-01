@@ -815,6 +815,7 @@ type testRunReq struct {
 	Env         map[string]string `json:"env"`
 	RunAll      bool              `json:"runAll,omitempty"`
 	IncludeDeps bool              `json:"includeDeps,omitempty"`
+	IncludePrevStages bool        `json:"includePrevStages,omitempty"`
 }
 type testRunResp struct {
 	Name       string              `json:"name"`
@@ -1032,7 +1033,7 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("bad suite model"))
 		return
 	}
-	// Build a temporary suite: either a single test (optionally with dependencies) or the whole suite (value type)
+	// Build a temporary suite: either a single test (optionally with dependencies and/or previous stages) or the whole suite (value type)
 	single := suite
 	if !tr.RunAll {
 		if tr.TestIdx < 0 || tr.TestIdx >= len(suite.Tests) {
@@ -1040,47 +1041,52 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte("invalid test index"))
 			return
 		}
-		// If IncludeDeps=true, take the transitive closure of dependsOn for the selected test
+		// Compose test list based on flags:
+		// - IncludeDeps: closure of dependsOn for the selected test
+		// - IncludePrevStages: all tests with Stage < selected.Stage
+		// If neither flag set, run only selected test
+		target := suite.Tests[tr.TestIdx]
+		needNames := map[string]struct{}{}
+		includeAny := false
 		if tr.IncludeDeps {
-			// Build name -> test map first
+			includeAny = true
 			byName := map[string]models.TestCase{}
-			for _, t := range suite.Tests {
-				byName[t.Name] = t
-			}
-			// Collect names recursively
-			target := suite.Tests[tr.TestIdx].Name
-			need := map[string]struct{}{target: {}}
-			var stack []string
-			stack = append(stack, target)
+			for _, t := range suite.Tests { byName[t.Name] = t }
+			stack := []string{target.Name}
+			needNames[target.Name] = struct{}{}
 			for len(stack) > 0 {
 				n := stack[len(stack)-1]
 				stack = stack[:len(stack)-1]
 				t, ok := byName[n]
-				if !ok {
-					continue
-				}
+				if !ok { continue }
 				for _, dep := range t.DependsOn {
-					if _, ok := need[dep]; !ok {
-						need[dep] = struct{}{}
+					if _, ok := needNames[dep]; !ok {
+						needNames[dep] = struct{}{}
 						stack = append(stack, dep)
 					}
 				}
 			}
-			// Preserve original order but filter to only needed tests
-			filtered := make([]models.TestCase, 0, len(need))
-			for _, t := range suite.Tests {
-				if _, ok := need[t.Name]; ok {
-					filtered = append(filtered, t)
-				}
-			}
-			singleCopy := suite
-			singleCopy.Tests = filtered
-			single = singleCopy
-		} else {
-			singleCopy := suite
-			singleCopy.Tests = []models.TestCase{suite.Tests[tr.TestIdx]}
-			single = singleCopy
 		}
+		if tr.IncludePrevStages {
+			includeAny = true
+			ts := target.Stage
+			for i := 0; i < len(suite.Tests); i++ {
+				t := suite.Tests[i]
+				if t.Stage < ts { needNames[t.Name] = struct{}{} }
+			}
+			// also ensure target included
+			needNames[target.Name] = struct{}{}
+		}
+		singleCopy := suite
+		if includeAny {
+			// preserve original order but filter to only needed tests
+			filtered := make([]models.TestCase, 0, len(needNames))
+			for _, t := range suite.Tests { if _, ok := needNames[t.Name]; ok { filtered = append(filtered, t) } }
+			singleCopy.Tests = filtered
+		} else {
+			singleCopy.Tests = []models.TestCase{target}
+		}
+		single = singleCopy
 	}
 	// run with one worker and isolated context; capture messages via OnResult
 	var captured runner.TestResult
@@ -1135,9 +1141,12 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 		}
 		resp = testRunResp{Name: name, Status: status, DurationMs: sum.Duration.Milliseconds(), Messages: msgs, Cases: allResults}
 	} else {
-		// Single test result
+	// Single test run request (may include deps and/or previous stages)
+		// If multiple tests executed, return per-case results too so UI can show all outputs
+	multi := (tr.IncludeDeps || tr.IncludePrevStages) && len(allResults) > 1
+		// Derive overall status from summary if multiple, otherwise from captured
 		status := captured.Status
-		if status == "" {
+		if status == "" || multi {
 			if sum.Failed > 0 {
 				status = "failed"
 			} else if sum.Skipped > 0 {
@@ -1147,7 +1156,24 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		name := suite.Tests[tr.TestIdx].Name
-		msgs := captured.Messages
+		// Build messages: for multi, list each test line and details; otherwise keep captured
+		var msgs []string
+		if multi {
+			for _, r := range allResults {
+				prefix := "✓"
+				if r.Status == "failed" {
+					prefix = "✗"
+				} else if r.Status == "skipped" {
+					prefix = "-"
+				}
+				msgs = append(msgs, fmt.Sprintf("%s %s (%d ms)", prefix, r.Name, r.DurationMs))
+				if len(r.Messages) > 0 {
+					msgs = append(msgs, r.Messages...)
+				}
+			}
+		} else {
+			msgs = captured.Messages
+		}
 		if runErr != nil {
 			if errors.Is(runErr, runner.ErrSuiteNotRunnable) {
 				status = "failed"
@@ -1158,10 +1184,13 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 			msgs = []string{}
 		}
 		dur := captured.DurationMs
-		if dur == 0 {
+		if multi || dur == 0 {
 			dur = sum.Duration.Milliseconds()
 		}
 		resp = testRunResp{Name: name, Status: status, DurationMs: dur, Messages: msgs}
+		if multi {
+			resp.Cases = allResults
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)

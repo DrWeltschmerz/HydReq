@@ -1,0 +1,38 @@
+name: httpbin smoke
+baseUrl: ${ENV:HTTPBIN_BASE_URL}
+vars:
+  HTTPBIN_BASE_URL: https://httpbin.org
+  token: demo123
+tests:
+  - name: GET status 200
+    request:
+      method: GET
+      url: /status/200
+    assert:
+      status: 200
+      maxDurationMs: 3000
+  - name: echo headers
+    request:
+      method: GET
+      url: /headers
+      headers:
+        Authorization: Bearer ${token}
+    assert:
+      status: 200
+      jsonContains:
+        headers.Authorization: Bearer ${token}
+  - name: post json and extract
+    request:
+      method: POST
+      url: /anything
+      body:
+        id: 42
+        user: qa
+    assert:
+      status: 200
+      jsonEquals:
+        json.id: "42"
+        json.user: qa
+    extract:
+      echoedUser:
+        jsonPath: json.user
