@@ -371,7 +371,7 @@ function openEditor(path, data){
   if (!modal){
     modal = document.createElement('div'); modal.id='editorModal'; modal.innerHTML = `
       <div class="editor-root">
-        <div class="ed-header>
+        <div class="ed-header">
           <div class="ed-header-left">
             <div class="fw-600">Edit: <span id="ed_path"></span></div>
             <div class="tabs tabs-boxed ed-tabs">
@@ -660,9 +660,6 @@ function openEditor(path, data){
     root.addEventListener('change', ()=>{ handler(); }, true);
     root.addEventListener('click', (e)=>{ const t = e.target; if (!t) return; if ((t.tagName && t.tagName.toLowerCase()==='button') || t.closest('button')) { handler(); } }, true);
   })();
-  function normalizeParsed(inObj){ /* implementation omitted for brevity — same as original */ }
-  if (!Array.isArray(working.tests)) working.tests = [];
-  if (data.raw && data.raw.trim() !== '') inMemoryYaml = data.raw;
   selIndex = 0;
   const persisted = (function(){ try{ return JSON.parse(localStorage.getItem(LS_KEY(path))||'{}') }catch{ return {} } })();
   testRunCache = new Map(Object.entries(persisted));
@@ -670,14 +667,107 @@ function openEditor(path, data){
   let dirty = false;
   function markDirty(){ dirty = true; try{ const di = modal && modal.querySelector && modal.querySelector('#ed_dirty_indicator'); if (di) di.style.display = ''; }catch{} }
   function attemptClose(){ if (dirty && !confirm('Discard unsaved changes?')) return; modal.remove(); document.body.classList.remove('modal-open'); }
-  async function serializeWorkingToYamlImmediate(){ /* implementation omitted for brevity — same as original */ }
-  async function mirrorYamlFromVisual(force=false){ /* implementation omitted for brevity — same as original */ }
-  const syncYamlPreviewFromVisual = debounce(()=>{ if (paneYaml.style.display === 'none') { try { serializeWorkingToYamlImmediate().catch(()=>{}); } catch{} } }, 300);
-  function unquoteNumericKeys(yamlText){ /* implementation omitted for brevity — same as original */ }
-  function setVisualEnabled(enabled){ /* implementation omitted for brevity — same as original */ }
-  function debounce(fn, wait){ let t=null; return function(){ const args=arguments; clearTimeout(t); t.setTimeout(()=> fn.apply(this,args), wait); } }
-  async function validateRawAndApply(){ /* implementation omitted for brevity — same as original */ }
-  async function switchTab(which){ /* implementation omitted for brevity — same as original */ }
+  async function serializeWorkingToYamlImmediate(){ 
+    if (!working || !working.tests) return '';
+    try { 
+      const yamlText = jsyaml.dump(working, { noRefs: true });
+      return unquoteNumericKeys(yamlText || '');
+    } catch (e) { 
+      return ''; 
+    }
+  }
+  
+  async function mirrorYamlFromVisual(force=false){ 
+    try {
+      const yamlText = await serializeWorkingToYamlImmediate();
+      if (yamlEditor && yamlText) {
+        yamlEditor.setValue(yamlText);
+        yamlDirty = false;
+      }
+    } catch (e) {
+      console.error('Failed to mirror YAML from visual:', e);
+    }
+  }
+  
+  const syncYamlPreviewFromVisual = debounce(()=>{ 
+    if (paneYaml.style.display === 'none') { 
+      try { 
+        serializeWorkingToYamlImmediate().catch(()=>{}); 
+      } catch{} 
+    } 
+  }, 300);
+  
+  function setVisualEnabled(enabled){ 
+    const ctrlSel = '#pane_visual input, #pane_visual select, #pane_visual textarea, #pane_visual button';
+    modal.querySelectorAll(ctrlSel).forEach(el=>{ el.disabled = !enabled; });
+    const testsPanel = modal.querySelector('.ed-tests-panel');
+    if (testsPanel){ 
+      if (!enabled) testsPanel.classList.add('ed-disabled'); 
+      else testsPanel.classList.remove('ed-disabled'); 
+    }
+  }
+  
+  function debounce(fn, wait){ 
+    let t=null; 
+    return function(){ 
+      const args=arguments; 
+      clearTimeout(t); 
+      t=setTimeout(()=> fn.apply(this,args), wait); 
+    }; 
+  }
+  
+  async function validateRawAndApply(){ 
+    if (!yamlEditor) return false;
+    try {
+      const rawText = yamlEditor.getValue();
+      const parsed = jsyaml.load(rawText);
+      working = normalizeParsed(parsed);
+      return true;
+    } catch (e) {
+      console.error('YAML validation failed:', e);
+      return false;
+    }
+  }
+  
+  async function switchTab(which){ 
+    if (which === 'visual') {
+      // Switching TO Visual: Parse YAML and update visual forms
+      if (yamlEditor) {
+        try {
+          const rawText = yamlEditor.getValue();
+          if (rawText.trim()) {
+            const parsed = jsyaml.load(rawText);
+            working = normalizeParsed(parsed);
+            renderForm(); // Re-render the visual form with updated data
+          }
+        } catch (e) {
+          console.warn('Failed to parse YAML when switching to visual:', e);
+        }
+      }
+      
+      tabVisual.classList.add('tab-active');
+      tabYaml.classList.remove('tab-active');
+      paneVisual.style.display = 'block';
+      paneYaml.style.display = 'none';
+    } else if (which === 'yaml') {
+      // Switching TO YAML: Serialize visual data to YAML
+      try {
+        await mirrorYamlFromVisual(true); // Force update the YAML editor
+      } catch (e) {
+        console.warn('Failed to serialize visual to YAML:', e);
+      }
+      
+      tabYaml.classList.add('tab-active');
+      tabVisual.classList.remove('tab-active');
+      paneYaml.style.display = 'block';
+      paneVisual.style.display = 'none';
+      ensureYamlEditor();
+      if (yamlEditor) {
+        setTimeout(() => yamlEditor.refresh(), 0);
+      }
+    }
+    try { localStorage.setItem('hydreq.editor.tab', which); } catch {}
+  }
   tabVisual.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); switchTab('visual'); };
   tabYaml.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); switchTab('yaml'); };
   const closeBtn = modal.querySelector('#ed_close'); if (closeBtn){ closeBtn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); attemptClose(); }); }
