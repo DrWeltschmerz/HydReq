@@ -141,34 +141,36 @@ function renderSuites(list){
         }
  
         const testsDiv = document.createElement('div'); testsDiv.className = 'suite-tests'; testsDiv.style.display='none'; testsDiv.style.marginTop='6px'; testsDiv.style.paddingLeft='6px'; testsDiv.style.borderLeft='2px solid rgba(0,0,0,0.04)'; name.appendChild(testsDiv);
-        const editBtn = document.createElement('button'); editBtn.textContent='Edit'; editBtn.title='Open editor';
-        editBtn.dataset.path = pathKey;
-        editBtn.addEventListener('click', async (e)=>{
-          e.stopPropagation();
-          const btn = e.currentTarget;
-          const pth = btn && btn.getAttribute && btn.getAttribute('data-path');
-          console.log('editBtn clicked, data-path=', pth);
-          if (!pth) { console.error('Edit handler: missing data-path on clicked element'); return; }
-          const res = await fetch('/api/editor/suite?path='+encodeURIComponent(pth));
-          if (!res.ok){ alert('Failed to load suite'); return; }
-          const data = await res.json();
-          try { openEditor(pth, data); } catch (err) { console.error('openEditor failed', err); alert('Failed to open editor: '+ (err && err.message ? err.message : err)); }
-        });
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-ghost btn-xs';
+
+        // simple, monochrome pencil glyph (no emoji variation) to match the trashcan's simple style
+        editBtn.textContent = '✐';
+         editBtn.title = 'Open editor';
+         editBtn.setAttribute('aria-label', 'Open editor');
+         editBtn.dataset.path = pathKey;
+         editBtn.addEventListener('click', async (e)=>{
+           e.stopPropagation();
+           const btn = e.currentTarget;
+           const pth = btn && btn.getAttribute && btn.getAttribute('data-path');
+           console.log('editBtn clicked, data-path=', pth);
+           if (!pth) { console.error('Edit handler: missing data-path on clicked element'); return; }
+           const res = await fetch('/api/editor/suite?path='+encodeURIComponent(pth));
+           if (!res.ok){ alert('Failed to load suite'); return; }
+           const data = await res.json();
+           try { openEditor(pth, data); } catch (err) { console.error('openEditor failed', err); alert('Failed to open editor: '+ (err && err.message ? err.message : err)); }
+         });
   const dlWrap = document.createElement('span'); dlWrap.className='suite-download'; dlWrap.style.position='relative'; dlWrap.style.display='inline-block';
-        const dlBtn = document.createElement('button');
-        dlBtn.className = 'btn btn-ghost btn-xs';
-        dlBtn.title = 'Download';
-        dlBtn.setAttribute('aria-label', 'Download suite'); // improve accessibility
-        // create an icon span and a text span so we can style/separate them easily
-        const dlIcon = document.createElement('span');
-        dlIcon.className = 'dl-icon';
-        dlIcon.textContent = '▾';
-        dlIcon.style.marginRight = '6px';
-        const dlText = document.createElement('span');
-        dlText.className = 'dl-text';
-        dlText.textContent = 'Download';
-        dlBtn.appendChild(dlIcon);
-        dlBtn.appendChild(dlText);
+         const dlBtn = document.createElement('button');
+         dlBtn.className = 'btn btn-ghost btn-xs';
+         dlBtn.title = 'Download';
+         dlBtn.setAttribute('aria-label', 'Download suite'); // improve accessibility
+         // create an icon span and a text span so we can style/separate them easily
+         const dlIcon = document.createElement('span');
+         dlIcon.className = 'dl-icon';
+         // simple, monochrome download glyph to match the trashcan's simple style
+         dlIcon.textContent = '⬇';
+         dlBtn.appendChild(dlIcon);
         dlBtn.dataset.path = pathKey;
         const dlMenu = document.createElement('div'); dlMenu.style.position='absolute'; dlMenu.style.right='0'; dlMenu.style.top='28px'; dlMenu.style.minWidth='140px'; dlMenu.style.border='1px solid var(--bd)'; dlMenu.style.background='var(--bg)'; dlMenu.style.padding='6px'; dlMenu.style.borderRadius='6px'; dlMenu.style.boxShadow='0 6px 12px rgba(0,0,0,0.08)'; dlMenu.style.display='none'; dlMenu.style.zIndex='10';
         const addDl = (label, fmt)=>{ const b = document.createElement('div'); b.textContent = label; b.style.padding='6px'; b.style.cursor='pointer'; b.style.borderRadius='4px'; b.onclick = (e)=>{ e.stopPropagation(); const p = dlBtn.getAttribute && dlBtn.getAttribute('data-path'); if (!p) { console.error('download: missing data-path'); return; } downloadSuite(p, fmt); dlMenu.style.display='none'; }; b.onmouseenter = ()=> b.style.background='var(--li-hov)'; b.onmouseleave = ()=> b.style.background='transparent'; dlMenu.appendChild(b); };
@@ -178,7 +180,32 @@ function renderSuites(list){
         dlWrap.appendChild(dlBtn); dlWrap.appendChild(dlMenu);
   // Actions inline with title on the right
   const actions = document.createElement('span'); actions.className='suite-actions'; actions.style.display='flex'; actions.style.gap='6px'; actions.style.marginLeft='auto';
-  actions.appendChild(dlWrap); actions.appendChild(editBtn);
+  // Delete (trashcan)
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn btn-ghost btn-xs';
+  delBtn.title = 'Delete suite';
+  delBtn.setAttribute('aria-label', 'Delete suite');
+  delBtn.textContent = '🗑';
+  delBtn.dataset.path = pathKey;
+  delBtn.addEventListener('click', async (e)=>{
+    e.stopPropagation();
+    const p = delBtn.getAttribute('data-path');
+    if (!p) return;
+    if (!confirm('Delete suite "'+(friendly||base)+'"? This removes the file '+p+'.')) return;
+    try{
+      const res = await fetch('/api/editor/suite?path='+encodeURIComponent(p), { method:'DELETE' });
+      if (!res.ok && res.status !== 204){
+        const t = await res.text().catch(()=> '');
+        alert('Delete failed: '+res.status+(t?(' - '+t):''));
+        return;
+      }
+      // Remove selection/open state and refresh list
+      try{ selected.delete(p); localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected))); }catch{}
+      try{ openSuites.delete(p); localStorage.setItem('hydreq.openSuites', JSON.stringify(Array.from(openSuites))); }catch{}
+      refresh();
+    }catch(err){ alert('Delete failed: '+(err&&err.message?err.message:String(err))); }
+  });
+  actions.appendChild(dlWrap); actions.appendChild(editBtn); actions.appendChild(delBtn);
   // Assemble header row: [expand] [title] [suite badge] [actions]
   titleRow.appendChild(actions);
   // Append content into li

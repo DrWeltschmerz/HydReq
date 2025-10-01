@@ -335,6 +335,31 @@ func (s *server) handleEditorSuite(w http.ResponseWriter, r *http.Request) {
 			resp["error"] = perr
 		}
 		_ = json.NewEncoder(w).Encode(resp)
+	case http.MethodDelete:
+		// Delete a suite file at the provided path. Restricted to testdata/*.yml/.yaml
+		path := r.URL.Query().Get("path")
+		if !isEditablePath(path) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte("invalid path"))
+			return
+		}
+		if _, err := os.Stat(path); err != nil {
+			if os.IsNotExist(err) {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			log.Printf("delete suite stat error: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("unable to access file"))
+			return
+		}
+		if err := os.Remove(path); err != nil {
+			log.Printf("delete suite remove error: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("failed to delete"))
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	default:
 		w.WriteHeader(405)
 	}

@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="layout.css">
   <link rel="stylesheet" href="components.css">
   <link rel="stylesheet" href="editor.css">
+  <link rel="stylesheet" href="css/app.css">
   <!-- js-yaml for client-side YAML serialization/parsing -->
   <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
   <!-- CodeMirror JavaScript -->
@@ -162,10 +163,13 @@
       </details>
     </aside>
     <section>
-      <div class="row">
+      <div id="batchHeader" class="row">
         <div class="flex-1 row ed-ai-center">
           <div>Batch progress</div>
-          <div id="activeTagsTop" class="row wrap gap-4px ml-8"></div>
+          <div id="activeTagsTopWrap" class="flex-col ml-8 invisible">
+            <div id="activeTagsCaption" class="dim text-xs tags-caption">running with tags:</div>
+            <div id="activeTagsTop" class="row gap-4px"></div>
+          </div>
         </div>
         <div class="pill" id="batchText">0/0</div>
       </div>

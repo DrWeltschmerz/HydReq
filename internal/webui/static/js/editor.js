@@ -407,22 +407,38 @@ function renderTests() {
     // Run status badge
     const key = index + ':' + (test.name || ('test ' + (index + 1)));
     const result = testRunCache.get(key);
+    let statusBadge = null;
     if (result && result.status) {
-      const badge = document.createElement('span');
-      badge.className = 'badge badge-xs ed-test-status';
+      statusBadge = document.createElement('span');
+      statusBadge.className = 'badge badge-xs ed-test-status';
       if (result.status === 'passed') {
-        badge.classList.add('badge-success');
-        badge.textContent = '✓';
+        statusBadge.classList.add('badge-success');
+        statusBadge.textContent = '✓';
       } else if (result.status === 'failed') {
-        badge.classList.add('badge-error');
-        badge.textContent = '✗';
+        statusBadge.classList.add('badge-error');
+        statusBadge.textContent = '✗';
       } else if (result.status === 'skipped') {
-        badge.classList.add('badge-warning');
-        badge.textContent = '○';
+        statusBadge.classList.add('badge-warning');
+        statusBadge.textContent = '○';
       }
-      badge.title = result.status;
-      testDiv.appendChild(badge);
+      statusBadge.title = result.status;
     }
+
+    // Inline delete (trashcan)
+    const del = document.createElement('button');
+    del.className = 'btn btn-ghost btn-xs';
+    del.title = 'Delete test';
+    del.setAttribute('aria-label', 'Delete test');
+    del.textContent = '🗑';
+    del.onclick = async (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      const nm = test.name || ('test '+(index+1));
+      if (!confirm('Delete test "'+nm+'"?')) return;
+      try{ working.tests.splice(index, 1); }catch{}
+      selIndex = Math.max(0, Math.min(selIndex, (working.tests.length-1)));
+      renderTests(); if (working.tests.length) renderForm();
+      try{ (window.__ed_sync||sync)(); await (window.__ed_writeYamlFromWorking||writeYamlFromWorking)(true); }catch{}
+    };
 
     // Click handler to select test
     testDiv.onclick = (e) => {
@@ -430,6 +446,12 @@ function renderTests() {
       e.stopPropagation();
       try{ if (typeof window.selectTestByIndex==='function') window.selectTestByIndex(index); }catch{}
     };
+
+    // Right side controls container
+    const right = document.createElement('span'); right.className = 'ed-row-6 ed-ai-center';
+    if (statusBadge) right.appendChild(statusBadge);
+    right.appendChild(del);
+    testDiv.appendChild(right);
 
     testsEl.appendChild(testDiv);
   });
@@ -1145,15 +1167,15 @@ function openEditor(path, data){
       const addBtn = modal.querySelector('#ed_add_test');
       const delBtn = modal.querySelector('#ed_del_test');
       if (addBtn) {
-        addBtn.onclick = ()=>{
+        addBtn.onclick = async ()=>{
           const defaultName = `test ${working.tests.length+1}`;
           const name = prompt('Enter test name:', defaultName);
           const finalName = (name && name.trim()) ? name.trim() : defaultName;
           working.tests.push({ name: finalName, request:{ method:'GET', url:'' }, assert:{ status:200 } });
-          selIndex = working.tests.length-1; renderTests(); renderForm(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
+          selIndex = working.tests.length-1; renderTests(); renderForm(); try{ sync(); ensureYamlEditor(); await mirrorYamlFromVisual(true); }catch{} };
       }
       if (delBtn) {
-        delBtn.onclick = ()=>{ if (working.tests.length===0) return; if (!confirm('Delete selected test?')) return; working.tests.splice(selIndex,1); selIndex = Math.max(0, selIndex-1); renderTests(); if (working.tests.length) renderForm(); try{ sync(); serializeWorkingToYamlImmediate().catch(()=>{}); }catch{} };
+        delBtn.onclick = async ()=>{ if (working.tests.length===0) return; if (!confirm('Delete selected test?')) return; working.tests.splice(selIndex,1); selIndex = Math.max(0, selIndex-1); renderTests(); if (working.tests.length) renderForm(); try{ (window.__ed_sync||sync)(); await (window.__ed_writeYamlFromWorking||writeYamlFromWorking)(true); }catch{} };
       }
     } catch(e){}
     document.body.classList.add('modal-open');
@@ -1347,6 +1369,34 @@ function openEditor(path, data){
     if (!__suppressDirty) markDirty();
     return true;
   }
+
+  // Expose key helpers so handlers outside this closure (e.g., renderTests) can use them
+  try{ window.__ed_mirrorYamlFromVisual = mirrorYamlFromVisual; }catch(e){}
+  try{ window.__ed_ensureYamlEditor = ensureYamlEditor; }catch(e){}
+  try{ window.__ed_sync = sync; }catch(e){}
+
+  // Write YAML directly from current working model and mark as dirty
+  async function writeYamlFromWorking(force=false){
+    try{
+      const yamlText = await serializeWorkingToYamlImmediate();
+      // Update both CodeMirror and in-memory fallback to keep all paths consistent
+      const rawEl = modal.querySelector('#ed_raw');
+      if (yamlEditor) {
+        __suppressDirty = true;
+        if (force || yamlEditor.getValue() !== yamlText) {
+          yamlEditor.setValue(yamlText);
+        }
+        __suppressDirty = false;
+      } else if (rawEl) {
+        rawEl.value = yamlText;
+      }
+      inMemoryYaml = yamlText;
+      yamlDirty = true;
+      if (!__suppressDirty) markDirty();
+      const di = document.getElementById('ed_dirty_indicator'); if (di) di.style.display='';
+    }catch(e){ console.warn('writeYamlFromWorking failed', e); }
+  }
+  try{ window.__ed_writeYamlFromWorking = writeYamlFromWorking; }catch(e){}
     
     // Note: variable/header/query/matrix collection happens within collectFormData()
   

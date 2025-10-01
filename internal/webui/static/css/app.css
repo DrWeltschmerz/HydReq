@@ -197,11 +197,14 @@ a { color: var(--link); }
 .flex-1 { flex: 1; }
 .fw-600 { font-weight: 600; }
 .hidden { display: none; }
+.invisible { visibility: hidden; }
 .ed-grid-col-2 { grid-column: 2 / 3; }
 .ed-grid-140-1-auto2 { display: grid; grid-template-columns: 140px 1fr auto auto; gap: 8px; align-items: center; }
 .dim { opacity: .8; }
 .tab.disabled { opacity: .5; pointer-events: none; }
 .ed-disabled { opacity: .6; pointer-events: none; }
+.text-xs { font-size: 12px; }
+.tags-caption { opacity: 0.55; letter-spacing: .2px; }
 
 /* Toolbar utilities */
 .toolbar.row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
@@ -209,6 +212,15 @@ a { color: var(--link); }
 .mb-8 { margin-bottom:8px; }
 .ai-center { align-items:center; }
 .ml-8 { margin-left: 8px; }
+.nowrap { white-space: nowrap; }
+
+/* Keep Batch progress header height stable when tags appear/disappear */
+#batchHeader { min-height: 52px; align-items: center; }
+#activeTagsTopWrap { min-height: 26px; margin-top: 0; }
+#activeTagsCaption { line-height: 1.1; margin-bottom: 2px; font-size: 12.5px; }
+#activeTagsTop { display:flex; flex-wrap: wrap; gap: 4px; }
+#activeTagsTop .pill { line-height: 1.2; margin-top: 2px; }
+.bp-title { padding: 6px 0; }
 
 /* Keep suite-level download button at top */
 #suites li { position: relative; }

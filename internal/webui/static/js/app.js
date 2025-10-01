@@ -45,6 +45,7 @@ function initApp(){
   const defToEl = document.getElementById('defaultTimeout');
   const results = document.getElementById('results');
   const activeTagsTop = document.getElementById('activeTagsTop');
+  const activeTagsTopWrap = document.getElementById('activeTagsTopWrap');
 
   // Restore persisted values
   console.log('tagsEl:', tagsEl);
@@ -154,6 +155,7 @@ function initApp(){
           activeTagsTop.innerHTML = '';
           sel.forEach(v=>{ const b=document.createElement('span'); b.className='pill tag-chip selected'; b.textContent='#'+v; b.dataset.tag=v; b.title='Click to unselect'; b.addEventListener('click', ()=> window.toggleSelectedTag(v)); activeTagsTop.appendChild(b); });
         }
+  if (activeTagsTopWrap){ activeTagsTopWrap.classList.toggle('invisible', sel.length === 0); }
       }catch{}
     }
     function syncTagRowsFromState(){
