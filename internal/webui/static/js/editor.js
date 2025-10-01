@@ -71,8 +71,10 @@ function renderForm() {
     if (onlyEl) onlyEl.checked = test.only || false;
   }
   
-  // Add validation event listeners to all form fields
-  addValidationListeners();
+  // Add validation event listeners after a short delay to ensure DOM is ready
+  setTimeout(() => {
+    addValidationListeners();
+  }, 100);
 }
 
 function addValidationListeners() {
@@ -644,10 +646,10 @@ function openEditor(path, data){
         <div class="ed-header">
           <div class="ed-header-left">
             <div class="fw-600">Edit: <span id="ed_path"></span></div>
-            <div class="tabs tabs-boxed ed-tabs">
-              <button id="tab_visual" class="tab tab-active">Visual</button>
-              <button id="tab_yaml" class="tab">YAML</button>
-            </div>
+            <label class="label cursor-pointer ed-row-6 ed-ai-center">
+              <span class="label-text">YAML View</span>
+              <input id="toggle_yaml" type="checkbox" class="toggle toggle-sm" title="Toggle YAML editor view">
+            </label>
           </div>
           <div class="ed-actions">
             <label class="label cursor-pointer ed-row-6 ed-ai-center">
@@ -669,9 +671,12 @@ function openEditor(path, data){
         </div>
         <div class="ed-main">
           <div id="pane_visual" class="ed-pane">
-            <div class="ed-tests-panel">
+            <div class="ed-tests-panel" id="ed_tests_panel">
               <div class="ed-tests-header">
-                <span>Tests</span>
+                <span class="ed-row-6">
+                  <button id="ed_collapse_tests" class="btn btn-xs" title="Collapse/Expand tests">◀</button>
+                  <span>Tests</span>
+                </span>
                 <span class="ed-row-6">
                   <button id="ed_add_test" class="btn btn-xs" title="Add test">+</button>
                   <button id="ed_del_test" class="btn btn-xs" title="Delete selected">−</button>
@@ -681,7 +686,7 @@ function openEditor(path, data){
             </div>
             <div class="ed-center">
               <details open class="ed-panel">
-                <summary class="ed-summary">Suite</summary>
+                <summary class="ed-summary">🏠 Suite Configuration</summary>
                 <div class="ed-body ed-grid-2-140" id="ed_suite_form">
                   <label>Name *</label>
                   <input id="ed_suite_name" type="text" required/>
@@ -720,7 +725,21 @@ function openEditor(path, data){
               </details>
 
               <details open class="ed-panel">
-                <summary class="ed-summary">Request</summary>
+                <summary class="ed-summary">🧪 Test Configuration</summary>
+                <div class="ed-body ed-grid-2-130" id="ed_test_form">
+                  <label>Test name *</label>
+                  <input id="ed_test_name" type="text" placeholder="My test name" required/>
+                  <label>Stage</label>
+                  <input id="ed_stage" type="number" min="0"/>
+                  <label>Skip</label>
+                  <input id="ed_skip" type="checkbox"/>
+                  <label>Only</label>
+                  <input id="ed_only" type="checkbox"/>
+                </div>
+              </details>
+
+              <details open class="ed-panel">
+                <summary class="ed-summary">🌐 HTTP Request</summary>
                 <div class="ed-body ed-grid-2-130" id="ed_req_form">
                   <label>Method *</label>
                   <select id="ed_method" required>
@@ -728,8 +747,6 @@ function openEditor(path, data){
                   </select>
                   <label>URL path *</label>
                   <input id="ed_url" type="text" required/>
-                  <label>Test name *</label>
-                  <input id="ed_test_name" type="text" placeholder="My test name" required/>
                   <label>Timeout (ms)</label>
                   <input id="ed_timeout" type="number" min="0"/>
                   <label class="ed-col-span-full ed-mt-6 fw-600">Headers</label>
@@ -742,7 +759,7 @@ function openEditor(path, data){
               </details>
 
               <details open class="ed-panel">
-                <summary class="ed-summary">Assertions</summary>
+                <summary class="ed-summary">✅ Response Assertions</summary>
                 <div class="ed-body ed-grid-2-160" id="ed_assert_form">
                   <label>Status *</label>
                   <input id="ed_assert_status" type="number" min="0" required/>
@@ -760,22 +777,14 @@ function openEditor(path, data){
               </details>
 
               <details open class="ed-panel">
-                <summary class="ed-summary">Extract variables</summary>
+                <summary class="ed-summary">📤 Extract Variables</summary>
                 <div class="ed-body" id="ed_extract"></div>
               </details>
 
-              <details open class="ed-panel">
-                <summary class="ed-summary">Flow & Meta</summary>
-                <div class="ed-body ed-grid-2-160" id="ed_flow_form">
-                  <label>Skip</label>
-                  <input id="ed_skip" type="checkbox"/>
-                  <input id="ed_only" type="checkbox"/>
-                  <label>Stage</label>
-                  <input id="ed_stage" type="number" min="0"/>
-                </div>
+
 
               <details open class="ed-panel">
-                <summary class="ed-summary">Test hooks</summary>
+                <summary class="ed-summary">🔗 Test Hooks</summary>
                 <div class="ed-body">
                   <div class="ed-subhead">pre</div>
                   <div id="ed_test_prehooks"></div>
@@ -786,7 +795,7 @@ function openEditor(path, data){
               </details>
 
               <details open class="ed-panel">
-                <summary class="ed-summary">Retry</summary>
+                <summary class="ed-summary">🔄 Retry Policy</summary>
                 <div class="ed-body ed-grid-2-160" id="ed_retry_form">
                   <label>Enable retry</label>
                   <input id="ed_retry_enable" type="checkbox"/>
@@ -800,7 +809,7 @@ function openEditor(path, data){
               </details>
 
               <details open class="ed-panel tight">
-                <summary class="ed-summary">Matrix</summary>
+                <summary class="ed-summary">🔢 Data Matrix</summary>
                 <div class="ed-body" id="ed_matrix"></div>
               </details>
 
@@ -816,9 +825,13 @@ function openEditor(path, data){
                 </div>
               </details>
             </div>
-          </div>
-          <div id="pane_yaml" class="ed-pane" style="display:none">
-            <textarea id="ed_raw" class="hidden"></textarea>
+            <div id="pane_yaml" class="ed-yaml-panel" style="display:none; flex: 1; min-width: 400px; border-left: 1px solid var(--bd);">
+              <div class="ed-yaml-header">
+                <span class="fw-600">YAML Source</span>
+              </div>
+              <textarea id="ed_raw" class="hidden"></textarea>
+              <div id="ed_yaml_editor" style="flex: 1;"></div>
+            </div>
           </div>
           <div id="ed_splitter" class="ed-splitter"></div>
           <div class="ed-right">
@@ -871,8 +884,6 @@ function openEditor(path, data){
   } catch (e) {}
   const issuesEl = modal.querySelector('#ed_issues');
   const quickRunBox = modal.querySelector('#ed_quickrun');
-  const tabVisual = modal.querySelector('#tab_visual');
-  const tabYaml = modal.querySelector('#tab_yaml');
   const paneVisual = modal.querySelector('#pane_visual');
   const paneYaml = modal.querySelector('#pane_yaml');
   let inMemoryYaml = '';
@@ -1290,9 +1301,9 @@ function openEditor(path, data){
         }
       }
       
-      tabVisual.classList.add('tab-active');
-      tabYaml.classList.remove('tab-active');
-      paneVisual.style.display = 'block';
+      // Visual pane is always visible in the new layout
+      const yamlToggle = modal.querySelector('#toggle_yaml');
+      if (yamlToggle) yamlToggle.checked = false;
       paneYaml.style.display = 'none';
     } else if (which === 'yaml') {
       // Switching TO YAML: Serialize visual data to YAML
@@ -1302,10 +1313,10 @@ function openEditor(path, data){
         console.warn('Failed to serialize visual to YAML:', e);
       }
       
-      tabYaml.classList.add('tab-active');
-      tabVisual.classList.remove('tab-active');
+      // Show YAML pane alongside visual
+      const yamlToggle = modal.querySelector('#toggle_yaml');
+      if (yamlToggle) yamlToggle.checked = true;
       paneYaml.style.display = 'block';
-      paneVisual.style.display = 'none';
       ensureYamlEditor();
       if (yamlEditor) {
         setTimeout(() => yamlEditor.refresh(), 0);
@@ -1313,8 +1324,51 @@ function openEditor(path, data){
     }
     try { localStorage.setItem('hydreq.editor.tab', which); } catch {}
   }
-  tabVisual.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); switchTab('visual'); };
-  tabYaml.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); switchTab('yaml'); };
+  
+  // YAML toggle functionality
+  const yamlToggle = modal.querySelector('#toggle_yaml');
+  const yamlPane = modal.querySelector('#pane_yaml');
+  if (yamlToggle && yamlPane) {
+    yamlToggle.addEventListener('change', () => {
+      if (yamlToggle.checked) {
+        // Show YAML pane side by side
+        yamlPane.style.display = 'block';
+        ensureYamlEditor();
+        mirrorYamlFromVisual(true); // Update YAML content
+        if (yamlEditor) {
+          setTimeout(() => yamlEditor.refresh(), 100);
+        }
+      } else {
+        // Hide YAML pane
+        yamlPane.style.display = 'none';
+      }
+    });
+  }
+  
+  // Test panel collapse functionality
+  const collapseBtn = modal.querySelector('#ed_collapse_tests');
+  const testsPanel = modal.querySelector('#ed_tests_panel');
+  const testsList = modal.querySelector('#ed_tests');
+  if (collapseBtn && testsPanel && testsList) {
+    let collapsed = false;
+    collapseBtn.addEventListener('click', () => {
+      collapsed = !collapsed;
+      if (collapsed) {
+        testsPanel.style.flexBasis = '40px';
+        testsPanel.style.minWidth = '40px';
+        testsList.style.display = 'none';
+        collapseBtn.textContent = '▶';
+        collapseBtn.title = 'Expand tests';
+      } else {
+        testsPanel.style.flexBasis = '280px';
+        testsPanel.style.minWidth = '280px';
+        testsList.style.display = 'block';
+        collapseBtn.textContent = '◀';
+        collapseBtn.title = 'Collapse tests';
+      }
+    });
+  }
+  
   const closeBtn = modal.querySelector('#ed_close'); if (closeBtn){ closeBtn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); attemptClose(); }); }
   document.addEventListener('keydown', function escClose(ev){ if (!document.getElementById('editorModal')) { document.removeEventListener('keydown', escClose); return; } if (ev.key === 'Escape'){ attemptClose(); } });
   (function(){ /* splitter implementation omitted for brevity */ })();
@@ -1501,14 +1555,89 @@ function openEditor(path, data){
       const yamlData = await serializeWorkingToYamlImmediate();
       const testName = working.tests[selIndex].name || `test ${selIndex + 1}`;
       
-      // TODO: Implement quick run API call for single test
-      console.log('Running single test:', testName, yamlData);
-      alert(`Running test: ${testName}\n(Quick run functionality pending)`);
+      // Create a temporary suite with only the selected test
+      const singleTestSuite = {
+        ...working,
+        tests: [working.tests[selIndex]]
+      };
+      
+      // Create in-memory suite for quick run
+      const payload = {
+        suites: [{ path: 'editor-test', parsed: singleTestSuite }],
+        workers: 1,
+        tags: [],
+        env: {}
+      };
+      
+      const response = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Quick run started:', result);
+      
+      // Show quick run feedback
+      alert(`✓ Started quick run for: ${testName}\nRun ID: ${result.runId}`);
+      
+      // Optionally start listening to the stream for results
+      if (result.runId) {
+        listenToQuickRun(result.runId, testName);
+      }
     } catch (e) {
       console.error('Failed to run test:', e);
       alert('Failed to run test: ' + e.message);
     }
   };
+  
+  // Listen to quick run results
+  function listenToQuickRun(runId, testName) {
+    const quickRunBox = modal.querySelector('#ed_quickrun');
+    if (!quickRunBox) return;
+    
+    quickRunBox.innerHTML = `<div>Running ${testName}...</div>`;
+    
+    const es = new EventSource('/api/stream?runId=' + encodeURIComponent(runId));
+    
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'test') {
+          const status = data.status === 'passed' ? '✓' : 
+                        data.status === 'failed' ? '✗' : 
+                        data.status === 'skipped' ? '○' : '⚠';
+          const color = data.status === 'passed' ? '#10b981' : 
+                       data.status === 'failed' ? '#ef4444' : 
+                       data.status === 'skipped' ? '#f59e0b' : '#6b7280';
+          
+          quickRunBox.innerHTML = `
+            <div style="color: ${color}">
+              ${status} ${data.name || testName}
+              ${data.durationMs ? ` (${data.durationMs}ms)` : ''}
+            </div>
+            ${data.error ? `<div style="color: #ef4444; font-size: 12px; margin-top: 4px;">${data.error}</div>` : ''}
+          `;
+        }
+        
+        if (data.type === 'done') {
+          es.close();
+        }
+      } catch (e) {
+        console.error('Failed to parse stream data:', e);
+      }
+    };
+    
+    es.onerror = () => {
+      es.close();
+      quickRunBox.innerHTML = '<div style="color: #ef4444;">Run failed or connection lost</div>';
+    };
+  }
   
   modal.querySelector('#ed_validate').onclick = async ()=>{ 
     try {

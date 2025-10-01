@@ -81,6 +81,7 @@ a { color: var(--link); }
   background: var(--bg);
   height: fit-content;
   max-height: 100%;
+  transition: flex-basis 0.3s ease, min-width 0.3s ease;
 }
 .ed-tests-header { 
   padding: 8px; 
@@ -190,4 +191,18 @@ a { color: var(--link); }
 }
 .ed-center {
   order: 2;
+}
+
+/* YAML panel styles */
+.ed-yaml-panel {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--bd);
+  background: var(--bg);
+}
+.ed-yaml-header {
+  padding: 8px;
+  border-bottom: 1px solid var(--bd);
+  font-weight: 600;
+  background: var(--pill);
 }
