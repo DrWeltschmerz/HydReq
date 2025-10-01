@@ -98,24 +98,111 @@ func (s *server) routes() {
 	// report download endpoints
 	s.mux.HandleFunc("/api/report/run", s.handleReportRun)
 	s.mux.HandleFunc("/api/report/suite", s.handleReportSuite)
-	// Serve the embedded static/ directory at the root so / loads index.html directly
-	// Serve embedded static files with no-cache headers to prevent stale UI during local dev
-	if sub, err := fs.Sub(staticFS, "static"); err == nil {
-		fsHandler := http.FileServer(http.FS(sub))
+	// Serve static UI: Prefer on-disk files in development when HYDREQ_UI_DEV/HYDREQ_UI_STATIC_DIR is set,
+	// otherwise fall back to embedded assets via go:embed.
+	if os.Getenv("HYDREQ_UI_DEV") == "1" || strings.EqualFold(os.Getenv("HYDREQ_UI_DEV"), "true") || os.Getenv("HYDREQ_UI_STATIC_DIR") != "" {
+		dir := strings.TrimSpace(os.Getenv("HYDREQ_UI_STATIC_DIR"))
+		if dir == "" {
+			// default path to the static directory relative to repo
+			dir = filepath.Join("internal", "webui", "static")
+		}
+		// normalize to absolute to aid debugging
+		if abs, err := filepath.Abs(dir); err == nil {
+			dir = abs
+		}
+		log.Printf("HydReq GUI: serving static files from disk (dev mode): %s", dir)
+		fsHandler := http.FileServer(http.Dir(dir))
 		s.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 			w.Header().Set("Pragma", "no-cache")
 			w.Header().Set("Expires", "0")
+			// favicon: try to serve if present; otherwise 204 to prevent noisy 404s
+			if r.URL.Path == "/favicon.ico" {
+				fav := filepath.Join(dir, "favicon.ico")
+				if _, err := os.Stat(fav); err == nil {
+					w.Header().Set("Content-Type", "image/x-icon")
+					http.ServeFile(w, r, fav)
+				} else {
+					w.WriteHeader(http.StatusNoContent)
+				}
+				return
+			}
+			if r.URL.Path == "/" || r.URL.Path == "" {
+				// Serve index.html directly to avoid FileServer directory redirects
+				idx := filepath.Join(dir, "index.html")
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				http.ServeFile(w, r, idx)
+				return
+			}
+			// MIME hints for some CDNs/clients that ignore extension -> type
+			if strings.HasSuffix(r.URL.Path, ".js") {
+				w.Header().Set("Content-Type", "application/javascript")
+			} else if strings.HasSuffix(r.URL.Path, ".css") {
+				w.Header().Set("Content-Type", "text/css")
+			}
 			fsHandler.ServeHTTP(w, r)
 		}))
 	} else {
-		fsHandler := http.FileServer(http.FS(staticFS))
-		s.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-			w.Header().Set("Pragma", "no-cache")
-			w.Header().Set("Expires", "0")
-			fsHandler.ServeHTTP(w, r)
-		}))
+		// Serve the embedded static/ directory at the root so / loads index.html directly
+		// Serve embedded static files with no-cache headers to prevent stale UI during local dev
+		if sub, err := fs.Sub(staticFS, "static"); err == nil {
+			fsHandler := http.FileServer(http.FS(sub))
+			s.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				w.Header().Set("Pragma", "no-cache")
+				w.Header().Set("Expires", "0")
+				if r.URL.Path == "/favicon.ico" {
+					// best-effort serve embedded favicon if present
+					if b, err := fs.ReadFile(sub, "favicon.ico"); err == nil {
+						w.Header().Set("Content-Type", "image/x-icon")
+						w.Write(b)
+					} else {
+						w.WriteHeader(http.StatusNoContent)
+					}
+					return
+				}
+				if r.URL.Path == "/" || r.URL.Path == "" {
+					// Serve embedded index.html explicitly to avoid redirect quirks
+					if b, err := fs.ReadFile(sub, "index.html"); err == nil {
+						w.Header().Set("Content-Type", "text/html; charset=utf-8")
+						w.Write(b)
+						return
+					}
+				}
+				// Set correct MIME types for JavaScript and CSS files
+				if strings.HasSuffix(r.URL.Path, ".js") {
+					w.Header().Set("Content-Type", "application/javascript")
+				} else if strings.HasSuffix(r.URL.Path, ".css") {
+					w.Header().Set("Content-Type", "text/css")
+				}
+				fsHandler.ServeHTTP(w, r)
+			}))
+		} else {
+			fsHandler := http.FileServer(http.FS(staticFS))
+			s.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				w.Header().Set("Pragma", "no-cache")
+				w.Header().Set("Expires", "0")
+				if r.URL.Path == "/favicon.ico" {
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+				if r.URL.Path == "/" || r.URL.Path == "" {
+					if b, err := fs.ReadFile(staticFS, "static/index.html"); err == nil {
+						w.Header().Set("Content-Type", "text/html; charset=utf-8")
+						w.Write(b)
+						return
+					}
+				}
+				// Set correct MIME types for JavaScript and CSS files
+				if strings.HasSuffix(r.URL.Path, ".js") {
+					w.Header().Set("Content-Type", "application/javascript")
+				} else if strings.HasSuffix(r.URL.Path, ".css") {
+					w.Header().Set("Content-Type", "text/css")
+				}
+				fsHandler.ServeHTTP(w, r)
+			}))
+		}
 	}
 }
 
