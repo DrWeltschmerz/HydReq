@@ -299,7 +299,15 @@ a { color: var(--link); }
   border-bottom-left-radius: 6px;
 }
 .ed-test-item.selected .ed-test-name { font-weight: 600; }
-.ed-test-item .badge.ed-test-status { margin-left: 6px; }
+/* Unified status badges across app */
+.status-badge { display:inline-block; border-radius:999px; padding:2px 8px; font-size:12px; line-height:1.2; background: var(--pill); color: inherit; transition: background .15s ease, color .15s ease; }
+.status-ok { background: rgba(16,185,129,0.12); color: var(--success); border: 1px solid rgba(16,185,129,0.28); }
+.status-fail { background: rgba(239,68,68,0.10); color: var(--error); border: 1px solid rgba(239,68,68,0.28); }
+.status-skip { background: rgba(245,158,11,0.12); color: var(--warning); border: 1px solid rgba(245,158,11,0.32); }
+.status-unknown { opacity: .6; }
+
+/* Editor status badge spacing */
+.ed-test-item .ed-test-status { margin-left: 6px; }
 
 /* Tag chip selection state */
 .tag-chip { cursor: pointer; opacity: .8; }

@@ -9,7 +9,7 @@ const agg = { passed:0, failed:0, skipped:0, total:0, suites:0, durationMs:0 };
 const lastStatus = new Map(); // path -> Map(name=>status)
 const lastSuiteSummary = new Map(); // path -> { summary, tests }
 let currentSuitePath = null; // canonical path/key for suite currently running
-const pendingTestEvents = new Map(); // path -> [events]
+// Removed pending buffer: rely on hydreqStore + hydrateFromSummary
 // Track open/expanded suites to preserve state across re-renders
 let openSuites = new Set();
 try{ openSuites = new Set(JSON.parse(localStorage.getItem('hydreq.openSuites')||'[]')); }catch(e){ openSuites = new Set(); }
@@ -42,7 +42,7 @@ function renderSuites(list){
         if (expandBtn.dataset.loaded === '1') {
           // ensure visible if already loaded
           try{ testsDiv.classList.add('open'); testsDiv.style.display = 'block'; }catch(e){}
-          try{ flushPendingForPath(pathKey); }catch(e){}
+          // No pending buffer
           try{ hydrateFromSummary(pathKey); }catch(e){}
           if (expandBtn._resolveExpand) { expandBtn._resolveExpand(); expandBtn._expandPromise = null; expandBtn._resolveExpand = null; }
           return;
@@ -60,18 +60,18 @@ function renderSuites(list){
               const row = document.createElement('div'); row.className = 'suite-test-item';
               const nm = document.createElement('span'); nm.className='suite-test-name'; nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent; nm.dataset.name = nm.textContent;
               try{ const tt = t.tags || t.Tags || []; if (Array.isArray(tt) && tt.length){ const tw=document.createElement('span'); tw.className='row wrap gap-4px'; tw.style.marginLeft='6px'; const selectedArr = Array.from(selected); tt.slice(0,4).forEach(x=>{ const b=document.createElement('span'); b.className='pill tag-chip'; b.dataset.tag = x; b.textContent = '#'+x; b.style.fontSize='10px'; if (selectedArr.includes(x)) b.classList.add('selected'); b.addEventListener('click', (ev)=>{ ev.stopPropagation(); if (window.toggleSelectedTag) window.toggleSelectedTag(x); }); tw.appendChild(b); }); nm.appendChild(tw); } }catch(e){}
-              const badge = document.createElement('span'); badge.className='pill suite-test-status';
+              const badge = document.createElement('span'); badge.className='status-badge suite-test-status status-unknown';
               const pathMap = lastStatus.get(pathKey); const keyName = nm.dataset.name; const st = pathMap ? (pathMap.get(keyName)||'') : '';
-              if (st==='passed'){ badge.textContent='✓'; badge.style.background='rgba(16,185,129,0.12)'; }
-              else if (st==='failed'){ badge.textContent='✗'; badge.style.background='rgba(239,68,68,0.08)'; }
-              else if (st==='skipped'){ badge.textContent='-'; badge.style.background='rgba(245,158,11,0.06)'; }
-              else { badge.textContent='·'; badge.style.opacity='.6'; }
+              if (st==='passed'){ badge.textContent='✓'; badge.classList.remove('status-unknown','status-fail','status-skip'); badge.classList.add('status-ok'); }
+              else if (st==='failed'){ badge.textContent='✗'; badge.classList.remove('status-unknown','status-ok','status-skip'); badge.classList.add('status-fail'); }
+              else if (st==='skipped'){ badge.textContent='○'; badge.classList.remove('status-unknown','status-ok','status-fail'); badge.classList.add('status-skip'); }
+              else { badge.textContent='·'; }
               row.appendChild(nm); row.appendChild(badge); cont.appendChild(row); testsDiv.appendChild(cont);
             });
             expandBtn.dataset.loaded = '1';
             // make tests visible after load
             try{ testsDiv.classList.add('open'); testsDiv.style.display = 'block'; }catch(e){}
-            try{ flushPendingForPath(pathKey); }catch(e){}
+            // No pending buffer
             try{ hydrateFromSummary(pathKey); }catch(e){}
           }
         }catch(err){ try{ testsDiv.innerHTML = '<div class="dim">Failed to load tests</div>'; }catch(e){} }
@@ -88,7 +88,7 @@ function renderSuites(list){
       onRefresh: function(){ refresh(); }
     };
     try{ window.hydreqSuitesView.render(list, opts); 
-      // After render: flush pending events for any suites that are already marked open/loaded
+  // After render: hydrate any suites that are already marked open/loaded
       try{
         Array.from(document.querySelectorAll('#suites li')).forEach(li => {
           try{
@@ -96,7 +96,7 @@ function renderSuites(list){
             const btn = li.querySelector('button[aria-controls]') || li.querySelector('button');
             const loaded = btn && btn.dataset && btn.dataset.loaded === '1';
             const open = btn && btn.dataset && btn.dataset.open === '1';
-            if (loaded || open) { try{ flushPendingForPath(p); }catch(e){} try{ hydrateFromSummary(p); }catch(e){} }
+            if (loaded || open) { try{ hydrateFromSummary(p); }catch(e){} }
           }catch(e){}
         });
       }catch(e){}
@@ -343,11 +343,19 @@ function listen(id){
   try{ const m = lastStatus.get(currentSuitePath) || new Map(); m.set(Name, (Status||'').toLowerCase()); lastStatus.set(currentSuitePath, m); }catch(e){}
   // Persist/update details in lastSuiteSummary for cross-view sync
   try{ upsertLastSuiteTest(currentSuitePath||'', Name, Status||'', DurationMs||0, Array.isArray(Messages)? Messages: []); }catch(e){}
+  try{ if (window.hydreqStore && typeof window.hydreqStore.setTest==='function') window.hydreqStore.setTest(currentSuitePath||'', Name, { status: Status||'', durationMs: DurationMs||0, messages: Array.isArray(Messages)? Messages: [] }); }catch(e){}
     row.line.className = (Status==='passed'?'ok':(Status==='failed'?'fail':'skip'));
     if (Status==='skipped') {
       row.line.textContent = `- ${Name} (tags)`;
+      // Show skip reasons if provided
+      if (Array.isArray(Messages) && Messages.length){
+        let det = row.container.querySelector('details.suite-test-details');
+        if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); row.container.appendChild(det); }
+        let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block skip'; det.appendChild(pre); }
+        pre.textContent = Messages.join('\n');
+      }
     } else {
-      row.line.textContent = (Status==='passed'?'✓':(Status==='failed'?'✗':'-')) + ' ' + Name + ' (' + DurationMs + ' ms)';
+  row.line.textContent = (Status==='passed'?'✓':(Status==='failed'?'✗':'○')) + ' ' + Name + ' (' + DurationMs + ' ms)';
       if (Status==='failed' && Array.isArray(Messages) && Messages.length){
         let det = row.container.querySelector('details.suite-test-details');
         if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); row.container.appendChild(det); }
@@ -368,28 +376,28 @@ function listen(id){
           if (!li) return;
           try {
             const sBadge = li.querySelector('.suite-badge');
-            if (Status === 'failed') {
-              if (sBadge) {
-                sBadge.textContent = '✗';
-                sBadge.style.background = 'rgba(239,68,68,0.08)';
-                sBadge.style.opacity = '1';
-                sBadge.dataset.status = 'failed';
-              }
-            } else if (Status === 'passed') {
-              if (sBadge && sBadge.textContent !== '✗' && sBadge.dataset.status !== 'failed') {
-                sBadge.textContent = '✓';
-                sBadge.style.background = 'rgba(16,185,129,0.12)';
-                sBadge.style.opacity = '1';
-                sBadge.dataset.status = 'passed';
-              }
-            } else if (Status === 'skipped') {
-              if (sBadge && sBadge.textContent !== '✗' && sBadge.dataset.status !== 'failed' && sBadge.dataset.status !== 'passed') {
-                sBadge.textContent = '-';
-                sBadge.style.background = 'rgba(245,158,11,0.06)';
-                sBadge.style.opacity = '1';
-                sBadge.dataset.status = 'skipped';
-              }
-            }
+                if (Status === 'failed') {
+                  if (sBadge) {
+                    sBadge.textContent = '✗';
+                    sBadge.classList.remove('status-unknown','status-ok','status-skip');
+                    sBadge.classList.add('status-fail');
+                    sBadge.dataset.status = 'failed';
+                  }
+                } else if (Status === 'passed') {
+                  if (sBadge && sBadge.dataset.status !== 'failed') {
+                    sBadge.textContent = '✓';
+                    sBadge.classList.remove('status-unknown','status-fail','status-skip');
+                    sBadge.classList.add('status-ok');
+                    sBadge.dataset.status = 'passed';
+                  }
+                } else if (Status === 'skipped') {
+                  if (sBadge && sBadge.dataset.status !== 'failed' && sBadge.dataset.status !== 'passed') {
+                    sBadge.textContent = '○';
+                    sBadge.classList.remove('status-unknown','status-fail','status-ok');
+                    sBadge.classList.add('status-skip');
+                    sBadge.dataset.status = 'skipped';
+                  }
+                }
 
             const testsDiv = li.querySelector('.suite-tests');
             if (testsDiv) {
@@ -398,11 +406,7 @@ function listen(id){
               if (!loaded) {
                 try {
                   const p = li.getAttribute('data-path') || (li.querySelector('.spec-title') && li.querySelector('.spec-title').textContent) || '';
-                  if (p) {
-                    const arr = pendingTestEvents.get(p) || [];
-                    arr.push({ Name, Status, DurationMs, Messages });
-                    pendingTestEvents.set(p, arr);
-                  }
+                  // No buffering; rely on store hydration when expanded
                 } catch (e) {}
               } else {
                 Array.from(testsDiv.children).forEach(cont => {
@@ -416,12 +420,12 @@ function listen(id){
                     if (rowName === Name) {
                       if (Status === 'passed') {
                         badgeEl.textContent = '✓';
-                        badgeEl.style.background = 'rgba(16,185,129,0.12)';
-                        badgeEl.style.opacity = '1';
+                        badgeEl.classList.remove('status-unknown','status-fail','status-skip');
+                        badgeEl.classList.add('status-ok');
                       } else if (Status === 'failed') {
                         badgeEl.textContent = '✗';
-                        badgeEl.style.background = 'rgba(239,68,68,0.08)';
-                        badgeEl.style.opacity = '1';
+                        badgeEl.classList.remove('status-unknown','status-ok','status-skip');
+                        badgeEl.classList.add('status-fail');
                         // ensure collapsible details below the row (even if Messages are empty)
                         let det = cont.querySelector('details.suite-test-details');
                         if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); cont.appendChild(det); }
@@ -429,9 +433,9 @@ function listen(id){
                         const txt = (Array.isArray(Messages) && Messages.length) ? Messages.join('\n') : 'No details reported';
                         pre.textContent = txt;
                       } else if (Status === 'skipped') {
-                        badgeEl.textContent = '-';
-                        badgeEl.style.background = 'rgba(245,158,11,0.06)';
-                        badgeEl.style.opacity = '1';
+                        badgeEl.textContent = '○';
+                        badgeEl.classList.remove('status-unknown','status-ok','status-fail');
+                        badgeEl.classList.add('status-skip');
                       }
                     }
                   } catch (e) {}
@@ -469,16 +473,17 @@ function listen(id){
     agg.passed += (s.passed||0); agg.failed += (s.failed||0); agg.skipped += (s.skipped||0); agg.total += (s.total||0);
     try{ const pth = payload.path || payload.name || currentSuitePath;
       if (Array.isArray(payload.tests) && pth){ const map = lastStatus.get(pth) || new Map(); payload.tests.forEach(t=>{ const nm=t.name||t.Name; const st=(t.status||t.Status||'').toLowerCase(); if (nm) map.set(nm, st); }); lastStatus.set(pth, map); }
-      if (pth){ lastSuiteSummary.set(pth, { summary: s, tests: Array.isArray(payload.tests)? payload.tests: [] }); }
+  if (pth){ lastSuiteSummary.set(pth, { summary: s, tests: Array.isArray(payload.tests)? payload.tests: [] }); try{ if (window.hydreqStore){ window.hydreqStore.setSummary(pth, s); if (Array.isArray(payload.tests)){ payload.tests.forEach(t=>{ const nm=t.name||t.Name; if (!nm) return; const st=t.status||t.Status||''; const dur=t.durationMs||t.DurationMs||0; const msgs=t.messages||t.Messages||[]; window.hydreqStore.setTest(pth, nm, { status: st, durationMs: dur, messages: Array.isArray(msgs)? msgs: [] }); }); } } }catch(e){}
+  }
     }catch(e){}
-    try{ let li = null; if (payload.path){ li = document.querySelector('#suites li[data-path="'+payload.path+'"]'); } if (!li && payload.name){ li = Array.from(document.querySelectorAll('#suites li .spec-title')).map(n=> n.closest('li')).find(li0 => (li0.querySelector('.spec-title')||{}).textContent === payload.name) || null; } if (li){ const sb = li.querySelector('.suite-badge'); if (sb){ if ((s.failed||0) > 0) { sb.textContent = '✗'; sb.style.background = 'rgba(239,68,68,0.08)'; sb.style.opacity = '1'; sb.dataset.status = 'failed'; } else { sb.textContent = '✓'; sb.style.background = 'rgba(16,185,129,0.12)'; sb.style.opacity = '1'; sb.dataset.status = 'passed'; } sb.classList.add('animate'); setTimeout(()=> sb.classList.remove('animate'), 220); } }
+  try{ let li = null; if (payload.path){ li = document.querySelector('#suites li[data-path="'+payload.path+'"]'); } if (!li && payload.name){ li = Array.from(document.querySelectorAll('#suites li .spec-title')).map(n=> n.closest('li')).find(li0 => (li0.querySelector('.spec-title')||{}).textContent === payload.name) || null; } if (li){ const sb = li.querySelector('.suite-badge'); if (sb){ if ((s.failed||0) > 0) { sb.textContent = '✗'; sb.classList.remove('status-unknown','status-ok','status-skip'); sb.classList.add('status-fail'); sb.dataset.status = 'failed'; } else if ((s.passed||0) > 0) { sb.textContent = '✓'; sb.classList.remove('status-unknown','status-fail','status-skip'); sb.classList.add('status-ok'); sb.dataset.status = 'passed'; } else if ((s.skipped||0) > 0) { sb.textContent = '○'; sb.classList.remove('status-unknown','status-ok','status-fail'); sb.classList.add('status-skip'); sb.dataset.status = 'skipped'; } else { sb.textContent = '·'; sb.classList.remove('status-ok','status-fail','status-skip'); sb.classList.add('status-unknown'); sb.dataset.status = 'unknown'; } sb.classList.add('animate'); setTimeout(()=> sb.classList.remove('animate'), 220); } }
     }catch(e){}
     scrollBottom();
   }
 
   function handleBatchEnd(payload){ const div = document.createElement('div'); div.textContent = `=== Batch summary — ${agg.passed} passed, ${agg.failed} failed, ${agg.skipped} skipped, total ${agg.total} in ${agg.durationMs} ms (suites ${agg.suites}/${batch.total}) ===`; if (results) results.appendChild(div); scrollBottom(); }
 
-  function handleError(payload){ const d = document.createElement('div'); d.className='fail'; d.textContent = 'Error: ' + (payload.error||''); if (results) results.appendChild(d); try{ if (currentSuitePath){ const li = document.querySelector('#suites li[data-path="'+currentSuitePath+'"]'); if (li){ const sb = li.querySelector('.suite-badge'); if (sb){ sb.textContent='✗'; sb.style.background='rgba(239,68,68,0.08)'; sb.style.opacity='1'; sb.dataset.status='failed'; } } } }catch(e){} }
+  function handleError(payload){ const d = document.createElement('div'); d.className='fail'; d.textContent = 'Error: ' + (payload.error||''); if (results) results.appendChild(d); try{ if (currentSuitePath){ const li = document.querySelector('#suites li[data-path="'+currentSuitePath+'"]'); if (li){ const sb = li.querySelector('.suite-badge'); if (sb){ sb.textContent='✗'; sb.classList.remove('status-unknown','status-ok','status-skip'); sb.classList.add('status-fail'); sb.dataset.status='failed'; } } } }catch(e){} }
 
   function handleDone(payload){ try{ window.lastRunId = id; window.currentRunId = null; }catch(e){} }
 
@@ -649,9 +654,24 @@ window.promptNewSuite = promptNewSuite;
 window.importCollection = importCollection;
 window.initSuites = initSuites;
 // Expose last run info for editor prepopulation
-window.getSuiteLastStatus = function(path){ try{ const m = lastStatus.get(path)||new Map(); return Object.fromEntries(m.entries()); }catch(e){ return {}; } };
-window.getSuiteSummary = function(path){ try{ return lastSuiteSummary.get(path) || null; }catch(e){ return null; } };
-window.getSuiteBadgeStatus = function(path){ try{ const li = document.querySelector('#suites li[data-path="'+path+'"]'); const sb = li && li.querySelector && li.querySelector('.suite-badge'); return (sb && sb.dataset && sb.dataset.status) ? sb.dataset.status : 'unknown'; }catch(e){ return 'unknown'; } };
+window.getSuiteLastStatus = function(path){
+  try{
+    if (window.hydreqStore && typeof window.hydreqStore.getSuite==='function'){
+      const s = window.hydreqStore.getSuite(path);
+      if (s && s.tests){ const out = {}; Object.keys(s.tests).forEach(nm=>{ out[nm] = (s.tests[nm].status||'').toLowerCase(); }); return out; }
+    }
+  }catch(e){}
+  try{ const m = lastStatus.get(path)||new Map(); return Object.fromEntries(m.entries()); }catch(e){ return {}; }
+};
+window.getSuiteSummary = function(path){
+  try{ if (window.hydreqStore){ const s = window.hydreqStore.getSuite(path); if (s) return { summary: s.summary || null, tests: Object.keys(s.tests||{}).map(nm=> ({ name: nm, status: s.tests[nm].status, durationMs: s.tests[nm].durationMs, messages: s.tests[nm].messages })) }; }
+  }catch(e){}
+  try{ return lastSuiteSummary.get(path) || null; }catch(e){ return null; }
+};
+window.getSuiteBadgeStatus = function(path){
+  try{ if (window.hydreqStore){ const s = window.hydreqStore.getSuite(path); if (s && s.badge) return s.badge; } }catch(e){}
+  try{ const li = document.querySelector('#suites li[data-path="'+path+'"]'); const sb = li && li.querySelector && li.querySelector('.suite-badge'); return (sb && sb.dataset && sb.dataset.status) ? sb.dataset.status : 'unknown'; }catch(e){ return 'unknown'; }
+};
 // Internal helper to upsert a test record into lastSuiteSummary[path]
 function upsertLastSuiteTest(path, name, status, durationMs, messages){
   try{
@@ -674,17 +694,26 @@ window.setSuiteTestDetails = function(path, name, messages){
   try{
     if (!path || !name) return;
     // Persist into lastSuiteSummary for editor pre-seed
-    upsertLastSuiteTest(path, name, (lastStatus.get(path)||new Map()).get(name) || 'failed', 0, messages||[]);
+    let st = 'failed';
+    try{
+      if (window.hydreqStore){ const s = window.hydreqStore.getSuite(path); if (s && s.tests && s.tests[name]) st = (s.tests[name].status||'failed').toLowerCase(); }
+      else { st = ((lastStatus.get(path)||new Map()).get(name) || 'failed').toLowerCase(); }
+    }catch(e){}
+    upsertLastSuiteTest(path, name, st, 0, messages||[]);
     // If expanded in UI, ensure details block exists and update it
     const li = document.querySelector('#suites li[data-path="'+path+'"]');
     if (!li) return;
     const testsDiv = li.querySelector('.suite-tests'); if (!testsDiv) return;
     const cont = Array.from(testsDiv.children).find(r => { try{ return r.classList && r.classList.contains('suite-test-container') && r.querySelector('.suite-test-name') && (r.querySelector('.suite-test-name').dataset.name === name); }catch(e){ return false; } });
     if (!cont) return;
+    // For skipped: only add details when messages exist; for failed: always create with fallback text
+    const hasMsgs = Array.isArray(messages) && messages.length>0;
+    if (st === 'skipped' && !hasMsgs) return;
     let det = cont.querySelector('details.suite-test-details');
     if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); cont.appendChild(det); }
-    let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block fail'; det.appendChild(pre); }
-    pre.textContent = Array.isArray(messages) && messages.length ? messages.join('\n') : 'No details reported';
+    let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block'; det.appendChild(pre); }
+    pre.className = 'message-block ' + (st==='failed'?'fail':(st==='skipped'?'skip':'ok'));
+    pre.textContent = hasMsgs ? messages.join('\n') : 'No details reported';
   }catch(e){}
 };
 // Allow external callers (e.g., editor) to set per-test status for a suite and update UI if expanded
@@ -705,9 +734,10 @@ window.setSuiteTestStatus = function(path, name, status){
         const badgeEl = r.children && r.children[1];
         if (!nmEl || !badgeEl) return;
         if (nmEl.textContent === name){
-          if (st==='passed'){ badgeEl.textContent='✓'; badgeEl.style.background='rgba(16,185,129,0.12)'; badgeEl.style.opacity='1'; }
-          else if (st==='failed'){ badgeEl.textContent='✗'; badgeEl.style.background='rgba(239,68,68,0.08)'; badgeEl.style.opacity='1'; }
-          else if (st==='skipped'){ badgeEl.textContent='-'; badgeEl.style.background='rgba(245,158,11,0.06)'; badgeEl.style.opacity='1'; }
+          if (st==='passed'){ badgeEl.textContent='✓'; badgeEl.classList.remove('status-unknown','status-fail','status-skip'); badgeEl.classList.add('status-ok'); }
+          else if (st==='failed'){ badgeEl.textContent='✗'; badgeEl.classList.remove('status-unknown','status-ok','status-skip'); badgeEl.classList.add('status-fail'); }
+          else if (st==='skipped'){ badgeEl.textContent='○'; badgeEl.classList.remove('status-unknown','status-ok','status-fail'); badgeEl.classList.add('status-skip'); }
+          else { badgeEl.textContent='·'; badgeEl.classList.remove('status-ok','status-fail','status-skip'); badgeEl.classList.add('status-unknown'); }
         }
       }catch(e){}
     });
@@ -726,73 +756,7 @@ document.addEventListener('hydreq:tags-changed', ()=>{
 /**
  * Apply any buffered test events for a suite path into the UI (tests list and badges)
  */
-function flushPendingForPath(pathKey){
-  try{
-    if (!pathKey) return;
-    const events = pendingTestEvents.get(pathKey) || [];
-    if (!events || events.length === 0) return;
-    const li = document.querySelector('#suites li[data-path="'+pathKey+'"]');
-    const testsDiv = li && li.querySelector && li.querySelector('.suite-tests');
-    const sBadge = li && li.querySelector && li.querySelector('.suite-badge');
-    const map = lastStatus.get(pathKey) || new Map();
-
-    events.forEach(ev => {
-      try{
-        const Name = ev.Name || ev.name || '(unnamed)';
-        const Status = (ev.Status || ev.status || '').toLowerCase();
-        const DurationMs = ev.DurationMs || ev.durationMs || 0;
-        const Messages = ev.Messages || ev.messages || [];
-        // Update lastStatus map
-        try{ map.set(Name, Status); }catch(e){}
-        // Persist this test's latest details into lastSuiteSummary so editor can consume
-        try{ upsertLastSuiteTest(pathKey, Name, Status, DurationMs, Array.isArray(Messages)? Messages: []); }catch(e){}
-
-        // If testsDiv exists, update or insert a row for the test
-        if (testsDiv){
-          // Find or create container and main row
-          let cont = Array.from(testsDiv.children).find(r => { try{ return r.classList && r.classList.contains('suite-test-container') && r.querySelector('.suite-test-name') && (r.querySelector('.suite-test-name').dataset.name === Name); }catch(e){ return false; } });
-          if (!cont){
-            cont = document.createElement('div'); cont.className='suite-test-container';
-            const row = document.createElement('div'); row.className='suite-test-item';
-            const nm = document.createElement('span'); nm.className='suite-test-name'; nm.textContent = Name; nm.title = Name; nm.dataset.name = Name;
-            const badge = document.createElement('span'); badge.className='pill suite-test-status';
-            row.appendChild(nm); row.appendChild(badge); cont.appendChild(row); testsDiv.appendChild(cont);
-          }
-          const row = cont.querySelector('.suite-test-item');
-          const badgeEl = cont.querySelector('.suite-test-status');
-          if (Status === 'passed') { badgeEl.textContent='✓'; badgeEl.style.background='rgba(16,185,129,0.12)'; badgeEl.style.opacity='1'; }
-          else if (Status === 'failed') { badgeEl.textContent='✗'; badgeEl.style.background='rgba(239,68,68,0.08)'; badgeEl.style.opacity='1'; }
-          else if (Status === 'skipped') { badgeEl.textContent='-'; badgeEl.style.background='rgba(245,158,11,0.06)'; badgeEl.style.opacity='1'; }
-          // If failure details are present, ensure a details block exists beneath the row
-          if (Status === 'failed'){
-            let det = cont.querySelector('details.suite-test-details');
-            if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); cont.appendChild(det); }
-            let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block fail'; det.appendChild(pre); }
-            const txt = (Array.isArray(Messages) && Messages.length) ? Messages.join('\n') : 'No details reported';
-            pre.textContent = txt;
-          }
-        }
-      }catch(e){}
-    });
-
-    // persist map back
-    try{ lastStatus.set(pathKey, map); }catch(e){}
-
-    // Update suite badge based on aggregated map
-    try{
-      if (sBadge){
-        const anyFailed = Array.from(map.values()).some(v => v === 'failed');
-        const anyPassed = Array.from(map.values()).some(v => v === 'passed');
-        if (anyFailed){ sBadge.textContent='✗'; sBadge.style.background = 'rgba(239,68,68,0.08)'; sBadge.style.opacity = '1'; sBadge.dataset.status='failed'; }
-        else if (anyPassed){ sBadge.textContent='✓'; sBadge.style.background = 'rgba(16,185,129,0.12)'; sBadge.style.opacity = '1'; sBadge.dataset.status='passed'; }
-        else { sBadge.textContent='-'; sBadge.style.opacity='.6'; sBadge.dataset.status='unknown'; }
-      }
-    }catch(e){}
-
-    // Clear pending events for this path
-    try{ pendingTestEvents.delete(pathKey); }catch(e){}
-  }catch(e){ /* ignore */ }
-}
+// pending buffer removed; rely on store + hydration
 
 /**
  * Hydrate an expanded suite's tests list from lastSuiteSummary: set badges and render details
@@ -801,31 +765,41 @@ function flushPendingForPath(pathKey){
 function hydrateFromSummary(pathKey){
   try{
     if (!pathKey) return;
-    const rec = lastSuiteSummary.get(pathKey);
-    if (!rec || !Array.isArray(rec.tests) || rec.tests.length === 0) return;
+    let testsArr = [];
+    // Prefer store when available
+    try{
+      if (window.hydreqStore){ const s = window.hydreqStore.getSuite(pathKey); if (s && s.tests){ testsArr = Object.keys(s.tests).map(nm=> ({ name: nm, status: s.tests[nm].status, durationMs: s.tests[nm].durationMs, messages: s.tests[nm].messages })); } }
+    }catch(e){}
+    if (!testsArr.length){
+      const rec = lastSuiteSummary.get(pathKey);
+      if (!rec || !Array.isArray(rec.tests) || rec.tests.length === 0) return;
+      testsArr = rec.tests.map(t=> ({ name: t.name||t.Name, status: (t.status||t.Status||'').toLowerCase(), durationMs: t.durationMs||t.DurationMs||0, messages: t.messages||t.Messages||[] }));
+    }
     const li = document.querySelector('#suites li[data-path="'+pathKey+'"]');
     if (!li) return;
     const testsDiv = li.querySelector('.suite-tests');
     if (!testsDiv) return;
     const map = lastStatus.get(pathKey) || new Map();
-    rec.tests.forEach(t=>{
+    testsArr.forEach(t=>{
       try{
-        const nm = t.name || t.Name || '';
+        const nm = t.name || '';
         if (!nm) return;
-        const st = (t.status || t.Status || map.get(nm) || '').toLowerCase();
-        const msgs = t.messages || t.Messages || [];
+        const st = (t.status || map.get(nm) || '').toLowerCase();
+        const msgs = t.messages || [];
         const cont = Array.from(testsDiv.children).find(r => { try{ return r.classList && r.classList.contains('suite-test-container') && r.querySelector('.suite-test-name') && (r.querySelector('.suite-test-name').dataset.name === nm); }catch(e){ return false; } });
         if (!cont) return;
         const badgeEl = cont.querySelector('.suite-test-status');
         if (badgeEl){
-          if (st === 'passed'){ badgeEl.textContent='✓'; badgeEl.style.background='rgba(16,185,129,0.12)'; badgeEl.style.opacity='1'; }
-          else if (st === 'failed'){ badgeEl.textContent='✗'; badgeEl.style.background='rgba(239,68,68,0.08)'; badgeEl.style.opacity='1'; }
-          else if (st === 'skipped'){ badgeEl.textContent='-'; badgeEl.style.background='rgba(245,158,11,0.06)'; badgeEl.style.opacity='1'; }
+          if (st === 'passed'){ badgeEl.textContent='✓'; badgeEl.classList.remove('status-unknown','status-fail','status-skip'); badgeEl.classList.add('status-ok'); }
+          else if (st === 'failed'){ badgeEl.textContent='✗'; badgeEl.classList.remove('status-unknown','status-ok','status-skip'); badgeEl.classList.add('status-fail'); }
+          else if (st === 'skipped'){ badgeEl.textContent='○'; badgeEl.classList.remove('status-unknown','status-ok','status-fail'); badgeEl.classList.add('status-skip'); }
+          else { badgeEl.textContent='·'; badgeEl.classList.remove('status-ok','status-fail','status-skip'); badgeEl.classList.add('status-unknown'); }
         }
-        if (st === 'failed'){
+        if (st === 'failed' || (st === 'skipped' && Array.isArray(msgs) && msgs.length)){
           let det = cont.querySelector('details.suite-test-details');
           if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); cont.appendChild(det); }
-          let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block fail'; det.appendChild(pre); }
+          let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block'; det.appendChild(pre); }
+          pre.className = 'message-block ' + (st==='failed'?'fail':(st==='skipped'?'skip':'ok'));
           pre.textContent = (Array.isArray(msgs) && msgs.length) ? msgs.join('\n') : 'No details reported';
         }
         // keep lastStatus in sync with summary
@@ -835,6 +809,45 @@ function hydrateFromSummary(pathKey){
     try{ lastStatus.set(pathKey, map); }catch(e){}
   }catch(e){}
 }
+
+// Subscribe once to store updates to patch suites list incrementally
+;(function setupStoreSubscription(){
+  try{
+    if (!window.hydreqStore || typeof window.hydreqStore.subscribe!=='function') return;
+    if (window.__hydreq_store_subId) return; // already subscribed
+    const subId = window.hydreqStore.subscribe((evt)=>{
+      try{
+        if (!evt || !evt.path) return;
+        const li = document.querySelector('#suites li[data-path="'+evt.path+'"]');
+        if (!li) return;
+        // Patch suite badge on any badge event (or after test event if desired)
+        if (evt.type === 'badge'){
+          const sb = li.querySelector('.suite-badge'); if (sb){ const st = (evt.data||'').toLowerCase(); if (st==='failed'){ sb.textContent='✗'; sb.classList.remove('status-unknown','status-ok','status-skip'); sb.classList.add('status-fail'); sb.dataset.status='failed'; } else if (st==='passed'){ sb.textContent='✓'; sb.classList.remove('status-unknown','status-fail','status-skip'); sb.classList.add('status-ok'); sb.dataset.status='passed'; } else if (st==='skipped'){ sb.textContent='○'; sb.classList.remove('status-unknown','status-fail','status-ok'); sb.classList.add('status-skip'); sb.dataset.status='skipped'; } else { sb.textContent='·'; sb.classList.remove('status-ok','status-fail','status-skip'); sb.classList.add('status-unknown'); sb.dataset.status='unknown'; } }
+          return;
+        }
+        if (evt.type === 'test'){
+          // Only patch visible/expanded suites
+          const testsDiv = li.querySelector('.suite-tests'); if (!testsDiv) return;
+          // Find row for test name
+          const name = evt.name || '';
+          const cont = Array.from(testsDiv.children).find(r => { try{ return r.classList && r.classList.contains('suite-test-container') && r.querySelector('.suite-test-name') && (r.querySelector('.suite-test-name').dataset.name === name); }catch(e){ return false; } });
+          if (!cont) return;
+          const badgeEl = cont.querySelector('.suite-test-status');
+          const st = (evt.data && evt.data.status) ? String(evt.data.status).toLowerCase() : '';
+          const msgs = (evt.data && Array.isArray(evt.data.messages)) ? evt.data.messages : [];
+          if (badgeEl){ if (st==='passed'){ badgeEl.textContent='✓'; badgeEl.classList.remove('status-unknown','status-fail','status-skip'); badgeEl.classList.add('status-ok'); } else if (st==='failed'){ badgeEl.textContent='✗'; badgeEl.classList.remove('status-unknown','status-ok','status-skip'); badgeEl.classList.add('status-fail'); } else if (st==='skipped'){ badgeEl.textContent='○'; badgeEl.classList.remove('status-unknown','status-ok','status-fail'); badgeEl.classList.add('status-skip'); } }
+          if (st==='failed' || (st==='skipped' && msgs.length)){
+            let det = cont.querySelector('details.suite-test-details'); if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); cont.appendChild(det); }
+            let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block'; det.appendChild(pre); }
+            pre.className = 'message-block ' + (st==='failed'?'fail':(st==='skipped'?'skip':'ok'));
+            pre.textContent = msgs.length ? msgs.join('\n') : 'No details reported';
+          }
+        }
+      }catch(e){}
+    });
+    window.__hydreq_store_subId = subId;
+  }catch(e){}
+})();
 
 // Expand a suite in the UI by its canonical path; awaits any expand promise
 async function expandSuiteByPath(pathKey){

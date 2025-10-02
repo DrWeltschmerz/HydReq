@@ -66,7 +66,7 @@
       const titleSpan = document.createElement('span'); titleSpan.className = 'spec-title'; titleSpan.style.fontWeight='600'; titleSpan.style.fontSize='16px';
       titleSpan.textContent = friendly && (typeof friendly === 'string') && friendly.trim() !== '' ? friendly : base;
 
-      const suiteBadge = document.createElement('span'); suiteBadge.className = 'pill suite-badge'; suiteBadge.textContent = '·'; suiteBadge.style.opacity = '.6'; suiteBadge.title = 'suite status'; suiteBadge.dataset.status = 'unknown';
+  const suiteBadge = document.createElement('span'); suiteBadge.className = 'status-badge suite-badge status-unknown'; suiteBadge.textContent = '·'; suiteBadge.title = 'suite status'; suiteBadge.dataset.status = 'unknown';
 
       titleRow.appendChild(expandBtn); titleRow.appendChild(titleSpan); titleRow.appendChild(suiteBadge);
       name.appendChild(titleRow);
@@ -121,11 +121,11 @@
             const nm = document.createElement('span'); nm.className='suite-test-name'; nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent; nm.dataset.name = nm.textContent;
             const stmap = lastStatusObj[pathKey] || {};
             const status = stmap[nm.dataset.name] || '';
-            const badge = document.createElement('span'); badge.className='pill suite-test-status';
-            if (status==='passed'){ badge.textContent='✓'; badge.style.background='rgba(16,185,129,0.12)'; }
-            else if (status==='failed'){ badge.textContent='✗'; badge.style.background='rgba(239,68,68,0.08)'; }
-            else if (status==='skipped'){ badge.textContent='-'; badge.style.background='rgba(245,158,11,0.06)'; }
-            else { badge.textContent='·'; badge.style.opacity='.6'; }
+            const badge = document.createElement('span'); badge.className='status-badge suite-test-status';
+            if (status==='passed'){ badge.classList.add('status-ok'); badge.textContent='✓'; }
+            else if (status==='failed'){ badge.classList.add('status-fail'); badge.textContent='✗'; }
+            else if (status==='skipped'){ badge.classList.add('status-skip'); badge.textContent='○'; }
+            else { badge.classList.add('status-unknown'); badge.textContent='·'; }
             row.appendChild(nm); row.appendChild(badge); cont.appendChild(row); testsDiv.appendChild(cont);
           });
           if (openSet.has(pathKey)) { testsDiv.classList.add('open'); testsDiv.style.display='block'; expandBtn.dataset.open='1'; expandBtn.textContent='▾'; }

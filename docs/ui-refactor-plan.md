@@ -120,8 +120,12 @@ Plan
 2) Split large JS files
   - `suites.js`: extract `sse-handlers.js` (listen/handlers), `suite-state.js` (selection, lastStatus, buffering), `suite-dom.js` (DOM builders), keeping a thin orchestrator.
   - `editor.js`: continue Phase 2 split (modal, state, yaml, forms/*, run).
-3) Status/badge CSS tokens
-  - Add `.status-passed|failed|skipped` classes with themed backgrounds; stop setting style.background inline.
+3) Status/badge CSS tokens (done)
+  - Added unified classes: `.status-badge`, `.status-ok`, `.status-fail`, `.status-skip`, `.status-unknown`.
+  - Replaced inline style updates across suites and editor with class-based updates and standardized icons: ✓ passed, ✗ failed, ○ skipped, · unknown.
+4) Store-first state and buffering (done)
+  - Introduced `hydreqStore` as a small central store for suite/test results with pub/sub.
+  - Removed legacy pending buffers and the `flushPendingForPath` path from suites; rely on hydration from store when expanding suites, and on store subscription for incremental updates.
 4) Tests
   - Add E2E for suite expand and details collapse/expand; verify scrollability and copy behavior.
 5) Docs

@@ -357,16 +357,19 @@ function renderTests() {
     let statusBadge = null;
     if (result && result.status) {
       statusBadge = document.createElement('span');
-      statusBadge.className = 'badge badge-xs ed-test-status';
+      statusBadge.className = 'status-badge ed-test-status';
       if (result.status === 'passed') {
-        statusBadge.classList.add('badge-success');
+        statusBadge.classList.add('status-ok');
         statusBadge.textContent = '✓';
       } else if (result.status === 'failed') {
-        statusBadge.classList.add('badge-error');
+        statusBadge.classList.add('status-fail');
         statusBadge.textContent = '✗';
       } else if (result.status === 'skipped') {
-        statusBadge.classList.add('badge-warning');
+        statusBadge.classList.add('status-skip');
         statusBadge.textContent = '○';
+      } else {
+        statusBadge.classList.add('status-unknown');
+        statusBadge.textContent = '·';
       }
       statusBadge.title = result.status;
     }
@@ -411,11 +414,11 @@ function renderTests() {
     testContainer.appendChild(testDiv);
     
     // Check if we need to add collapsible details row
-    if (result && result.status && result.status === 'failed') {
+    if (result && result.status && (result.status === 'failed' || (result.status === 'skipped' && Array.isArray(result.messages) && result.messages.length))) {
       const details = document.createElement('details');
       details.className = 'ed-test-details';
       const sum = document.createElement('summary'); sum.textContent = 'details'; details.appendChild(sum);
-      const pre = document.createElement('pre'); pre.className = 'message-block fail'; pre.textContent = (Array.isArray(result.messages) && result.messages.length) ? result.messages.join('\n') : 'No details reported';
+      const pre = document.createElement('pre'); pre.className = 'message-block ' + (result.status==='failed'?'fail':'skip'); pre.textContent = (Array.isArray(result.messages) && result.messages.length) ? result.messages.join('\n') : 'No details reported';
       details.appendChild(pre);
       testContainer.appendChild(details);
     }
@@ -1650,8 +1653,9 @@ function openEditor(path, data){
   // Run record persistence and rendering
   function getRunRecord(){ try{ const k = RUNREC_KEY((modal.querySelector('#ed_path')||{}).textContent||''); return JSON.parse(localStorage.getItem(k)||'{}'); }catch{return {}} }
   function saveRunRecord(rec){ try{ const k = RUNREC_KEY((modal.querySelector('#ed_path')||{}).textContent||''); localStorage.setItem(k, JSON.stringify(rec)); }catch{} }
-  function setSuiteRecord(status, durationMs, messages){ const rec = getRunRecord(); rec.suite = { status, durationMs: durationMs||0, messages: messages||[], ts: Date.now() }; saveRunRecord(rec); try{ updateSuiteBadgeUI((modal.querySelector('#ed_path')||{}).textContent||'', status); }catch{} }
-  function setTestRecord(name, status, durationMs, messages){ const rec = getRunRecord(); rec.tests = rec.tests||{}; rec.tests[name||''] = { name, status, durationMs: durationMs||0, messages: messages||[], ts: Date.now() }; saveRunRecord(rec); try{ if (status==='failed' || status==='passed' || status==='skipped'){ updateSuiteBadgeUI((modal.querySelector('#ed_path')||{}).textContent||'', status); } }catch{} }
+  function setSuiteRecord(status, durationMs, messages){ const rec = getRunRecord(); rec.suite = { status, durationMs: durationMs||0, messages: messages||[], ts: Date.now() }; saveRunRecord(rec); try{ updateSuiteBadgeUI((modal.querySelector('#ed_path')||{}).textContent||'', status); }catch{} try{ const pth=(modal.querySelector('#ed_path')||{}).textContent||''; if (window.hydreqStore){ window.hydreqStore.setSummary(pth, { passed: status==='passed'?1:0, failed: status==='failed'?1:0, skipped: status==='skipped'?1:0, total: 1, durationMs: durationMs||0 }); window.hydreqStore.setBadge(pth, status||'unknown'); } }catch{}
+ }
+  function setTestRecord(name, status, durationMs, messages){ const rec = getRunRecord(); rec.tests = rec.tests||{}; rec.tests[name||''] = { name, status, durationMs: durationMs||0, messages: messages||[], ts: Date.now() }; saveRunRecord(rec); try{ if (status==='failed' || status==='passed' || status==='skipped'){ updateSuiteBadgeUI((modal.querySelector('#ed_path')||{}).textContent||'', status); } }catch{} try{ const pth=(modal.querySelector('#ed_path')||{}).textContent||''; if (window.hydreqStore){ window.hydreqStore.setTest(pth, name||'', { status, durationMs: durationMs||0, messages: Array.isArray(messages)?messages:[] }); } }catch{} }
   function renderLatestForSelection(){
     try{
       const rec = getRunRecord();
@@ -1704,7 +1708,7 @@ function openEditor(path, data){
   function renderQuickRunForSelection(){ renderLatestForSelection(); const qrBox = modal.querySelector('#ed_quickrun_box'); if (qrBox) qrBox.open = true; }
   // Expose for global selector
   try{ window.__ed_renderQuickRunForSelection = renderQuickRunForSelection; }catch(e){}
-  function updateSuiteBadgeUI(path, status){ try{ if (!path) return; const li = document.querySelector('#suites li[data-path="'+path+'"]'); if (!li) return; const sb = li.querySelector('.suite-badge'); if (!sb) return; if (status==='failed'){ sb.textContent='✗'; sb.style.background='rgba(239,68,68,0.08)'; sb.style.opacity='1'; sb.dataset.status='failed'; } else if (status==='passed'){ if (sb.dataset.status!=='failed'){ sb.textContent='✓'; sb.style.background='rgba(16,185,129,0.12)'; sb.style.opacity='1'; sb.dataset.status='passed'; } } else if (status==='skipped'){ if (sb.dataset.status!=='failed' && sb.dataset.status!=='passed'){ sb.textContent='-'; sb.style.background='rgba(245,158,11,0.06)'; sb.style.opacity='1'; sb.dataset.status='skipped'; } } }catch(e){} }
+  function updateSuiteBadgeUI(path, status){ try{ if (!path) return; const li = document.querySelector('#suites li[data-path="'+path+'"]'); if (!li) return; const sb = li.querySelector('.suite-badge'); if (!sb) return; const st=(status||'').toLowerCase(); if (st==='failed'){ sb.textContent='✗'; sb.classList.remove('status-unknown','status-ok','status-skip'); sb.classList.add('status-fail'); sb.dataset.status='failed'; } else if (st==='passed'){ if (sb.dataset.status!=='failed'){ sb.textContent='✓'; sb.classList.remove('status-unknown','status-fail','status-skip'); sb.classList.add('status-ok'); sb.dataset.status='passed'; } } else if (st==='skipped'){ if (sb.dataset.status!=='failed' && sb.dataset.status!=='passed'){ sb.textContent='○'; sb.classList.remove('status-unknown','status-fail','status-ok'); sb.classList.add('status-skip'); sb.dataset.status='skipped'; } } else { sb.textContent='·'; sb.classList.remove('status-ok','status-fail','status-skip'); sb.classList.add('status-unknown'); sb.dataset.status='unknown'; } }catch(e){} }
   function getTestIndexByName(name){ if (!name) return -1; if (!Array.isArray(working.tests)) return -1; for (let i=0;i<working.tests.length;i++){ if ((working.tests[i].name||'') === name) return i; } return -1; }
   function updateTestBadgeByIndex(idx, status, messages){ 
     try{ 
@@ -1738,14 +1742,14 @@ function openEditor(path, data){
           // persist per-test record for freshness
           setTestRecord(nm, st, dur, Array.isArray(msgs)? msgs: []);
           // propagate to suites list if available
-          try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, nm, st); if (typeof window.setSuiteTestDetails==='function' && st==='failed') window.setSuiteTestDetails(pth, nm, Array.isArray(msgs)?msgs:[]); }catch{}
+          try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, nm, st); if (typeof window.setSuiteTestDetails==='function' && (st==='failed' || (st==='skipped' && Array.isArray(msgs) && msgs.length))) window.setSuiteTestDetails(pth, nm, Array.isArray(msgs)?msgs:[]); }catch{}
         });
       } else if (res.name && res.status){
         const idx = getTestIndexByName(res.name);
         if (idx>=0) updateTestBadgeByIndex(idx, (res.status||'').toLowerCase(), res.messages || []);
         const st = (res.status||'').toLowerCase();
         setTestRecord(res.name, st, res.durationMs||0, res.messages||[]);
-        try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, res.name, st); if (typeof window.setSuiteTestDetails==='function' && st==='failed') window.setSuiteTestDetails(pth, res.name, Array.isArray(res.messages)?res.messages:[]); }catch{}
+  try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, res.name, st); if (typeof window.setSuiteTestDetails==='function' && (st==='failed' || (st==='skipped' && Array.isArray(res.messages) && res.messages.length))) window.setSuiteTestDetails(pth, res.name, Array.isArray(res.messages)?res.messages:[]); }catch{}
       }
     }catch(e){}
   }
