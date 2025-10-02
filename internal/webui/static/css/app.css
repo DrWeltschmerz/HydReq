@@ -209,6 +209,19 @@ a { color: var(--link); }
 
 /* Toolbar utilities */
 .toolbar.row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+/* Distribute toolbar buttons evenly across available width */
+.toolbar.row > .btn { flex: 1 1 0%; min-width: 0; }
+@media (max-width: 480px) {
+  .toolbar.row > .btn { flex-basis: 100%; }
+}
+/* Make workers/timeout labels spread evenly across container */
+.full-width-labels { display:flex; gap:8px; align-items:center; width:100%; }
+.full-width-labels > label { flex:1 1 0%; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.full-width-labels > label input { flex:0 0 auto; min-width:0; }
+@media (max-width: 480px) {
+  .full-width-labels { flex-direction: column; gap: 6px; }
+  .full-width-labels > label { width: 100%; }
+}
 .gap-8 { gap:8px; }
 .mb-8 { margin-bottom:8px; }
 .ai-center { align-items:center; }
