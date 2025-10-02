@@ -28,9 +28,9 @@ Recommendation: Option 2 (Preact + htm + Vite + TS) for the editor and suites co
 ## Phased migration
 
 Phase 0: Housekeeping (no behavior changes)
-- Remove dead/legacy files after verification: `internal/webui/static/suites.js`, `internal/webui/static/js/helpers.js`.
-- Move index.html inline `<style>` to `css/app.css`.
-- Consolidate theme tokens into `themes.css` and reference from `app.css`.
+- Remove dead/legacy files after verification: `internal/webui/static/suites.js`, `internal/webui/static/js/helpers.js`. (done)
+- Move index.html inline `<style>` to `css/app.css`. (done)
+- Consolidate theme tokens into `themes.css` and reference from `app.css`. (done — theme tokens have been moved to `themes.css` and `app.css` now references `themes.css` as the primary source for variables.)
 
 Phase 1: Module boundaries
 - Create `js/state/` with small modules:

@@ -26,7 +26,7 @@ body.modal-open { overflow: hidden; }
 /* Anti-vertical-squish safety: allow flex children to shrink and scroll */
 .flex-col { display:flex; flex-direction:column; min-height:0; }
 .scroll { overflow:auto; min-height:0; }
-/* Theme tokens */
+/* Theme tokens consolidated in themes.css — keep CSS rules here; theme variables live in themes.css */
 :root {
   --hdr-bg:#0b1020; --hdr-fg:#c6e2ff; --bd:#e5e7eb; --li-hov:#f5f7fb; --li-sel:#e6f2ff; --pill:#eef2ff; --pg-bg:#eee; --txt:#111827; --bg:#ffffff;
   --btn-bg:#ffffff; --btn-bd:#d1d5db; --btn-hov:#f6f9ff; --link:#2563eb;
