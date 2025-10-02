@@ -1,18 +1,42 @@
 // suites.js - Suite management functions for HydReq GUI
 
 // Global variables for suite management
-let selected = new Set();
+let selected = (window.hydreqSuitesState && window.hydreqSuitesState.getSelected()) || new Set();
 let batch = { done: 0, total: 0 };
 let suite = { done: 0, total: 0 };
 const testRows = new Map(); // key: path::Name -> {container, line}
 const agg = { passed:0, failed:0, skipped:0, total:0, suites:0, durationMs:0 };
-const lastStatus = new Map(); // path -> Map(name=>status)
-const lastSuiteSummary = new Map(); // path -> { summary, tests }
-let currentSuitePath = null; // canonical path/key for suite currently running
+const lastStatus = (window.hydreqSuitesState && window.hydreqSuitesState.getLastStatus)
+  ? {
+      get: (p) => window.hydreqSuitesState.getLastStatus(p),
+      set: (p, m) => { /* no-op via state */ },
+    }
+  : new Map();
+
+const lastSuiteSummary = (window.hydreqSuitesState && window.hydreqSuitesState.getSuiteSummary)
+  ? {
+      get: (p) => window.hydreqSuitesState.getSuiteSummary(p),
+      set: (p, v) => window.hydreqSuitesState.setSuiteSummary(
+        p,
+        v && v.summary,
+        v && v.tests
+      ),
+    }
+  : new Map();
+
+// canonical path/key for suite currently running
+let currentSuitePath = (
+  window.hydreqSuitesState &&
+  window.hydreqSuitesState.getCurrentSuitePath &&
+  window.hydreqSuitesState.getCurrentSuitePath()
+) || null;
 // Removed pending buffer: rely on hydreqStore + hydrateFromSummary
 // Track open/expanded suites to preserve state across re-renders
-let openSuites = new Set();
-try{ openSuites = new Set(JSON.parse(localStorage.getItem('hydreq.openSuites')||'[]')); }catch(e){ openSuites = new Set(); }
+let openSuites = (
+  window.hydreqSuitesState &&
+  window.hydreqSuitesState.getOpenSuites &&
+  window.hydreqSuitesState.getOpenSuites()
+) || new Set();
 
 // Render the list of test suites
 function renderSuites(list){
@@ -47,7 +71,12 @@ function renderSuites(list){
           if (expandBtn._resolveExpand) { expandBtn._resolveExpand(); expandBtn._expandPromise = null; expandBtn._resolveExpand = null; }
           return;
         }
-        let spinner = null; try{ spinner = document.createElement('span'); spinner.className='spinner'; expandBtn.insertBefore(spinner, expandBtn.firstChild); }catch(e){}
+        let spinner = null;
+        try{
+          spinner = document.createElement('span');
+          spinner.className = 'spinner';
+          expandBtn.insertBefore(spinner, expandBtn.firstChild);
+        }catch(e){}
         try{
           const p = encodeURIComponent(pathKey);
           const res = await fetch('/api/editor/suite?path='+p);
@@ -59,13 +88,33 @@ function renderSuites(list){
               const statusMap = lastStatus.get(pathKey) || new Map();
               const st = statusMap.get((t.name||t.Name||'')) || '';
               const cont = (window.hydreqSuitesDOM && typeof window.hydreqSuitesDOM.buildTestContainer==='function')
-                ? window.hydreqSuitesDOM.buildTestContainer(t, st, { selectedTags: selectedArr, onToggleTag: (tg)=>{ if (window.toggleSelectedTag) window.toggleSelectedTag(tg); } })
+                ? window.hydreqSuitesDOM.buildTestContainer(
+                    t,
+                    st,
+                    {
+                      selectedTags: selectedArr,
+                      onToggleTag: (tg) => {
+                        if (window.toggleSelectedTag) window.toggleSelectedTag(tg);
+                      }
+                    }
+                  )
                 : (function(){
-                    const fallback = document.createElement('div'); fallback.className='suite-test-container';
-                    const row = document.createElement('div'); row.className='suite-test-item';
-                    const nm = document.createElement('span'); nm.className='suite-test-name'; nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent; nm.dataset.name = nm.textContent;
-                    const badge = document.createElement('span'); badge.className='status-badge suite-test-status status-unknown'; badge.textContent='·';
-                    row.appendChild(nm); row.appendChild(badge); fallback.appendChild(row); return fallback;
+                    const fallback = document.createElement('div');
+                    fallback.className = 'suite-test-container';
+                    const row = document.createElement('div');
+                    row.className = 'suite-test-item';
+                    const nm = document.createElement('span');
+                    nm.className = 'suite-test-name';
+                    nm.textContent = t.name || t.Name || '(unnamed)';
+                    nm.title = nm.textContent;
+                    nm.dataset.name = nm.textContent;
+                    const badge = document.createElement('span');
+                    badge.className = 'status-badge suite-test-status status-unknown';
+                    badge.textContent = '·';
+                    row.appendChild(nm);
+                    row.appendChild(badge);
+                    fallback.appendChild(row);
+                    return fallback;
                   })();
               testsDiv.appendChild(cont);
             });
@@ -77,14 +126,74 @@ function renderSuites(list){
           }
         }catch(err){ try{ testsDiv.innerHTML = '<div class="dim">Failed to load tests</div>'; }catch(e){} }
         try{ if (spinner && spinner.parentNode) spinner.remove(); }catch(e){}
-        try{ const id = 'tests-' + slugify(pathKey); testsDiv.id = id; expandBtn.setAttribute('aria-controls', id); }catch{}
-        if (expandBtn._resolveExpand) { try{ expandBtn._resolveExpand(); expandBtn._expandPromise = null; expandBtn._resolveExpand = null; }catch(e){} }
+        try{
+          const id = 'tests-' + slugify(pathKey);
+          testsDiv.id = id;
+          expandBtn.setAttribute('aria-controls', id);
+        }catch{}
+        if (expandBtn._resolveExpand) {
+          try{
+            expandBtn._resolveExpand();
+            expandBtn._expandPromise = null;
+            expandBtn._resolveExpand = null;
+          }catch(e){}
+        }
       },
-      onToggleOpen: function(pathKey, isOpen){ try{ if (isOpen) openSuites.add(pathKey); else openSuites.delete(pathKey); localStorage.setItem('hydreq.openSuites', JSON.stringify(Array.from(openSuites))); }catch(e){} },
+      onToggleOpen: function(pathKey, isOpen){
+        try{
+          if (window.hydreqSuitesState) {
+            window.hydreqSuitesState.toggleOpen(pathKey, isOpen);
+          } else {
+            if (isOpen) openSuites.add(pathKey);
+            else openSuites.delete(pathKey);
+            localStorage.setItem('hydreq.openSuites', JSON.stringify(Array.from(openSuites)));
+          }
+        }catch(e){}
+      },
       onToggleTag: function(tag){ if (window.toggleSelectedTag) window.toggleSelectedTag(tag); },
-      onToggleSelect: function(pathKey, newSelArr){ try{ selected = new Set(newSelArr); localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected))); }catch(e){} },
-      onEdit: async function(pathKey){ try{ const res = await fetch('/api/editor/suite?path='+encodeURIComponent(pathKey)); if (!res.ok){ alert('Failed to load suite'); return; } const data = await res.json(); openEditor(pathKey, data); }catch(e){ console.error(e); alert('Failed to open editor'); } },
-      onDelete: async function(pathKey){ try{ if (!confirm('Delete suite? '+pathKey)) return; const res = await fetch('/api/editor/suite?path='+encodeURIComponent(pathKey), { method:'DELETE' }); if (!res.ok && res.status !== 204){ const t=await res.text().catch(()=>''); alert('Delete failed: '+res.status+(t?(' - '+t):'')); return; } selected.delete(pathKey); openSuites.delete(pathKey); localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected))); localStorage.setItem('hydreq.openSuites', JSON.stringify(Array.from(openSuites))); refresh(); }catch(e){ alert('Delete failed: '+(e && e.message?e.message:String(e))); } },
+      onToggleSelect: function(pathKey, newSelArr){
+        try{
+          if (window.hydreqSuitesState) selected = window.hydreqSuitesState.setSelected(newSelArr);
+          else {
+            selected = new Set(newSelArr);
+            localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected)));
+          }
+        }catch(e){}
+      },
+      onEdit: async function(pathKey){
+        try{
+          const res = await fetch('/api/editor/suite?path=' + encodeURIComponent(pathKey));
+          if (!res.ok){
+            alert('Failed to load suite');
+            return;
+          }
+          const data = await res.json();
+          openEditor(pathKey, data);
+        }catch(e){
+          console.error(e);
+          alert('Failed to open editor');
+        }
+      },
+      onDelete: async function(pathKey){
+        try{
+          if (!confirm('Delete suite? ' + pathKey)) return;
+          const res = await fetch('/api/editor/suite?path=' + encodeURIComponent(pathKey), {
+            method: 'DELETE'
+          });
+          if (!res.ok && res.status !== 204){
+            const t = await res.text().catch(()=>'');
+            alert('Delete failed: ' + res.status + (t ? (' - ' + t) : ''));
+            return;
+          }
+          selected.delete(pathKey);
+          openSuites.delete(pathKey);
+          localStorage.setItem('hydreq.sel', JSON.stringify(Array.from(selected)));
+          localStorage.setItem('hydreq.openSuites', JSON.stringify(Array.from(openSuites)));
+          refresh();
+        }catch(e){
+          alert('Delete failed: ' + (e && e.message ? e.message : String(e)));
+        }
+      },
       onDownload: function(pathKey, fmt){ downloadSuite(pathKey, fmt); },
       onRefresh: function(){ refresh(); }
     };
@@ -112,13 +221,42 @@ async function refresh(){
   try {
     const res = await fetch('/api/editor/suites');
     console.log('refresh: fetch complete, status=', res && res.status);
-    try{ window.__HYDREQ_REFRESH = window.__HYDREQ_REFRESH || {}; window.__HYDREQ_REFRESH.status = res && res.status; console.log('refresh: set status to', window.__HYDREQ_REFRESH.status); }catch{}
+    try{
+      window.__HYDREQ_REFRESH = window.__HYDREQ_REFRESH || {};
+      window.__HYDREQ_REFRESH.status = res && res.status;
+      console.log('refresh: set status to', window.__HYDREQ_REFRESH.status);
+    }catch{}
     let list = [];
-    try { list = await res.json(); console.log('refresh: parsed JSON, list length:', Array.isArray(list) ? list.length : 'not array'); } catch (e) { console.error('refresh: failed parsing JSON', e); }
+    try {
+      list = await res.json();
+      console.log(
+        'refresh: parsed JSON, list length:',
+        Array.isArray(list) ? list.length : 'not array'
+      );
+    } catch (e) {
+      console.error('refresh: failed parsing JSON', e);
+    }
     console.log('refresh: got list (len=', (Array.isArray(list)?list.length:0), ')');
-    try{ window.__HYDREQ_REFRESH.list = list; window.__HYDREQ_REFRESH.len = Array.isArray(list)?list.length:0; console.log('refresh: set list and len', window.__HYDREQ_REFRESH.len); }catch{}
-    try { renderSuites(list || []); console.log('refresh: renderSuites completed'); } catch (e) { console.error('refresh: renderSuites threw', e); try{ window.__HYDREQ_REFRESH.err = String(e); }catch{} }
-    try { const results = document.getElementById('results'); if (results) { const d=document.createElement('div'); d.textContent = 'DEBUG: refresh list len=' + (Array.isArray(list)?list.length:0); results.appendChild(d); } }catch(e){}
+    try{
+      window.__HYDREQ_REFRESH.list = list;
+      window.__HYDREQ_REFRESH.len = Array.isArray(list) ? list.length : 0;
+      console.log('refresh: set list and len', window.__HYDREQ_REFRESH.len);
+    }catch{}
+    try {
+      renderSuites(list || []);
+      console.log('refresh: renderSuites completed');
+    } catch (e) {
+      console.error('refresh: renderSuites threw', e);
+      try{ window.__HYDREQ_REFRESH.err = String(e); }catch{}
+    }
+    try {
+      const results = document.getElementById('results');
+      if (results) {
+        const d = document.createElement('div');
+        d.textContent = 'DEBUG: refresh list len=' + (Array.isArray(list) ? list.length : 0);
+        results.appendChild(d);
+      }
+    }catch(e){}
   } catch (err) {
     console.error('refresh: fetch failed', err);
     try{ window.__HYDREQ_REFRESH = window.__HYDREQ_REFRESH || {}; window.__HYDREQ_REFRESH.err = String(err); }catch{}
@@ -164,7 +302,17 @@ async function run(){
   console.log('tags:', tags);
   const defaultTimeoutMs = (defToEl && defToEl.value)? (parseInt(defToEl.value,10)||0) : 0;
   const workersEl = document.getElementById('workers');
-  const res = await fetch('/api/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({suites, workers: parseInt(workersEl.value)||4, tags: Array.isArray(tags) ? tags : [], defaultTimeoutMs: (defaultTimeoutMs>0? defaultTimeoutMs: undefined), env})});
+  const res = await fetch('/api/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      suites,
+      workers: parseInt(workersEl.value) || 4,
+      tags: Array.isArray(tags) ? tags : [],
+      defaultTimeoutMs: (defaultTimeoutMs > 0 ? defaultTimeoutMs : undefined),
+      env
+    })
+  });
   if (!res.ok){
     let txt = '';
     try { txt = await res.text(); } catch {}
@@ -227,7 +375,19 @@ function listen(id){
         : (function(){
             const id = 'stage_'+Stage; const txt='stage_txt_'+Stage;
             let st = document.getElementById(id); let stt = document.getElementById(txt);
-            if (!st || !stt){ const d=document.createElement('div'); d.className='row'; d.innerHTML='<div class="w-120px">stage '+Stage+'</div><div class="progress flex-1"><div id="'+id+'" style="width:0%"></div></div><div class="pill" id="'+txt+'">0/0</div>'; if (stages) stages.appendChild(d); st=document.getElementById(id); stt=document.getElementById(txt); }
+            if (!st || !stt){
+              const d = document.createElement('div');
+              d.className = 'row';
+              d.innerHTML =
+                '<div class="w-120px">stage ' + Stage + '</div>' +
+                '<div class="progress flex-1">' +
+                  '<div id="' + id + '" style="width:0%"></div>' +
+                '</div>' +
+                '<div class="pill" id="' + txt + '">0/0</div>';
+              if (stages) stages.appendChild(d);
+              st = document.getElementById(id);
+              stt = document.getElementById(txt);
+            }
             return { barEl: st, textEl: stt, created: true };
           })();
       if (created) dynamicStages.add(String(Stage));
@@ -245,11 +405,12 @@ function listen(id){
   async function handleSuiteStart(payload){
     suite.total = payload.total; suite.done = 0; if (suiteBar) setBar(suiteBar,0,suite.total); if (suiteText) suiteText.textContent = '0/' + suite.total; if (stages) stages.innerHTML='';
     if (currentSuiteEl) currentSuiteEl.textContent = (payload.name || payload.path || '');
-    currentSuitePath = payload.path || payload.name || null;
+  currentSuitePath = payload.path || payload.name || null;
+  try{ if (window.hydreqSuitesState) window.hydreqSuitesState.setCurrentSuitePath(currentSuitePath); }catch(e){}
     try{ started.clear(); }catch(e){}
     try{ suiteStagesFromStart = new Set(Object.keys(payload.stages||{}).map(k=> String(k))); dynamicStages = new Set(); }catch(e){ suiteStagesFromStart = new Set(); dynamicStages = new Set(); }
     renderHeaderTags(); renderHeaderEnv();
-    try{ if (currentSuitePath) lastStatus.set(currentSuitePath, new Map()); }catch(e){}
+  try{ if (currentSuitePath && window.hydreqSuitesState && window.hydreqSuitesState.setTestStatus) {/* ensure map exists lazily */} }catch(e){}
     const nm = (payload.name || payload.path || '');
     const pth = payload.path || '';
     const base = pth ? pth.split('/').pop() : '';
@@ -284,9 +445,9 @@ function listen(id){
       if (results) results.appendChild(wrap);
       row = {container: wrap, line}; testRows.set(key, row);
     }
-  try{ const m = lastStatus.get(currentSuitePath) || new Map(); m.set(Name, (Status||'').toLowerCase()); lastStatus.set(currentSuitePath, m); }catch(e){}
+  try{ if (window.hydreqSuitesState && window.hydreqSuitesState.setTestStatus) window.hydreqSuitesState.setTestStatus(currentSuitePath||'', Name, Status||''); }catch(e){}
   // Persist/update details in lastSuiteSummary for cross-view sync
-  try{ upsertLastSuiteTest(currentSuitePath||'', Name, Status||'', DurationMs||0, Array.isArray(Messages)? Messages: []); }catch(e){}
+  try{ if (window.hydreqSuitesState && window.hydreqSuitesState.upsertTest) window.hydreqSuitesState.upsertTest(currentSuitePath||'', Name, Status||'', DurationMs||0, Array.isArray(Messages)? Messages: []); }catch(e){}
   try{ if (window.hydreqStore && typeof window.hydreqStore.setTest==='function') window.hydreqStore.setTest(currentSuitePath||'', Name, { status: Status||'', durationMs: DurationMs||0, messages: Array.isArray(Messages)? Messages: [] }); }catch(e){}
     row.line.className = (Status==='passed'?'ok':(Status==='failed'?'fail':'skip'));
     if (Status==='skipped') {
@@ -365,7 +526,7 @@ function listen(id){
     agg.passed += (s.passed||0); agg.failed += (s.failed||0); agg.skipped += (s.skipped||0); agg.total += (s.total||0);
     try{ const pth = payload.path || payload.name || currentSuitePath;
       if (Array.isArray(payload.tests) && pth){ const map = lastStatus.get(pth) || new Map(); payload.tests.forEach(t=>{ const nm=t.name||t.Name; const st=(t.status||t.Status||'').toLowerCase(); if (nm) map.set(nm, st); }); lastStatus.set(pth, map); }
-  if (pth){ lastSuiteSummary.set(pth, { summary: s, tests: Array.isArray(payload.tests)? payload.tests: [] }); try{ if (window.hydreqStore){ window.hydreqStore.setSummary(pth, s); if (Array.isArray(payload.tests)){ payload.tests.forEach(t=>{ const nm=t.name||t.Name; if (!nm) return; const st=t.status||t.Status||''; const dur=t.durationMs||t.DurationMs||0; const msgs=t.messages||t.Messages||[]; window.hydreqStore.setTest(pth, nm, { status: st, durationMs: dur, messages: Array.isArray(msgs)? msgs: [] }); }); } } }catch(e){}
+  if (pth){ try{ if (window.hydreqSuitesState) window.hydreqSuitesState.setSuiteSummary(pth, s, Array.isArray(payload.tests)? payload.tests: []); else lastSuiteSummary.set(pth, { summary: s, tests: Array.isArray(payload.tests)? payload.tests: [] }); if (window.hydreqStore){ window.hydreqStore.setSummary(pth, s); if (Array.isArray(payload.tests)){ payload.tests.forEach(t=>{ const nm=t.name||t.Name; if (!nm) return; const st=t.status||t.Status||''; const dur=t.durationMs||t.DurationMs||0; const msgs=t.messages||t.Messages||[]; window.hydreqStore.setTest(pth, nm, { status: st, durationMs: dur, messages: Array.isArray(msgs)? msgs: [] }); }); } } }catch(e){}
   }
     }catch(e){}
     try{
@@ -409,6 +570,19 @@ function listen(id){
   }
 }
 
+// Helper: find suite list item by path or friendly name
+function getSuiteLiByPathOrName(path, name){
+  try{
+    let li = null;
+    if (path){ li = document.querySelector('#suites li[data-path="'+path+'"]'); }
+    if (!li && name){
+      li = Array.from(document.querySelectorAll('#suites li .spec-title'))
+        .map(n=> n.closest('li'))
+        .find(li0 => (li0.querySelector('.spec-title')||{}).textContent === name) || null;
+    }
+    return li || null;
+  }catch(e){ return null; }
+}
 
 // Initialize suite management
 function initSuites(){
@@ -459,88 +633,12 @@ window.promptNewSuite = promptNewSuite;
 window.importCollection = importCollection;
 window.initSuites = initSuites;
 // Expose last run info for editor prepopulation
-window.getSuiteLastStatus = function(path){
-  try{
-    if (window.hydreqStore && typeof window.hydreqStore.getSuite==='function'){
-      const s = window.hydreqStore.getSuite(path);
-      if (s && s.tests){ const out = {}; Object.keys(s.tests).forEach(nm=>{ out[nm] = (s.tests[nm].status||'').toLowerCase(); }); return out; }
-    }
-  }catch(e){}
-  try{ const m = lastStatus.get(path)||new Map(); return Object.fromEntries(m.entries()); }catch(e){ return {}; }
-};
-window.getSuiteSummary = function(path){
-  try{ if (window.hydreqStore){ const s = window.hydreqStore.getSuite(path); if (s) return { summary: s.summary || null, tests: Object.keys(s.tests||{}).map(nm=> ({ name: nm, status: s.tests[nm].status, durationMs: s.tests[nm].durationMs, messages: s.tests[nm].messages })) }; }
-  }catch(e){}
-  try{ return lastSuiteSummary.get(path) || null; }catch(e){ return null; }
-};
-window.getSuiteBadgeStatus = function(path){
-  try{ if (window.hydreqStore){ const s = window.hydreqStore.getSuite(path); if (s && s.badge) return s.badge; } }catch(e){}
-  try{ const li = document.querySelector('#suites li[data-path="'+path+'"]'); const sb = li && li.querySelector && li.querySelector('.suite-badge'); return (sb && sb.dataset && sb.dataset.status) ? sb.dataset.status : 'unknown'; }catch(e){ return 'unknown'; }
-};
-// Internal helper to upsert a test record into lastSuiteSummary[path]
-function upsertLastSuiteTest(path, name, status, durationMs, messages){
-  try{
-    if (!path || !name) return;
-    const rec = lastSuiteSummary.get(path) || { summary: null, tests: [] };
-    const tests = Array.isArray(rec.tests) ? rec.tests : [];
-    const idx = tests.findIndex(t=> (t.name||t.Name) === name);
-    const testRec = {
-      name: name,
-      status: (status||'').toLowerCase(),
-      durationMs: durationMs||0,
-      messages: Array.isArray(messages)? messages: []
-    };
-    if (idx>=0) tests[idx] = testRec; else tests.push(testRec);
-    rec.tests = tests; lastSuiteSummary.set(path, rec);
-  }catch(e){}
-}
-// Allow external callers (e.g., editor) to set per-test details for a suite
-window.setSuiteTestDetails = function(path, name, messages){
-  try{
-    if (!path || !name) return;
-    // Persist into lastSuiteSummary for editor pre-seed
-    let st = 'failed';
-    try{
-      if (window.hydreqStore){ const s = window.hydreqStore.getSuite(path); if (s && s.tests && s.tests[name]) st = (s.tests[name].status||'failed').toLowerCase(); }
-      else { st = ((lastStatus.get(path)||new Map()).get(name) || 'failed').toLowerCase(); }
-    }catch(e){}
-    upsertLastSuiteTest(path, name, st, 0, messages||[]);
-    // If expanded in UI, ensure details block exists and update it
-    const li = document.querySelector('#suites li[data-path="'+path+'"]');
-    if (!li) return;
-    const testsDiv = li.querySelector('.suite-tests'); if (!testsDiv) return;
-    const cont = Array.from(testsDiv.children).find(r => { try{ return r.classList && r.classList.contains('suite-test-container') && r.querySelector('.suite-test-name') && (r.querySelector('.suite-test-name').dataset.name === name); }catch(e){ return false; } });
-    if (!cont) return;
-    // For skipped: only add details when messages exist; for failed: always create with fallback text
-    const hasMsgs = Array.isArray(messages) && messages.length>0;
-    if (st === 'skipped' && !hasMsgs) return;
-    let det = cont.querySelector('details.suite-test-details');
-    if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); cont.appendChild(det); }
-    let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block'; det.appendChild(pre); }
-    pre.className = 'message-block ' + (st==='failed'?'fail':(st==='skipped'?'skip':'ok'));
-    pre.textContent = hasMsgs ? messages.join('\n') : 'No details reported';
-  }catch(e){}
-};
-// Allow external callers (e.g., editor) to set per-test status for a suite and update UI if expanded
-window.setSuiteTestStatus = function(path, name, status){
-  try{
-    if (!path || !name) return;
-    const st = (status||'').toLowerCase();
-    const map = lastStatus.get(path) || new Map();
-    map.set(name, st);
-    lastStatus.set(path, map);
-    const li = document.querySelector('#suites li[data-path="'+path+'"]');
-    if (!li) return;
-    const testsDiv = li.querySelector('.suite-tests');
-    if (!testsDiv || testsDiv.style.display==='none') return; // not expanded; will reflect on expand
-    const cont = (window.hydreqSuitesDOM && window.hydreqSuitesDOM.findTestContainer)
-      ? window.hydreqSuitesDOM.findTestContainer(testsDiv, name)
-      : null;
-    if (!cont) return;
-    const badgeEl = cont.querySelector('.suite-test-status');
-    if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.updateTestBadge) window.hydreqSuitesDOM.updateTestBadge(badgeEl, st);
-  }catch(e){}
-};
+window.getSuiteLastStatus = function(path){ return (window.hydreqSuitesAPI && window.hydreqSuitesAPI.getSuiteLastStatus) ? window.hydreqSuitesAPI.getSuiteLastStatus(path) : {}; };
+window.getSuiteSummary = function(path){ return (window.hydreqSuitesAPI && window.hydreqSuitesAPI.getSuiteSummary) ? window.hydreqSuitesAPI.getSuiteSummary(path) : null; };
+window.getSuiteBadgeStatus = function(path){ return (window.hydreqSuitesAPI && window.hydreqSuitesAPI.getSuiteBadgeStatus) ? window.hydreqSuitesAPI.getSuiteBadgeStatus(path) : 'unknown'; };
+// Back-compat helpers delegating to suites-api
+window.setSuiteTestDetails = function(path, name, messages){ if (window.hydreqSuitesAPI && window.hydreqSuitesAPI.setSuiteTestDetails) window.hydreqSuitesAPI.setSuiteTestDetails(path, name, messages); };
+window.setSuiteTestStatus = function(path, name, status){ if (window.hydreqSuitesAPI && window.hydreqSuitesAPI.setSuiteTestStatus) window.hydreqSuitesAPI.setSuiteTestStatus(path, name, status); };
 // Keep chip selection highlighting in sync with sidebar tag selector
 document.addEventListener('hydreq:tags-changed', ()=>{
   try{
@@ -560,43 +658,7 @@ document.addEventListener('hydreq:tags-changed', ()=>{
  * Hydrate an expanded suite's tests list from lastSuiteSummary: set badges and render details
  * so editor-originated updates (status/messages) appear even if no pending events exist.
  */
-function hydrateFromSummary(pathKey){
-  try{
-    if (!pathKey) return;
-    let testsArr = [];
-    // Prefer store when available
-    try{
-      if (window.hydreqStore){ const s = window.hydreqStore.getSuite(pathKey); if (s && s.tests){ testsArr = Object.keys(s.tests).map(nm=> ({ name: nm, status: s.tests[nm].status, durationMs: s.tests[nm].durationMs, messages: s.tests[nm].messages })); } }
-    }catch(e){}
-    if (!testsArr.length){
-      const rec = lastSuiteSummary.get(pathKey);
-      if (!rec || !Array.isArray(rec.tests) || rec.tests.length === 0) return;
-      testsArr = rec.tests.map(t=> ({ name: t.name||t.Name, status: (t.status||t.Status||'').toLowerCase(), durationMs: t.durationMs||t.DurationMs||0, messages: t.messages||t.Messages||[] }));
-    }
-    const li = document.querySelector('#suites li[data-path="'+pathKey+'"]');
-    if (!li) return;
-    const testsDiv = li.querySelector('.suite-tests');
-    if (!testsDiv) return;
-    const map = lastStatus.get(pathKey) || new Map();
-    testsArr.forEach(t=>{
-      try{
-        const nm = t.name || '';
-        if (!nm) return;
-        const st = (t.status || map.get(nm) || '').toLowerCase();
-        const msgs = Array.isArray(t.messages) ? t.messages : [];
-        const cont = (window.hydreqSuitesDOM && window.hydreqSuitesDOM.findTestContainer)
-          ? window.hydreqSuitesDOM.findTestContainer(testsDiv, nm)
-          : Array.from(testsDiv.children).find(r => { try{ return r.classList && r.classList.contains('suite-test-container') && r.querySelector('.suite-test-name') && (r.querySelector('.suite-test-name').dataset.name === nm); }catch(e){ return false; } });
-        if (!cont) return;
-        const badgeEl = cont.querySelector('.suite-test-status');
-        if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.updateTestBadge) window.hydreqSuitesDOM.updateTestBadge(badgeEl, st);
-        if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.updateTestDetails && (st === 'failed' || (st === 'skipped' && msgs.length))) window.hydreqSuitesDOM.updateTestDetails(cont, st, msgs);
-        try{ map.set(nm, st); }catch(e){}
-      }catch(e){}
-    });
-    try{ lastStatus.set(pathKey, map); }catch(e){}
-  }catch(e){}
-}
+function hydrateFromSummary(pathKey){ if (window.hydreqSuitesAPI && window.hydreqSuitesAPI.hydrateFromSummary) window.hydreqSuitesAPI.hydrateFromSummary(pathKey); }
 
 // Subscribe once to store updates to patch suites list incrementally
 ;(function setupStoreSubscription(){
@@ -638,18 +700,4 @@ function hydrateFromSummary(pathKey){
 })();
 
 // Expand a suite in the UI by its canonical path; awaits any expand promise
-async function expandSuiteByPath(pathKey){
-  try{
-    if (!pathKey) return;
-    const li = document.querySelector('#suites li[data-path="'+pathKey+'"]');
-    if (!li) return;
-    const btn = li.querySelector('button[aria-controls]') || li.querySelector('button');
-    if (!btn) return;
-    if (btn.dataset.open === '1') return; // already open
-    // simulate user click to reuse existing handlers and loading behavior
-    try{ btn.click(); }catch(e){}
-    if (btn._expandPromise && typeof btn._expandPromise.then === 'function'){
-      try{ await btn._expandPromise; }catch(e){}
-    }
-  }catch(e){}
-}
+async function expandSuiteByPath(pathKey){ if (window.hydreqSuitesAPI && window.hydreqSuitesAPI.expandSuiteByPath) return window.hydreqSuitesAPI.expandSuiteByPath(pathKey); }

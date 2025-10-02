@@ -25,6 +25,44 @@ body.modal-open { overflow: hidden; }
 /* Ensure the embedded code editor fills its pane */
 .CodeMirror { height: 100%; width: 100%; border: 1px solid var(--bd); border-radius: 6px; }
 body.dark .CodeMirror { background: #0f172a; color: #e5e7eb; }
+/* Token colors for CodeMirror using theme variables; themes can override these vars */
+:root, body {
+  --cm-bg: var(--bg);
+  --cm-fg: var(--txt);
+  --cm-line: var(--pill);
+  --cm-cursor: var(--txt);
+  --cm-keyword: var(--info);
+  --cm-string: var(--warning);
+  --cm-number: var(--error);
+  --cm-atom: var(--info);
+  --cm-bool: var(--info);
+  --cm-def: var(--success);
+  --cm-variable: var(--txt);
+  --cm-variable-2: var(--grad1);
+  --cm-comment: var(--txt);
+  --cm-meta: var(--grad2);
+  --cm-link: var(--link);
+  --cm-operator: var(--info);
+}
+#editorModal .CodeMirror {
+  background: var(--cm-bg);
+  color: var(--cm-fg);
+}
+#editorModal .CodeMirror .CodeMirror-cursor { border-left: 1px solid var(--cm-cursor); }
+#editorModal .CodeMirror .CodeMirror-selected { background: color-mix(in srgb, var(--link) 22%, transparent); }
+#editorModal .CodeMirror .CodeMirror-linenumber { color: var(--cm-fg); opacity: 0.65; }
+#editorModal .CodeMirror .CodeMirror-activeline-background { background: var(--cm-line); opacity: 0.6; }
+#editorModal .CodeMirror .cm-keyword { color: var(--cm-keyword); }
+#editorModal .CodeMirror .cm-string { color: var(--cm-string); }
+#editorModal .CodeMirror .cm-number { color: var(--cm-number); }
+#editorModal .CodeMirror .cm-atom { color: var(--cm-atom); }
+#editorModal .CodeMirror .cm-bool { color: var(--cm-bool); }
+#editorModal .CodeMirror .cm-def { color: var(--cm-def); }
+#editorModal .CodeMirror .cm-variable { color: var(--cm-variable); }
+#editorModal .CodeMirror .cm-variable-2 { color: var(--cm-variable-2); }
+#editorModal .CodeMirror .cm-comment { color: var(--cm-comment); opacity: 0.7; font-style: italic; }
+#editorModal .CodeMirror .cm-meta { color: var(--cm-meta); }
+#editorModal .CodeMirror a { color: var(--cm-link); }
 /* Inputs/selects themed via variables */
 #editorModal input[type="text"],
 #editorModal input[type="number"],

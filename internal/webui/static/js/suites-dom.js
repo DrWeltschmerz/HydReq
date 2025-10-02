@@ -168,6 +168,30 @@
     }catch(e){}
   }
 
+  // Small style utilities to keep view code readable
+  function setFlexCol(el){ if (!el) return; el.style.display='flex'; el.style.flexDirection='column'; }
+  function setFlexRow(el){ if (!el) return; el.style.display='flex'; el.style.flexDirection='row'; }
+  function hide(el){ if (!el) return; el.style.display='none'; el.classList.remove('open'); }
+  function show(el){ if (!el) return; el.style.display='block'; el.classList.add('open'); }
+
+  // Build a simple dropdown menu and toggle handler
+  function buildDownloadMenu(pathKey, onDownload){
+    const wrap = document.createElement('span'); wrap.className='suite-download pos-relative d-inline-block';
+    const btn = document.createElement('button'); btn.className='btn btn-ghost btn-xs'; btn.title='Download'; btn.setAttribute('aria-label','Download suite'); btn.dataset.path = pathKey;
+    const icon = document.createElement('span'); icon.className='dl-icon'; icon.textContent='⬇'; btn.appendChild(icon);
+    const menu = document.createElement('div'); menu.className='menu-panel';
+    const addItem = (label, fmt)=>{
+      const b = document.createElement('div'); b.textContent = label; b.className='menu-item';
+      b.onclick = (e)=>{ e.stopPropagation(); if (typeof onDownload==='function') onDownload(pathKey, fmt); menu.style.display='none'; };
+      menu.appendChild(b);
+    };
+    addItem('Download JSON','json'); addItem('Download JUnit','junit'); addItem('Download HTML','html');
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); menu.style.display = (menu.style.display === 'none') ? 'block' : 'none'; });
+    document.addEventListener('click', ()=>{ try{ menu.style.display='none'; }catch(e){} });
+    wrap.appendChild(btn); wrap.appendChild(menu);
+    return wrap;
+  }
+
   // Ensure a stage row exists in the stages container; return { barEl, textEl, created }
   function ensureStageRow(stage){
     const stages = document.getElementById('stages');
@@ -198,6 +222,11 @@
     updateSuiteBadge,
     updateTestBadge,
     updateTestDetails,
-    findTestContainer
+    findTestContainer,
+    setFlexCol,
+    setFlexRow,
+    hide,
+    show,
+    buildDownloadMenu
   };
 })();

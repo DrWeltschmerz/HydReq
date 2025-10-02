@@ -24,3 +24,9 @@
 - Theme variables are modularized: each theme (dark, hack, catppuccin, synthwave, etc.) lives in its own CSS file under `static/themes/` and is aggregated via `themes.css`.
 - The theme selector in the header allows switching between all available themes; changes are instant and persistent.
 - To add a new theme, create a CSS file in `static/themes/` and add an `@import` in `themes.css`.
+
+## Architecture notes
+
+- Store-first state: the suites/test statuses and messages flow through a central `hydreqStore` and a small suites-scoped state helper (`suites-state.js`). Views hydrate from the store when expanded and subscribe for incremental updates.
+- Public API surface: `suites-api.js` exposes stable, window-scoped helpers used by the editor and other modules, such as `getSuiteLastStatus(path)`, `getSuiteSummary(path)`, `getSuiteBadgeStatus(path)`, `setSuiteTestDetails(path, name, messages)`, `setSuiteTestStatus(path, name, status)`, `hydrateFromSummary(path)`, and `expandSuiteByPath(path)`.
+- Modularity: `suites.js` is now a thin orchestrator delegating DOM to `suites-dom.js`, SSE to `suites-sse.js`, state to `suites-state.js`, and public helpers to `suites-api.js`.

@@ -70,7 +70,7 @@ Central store usage
 - Move index.html inline `<style>` to `css/app.css`. (done)
 - Consolidate theme tokens into `themes.css` and reference from `app.css`. (done — theme tokens have been moved to `themes.css` and `app.css` now references `themes.css` as the primary source for variables.)
 
-Phase 1: Module boundaries
+Phase 1: Module boundaries (completed)
 - Create `js/state/` with small modules:
   - `tags.js`: get/set, events, persistence. (done)
   - `env.js`: kv model + render mirroring. (done)
@@ -78,24 +78,29 @@ Phase 1: Module boundaries
 - Extract SSE listener from `js/suites.js` into `js/run-listener.js` with callbacks. (done — run-listener.subscribe now parses SSE and awaits async handlers; suites.js delegates to it and retains a fallback EventSource for compatibility.)
 - Extract suites rendering into `js/suites-view.js`; keep the DOM IDs stable. (done)
 - Extract user actions from `suites.js` to `js/suites-actions.js` (expand/collapse, new suite, import). (done)
+- Extract DOM builders into `js/suites-dom.js` (test rows, header tags/env, stage rows, badge and details helpers). (done)
+- Extract SSE wrapper into `js/suites-sse.js` and delegate from `listen()`. (done)
+- Add `suites-api.js` with stable window-facing helpers; move remaining helpers from `suites.js` to shrink file size; keep back-compat stubs. (done)
+- Add small DOM utilities (setFlexRow/Col, show/hide, buildDownloadMenu) to reduce inline styles and long lines. (done)
 - Add server helper `POST /api/editor/checkpath` to validate client-proposed paths and report existence/safety. (done — supports the improved "New Suite" UX.)
 - New Suite UX: promptNewSuite now uses server-side check and opens the editor in "create" mode when the target file does not exist; the editor now shows a clear "New suite" banner, uses "Create" button labels, re-validates and asks to confirm on overwrite/validation warnings. (done)
 - Suite list details: Display test failure details below the test name, in a collapsed-by-default details/summary element with a scrollable, copy-friendly message block. (done)
 - Editor details styling: Unified scrollable message block across quick-run and per-test details. (done)
 
-Acceptance: suites list renders; SSE updates badges/progress as before; editor opens; quick-run works; New Suite flow presents a safer, validated create path; test details display clearly underneath the test name; suite list failure details are collapsed by default and expand on demand; message blocks are scrollable and easy to copy.
+Acceptance: suites list renders; SSE updates badges/progress as before; editor opens; quick-run works; New Suite flow presents a safer, validated create path; test details display clearly underneath the test name; suite list failure details are collapsed by default and expand on demand; message blocks are scrollable and easy to copy. Unit tests cover run-listener, suites-dom helpers, suites-sse wrapper, and suites-api hydration.
 
 Note on componentization path (user-preferred)
 - Consider Svelte + Vite + Tailwind (+ DaisyUI) + CodeMirror for component-based architecture. Keep current zero-build path running in parallel during migration.
 - Hosting remains via Go static file server; Vite build outputs to `internal/webui/static/dist/` and index.html can conditionally load built assets.
 
-Phase 2: Editor split
+Phase 2: Editor split (in progress)
 - Split `js/editor.js` into submodules:
   - `editor/modal.js` (shell, open/close, density).
   - `editor/state.js` (normalize, working model, dirty tracking).
   - `editor/yaml.js` (CodeMirror setup, serialize/parse, theme sync).
   - `editor/forms/*.js` (suite, test, request, assert, retry, hooks, matrix, openapi).
   - `editor/run.js` (quick-run, SSE, badge propagation).
+  - Add minimal unit tests for editor modal open/close and state changes.
 - Keep a thin `editor/index.js` that stitches modules and exposes the same `openEditor()` API.
 
 Acceptance: 4-column editor remains functional with real-time YAML sync; quick-run + validate OK; deletes update YAML and suites.

@@ -123,6 +123,10 @@
   - Tip: For CI artifacts (JSON/JUnit/HTML), prefer the CLI flags `--report-json` / `--report-junit` / `--report-html`.
   - Extras: Live two‑way sync between YAML and Visual; malformed YAML keeps YAML editable and temporarily disables Visual; tabs are converted to spaces automatically; dark theme by default; density toggle; resizable preview; SQL DSN helper templates and show/hide for DSNs.
 
+Refactor notes
+- The Web UI is currently being refactored to smaller modules with a store‑first state and stable public helpers.
+- See: [docs/web-ui.md](docs/web-ui.md) for architecture notes and [docs/ui-refactor-plan.md](docs/ui-refactor-plan.md) for the phased plan.
+
 ### Using the CLI
 
 - Run all suites: `./hydreq run --workers 4 -v` (when `-f` is omitted, HydReq discovers and runs all suites under `testdata/`).

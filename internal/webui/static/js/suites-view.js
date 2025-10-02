@@ -30,15 +30,24 @@
       const base = (typeof path === 'string' ? path.split('/').pop() : String(path));
       const friendly = (item && (item.name || item.Name)) ? (item.name || item.Name) : null;
 
-  const li = document.createElement('li'); li.style.display='flex'; li.style.flexDirection='column'; li.classList.add('gap-8');
+  const li = document.createElement('li');
+      if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.setFlexCol) window.hydreqSuitesDOM.setFlexCol(li);
+      li.classList.add('gap-8');
       li.dataset.path = pathKey;
 
-  const name = document.createElement('span'); name.style.display='flex'; name.style.flexDirection='column'; name.style.alignItems='stretch'; name.style.gap='2px';
+  const name = document.createElement('span');
+      if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.setFlexCol) window.hydreqSuitesDOM.setFlexCol(name);
+      name.style.alignItems='stretch'; name.style.gap='2px';
 
-  const titleRow = document.createElement('div'); titleRow.style.display='flex'; titleRow.style.flexDirection='row'; titleRow.classList.add('ai-baseline','gap-8');
+  const titleRow = document.createElement('div');
+      if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.setFlexRow) window.hydreqSuitesDOM.setFlexRow(titleRow);
+      titleRow.classList.add('ai-baseline','gap-8');
 
       // Expand button
-  const expandBtn = document.createElement('button'); expandBtn.className = 'btn btn-ghost btn-xs w-28px'; expandBtn.textContent = '▸'; expandBtn.title = 'Show tests';
+  const expandBtn = document.createElement('button');
+      expandBtn.className = 'btn btn-ghost btn-xs w-28px';
+      expandBtn.textContent = '▸';
+      expandBtn.title = 'Show tests';
       expandBtn.setAttribute('aria-expanded','false'); expandBtn.setAttribute('aria-label','Toggle tests'); expandBtn.tabIndex = 0;
       expandBtn.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); expandBtn.click(); } });
       expandBtn._expandPromise = null; expandBtn._resolveExpand = null;
@@ -49,7 +58,8 @@
         const isOpen = expandBtn.dataset.open === '1';
         if (isOpen){
           expandBtn.dataset.open = '0'; expandBtn.textContent='▸'; expandBtn.setAttribute('aria-expanded','false');
-          const testsDiv = li.querySelector('.suite-tests'); if (testsDiv){ testsDiv.classList.remove('open'); testsDiv.style.display='none'; }
+          const testsDiv = li.querySelector('.suite-tests');
+          if (testsDiv){ if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.hide) window.hydreqSuitesDOM.hide(testsDiv); }
           if (typeof opts.onToggleOpen === 'function') opts.onToggleOpen(pathKey, false);
           return;
         }
@@ -72,14 +82,25 @@
       name.appendChild(titleRow);
 
       // filename + tags
-  const fileRow = document.createElement('div'); fileRow.className='ml-32px row gap-6';
+  const fileRow = document.createElement('div');
+      fileRow.className='ml-32px row gap-6';
   const fileSpan = document.createElement('span'); fileSpan.textContent = base; fileSpan.style.opacity = 0.5; fileSpan.className = 'spec-file fs-11';
       fileRow.appendChild(fileSpan);
       try{
         const suiteTags = (item && (item.tags || item.Tags)) ? (item.tags || item.Tags) : [];
         if (Array.isArray(suiteTags) && suiteTags.length){
           const selectedArr = Array.from(selectedSet || []);
-          suiteTags.slice(0,4).forEach(tg=>{ const b=document.createElement('span'); b.className='pill tag-chip text-10'; b.dataset.tag=tg; b.textContent='#'+tg; if (selectedArr.includes(tg)) b.classList.add('selected'); b.addEventListener('click', (ev)=>{ ev.stopPropagation(); if (typeof opts.onToggleTag === 'function') opts.onToggleTag(tg); }); fileRow.appendChild(b); });
+          suiteTags.slice(0,4).forEach(tg=>{
+            const b=document.createElement('span');
+            b.className='pill tag-chip text-10';
+            b.dataset.tag=tg; b.textContent='#'+tg;
+            if (selectedArr.includes(tg)) b.classList.add('selected');
+            b.addEventListener('click', (ev)=>{
+              ev.stopPropagation();
+              if (typeof opts.onToggleTag === 'function') opts.onToggleTag(tg);
+            });
+            fileRow.appendChild(b);
+          });
         }
       }catch(e){}
       name.appendChild(fileRow);
@@ -91,13 +112,12 @@
       editBtn.addEventListener('click', (e)=>{ e.stopPropagation(); if (typeof opts.onEdit === 'function') opts.onEdit(pathKey, li); });
 
       // Download dropdown
-  const dlWrap = document.createElement('span'); dlWrap.className='suite-download pos-relative d-inline-block';
-      const dlBtn = document.createElement('button'); dlBtn.className='btn btn-ghost btn-xs'; dlBtn.title='Download'; dlBtn.setAttribute('aria-label','Download suite'); dlBtn.dataset.path = pathKey; const dlIcon = document.createElement('span'); dlIcon.className='dl-icon'; dlIcon.textContent='⬇'; dlBtn.appendChild(dlIcon);
-  const dlMenu = document.createElement('div'); dlMenu.className='menu-panel';
-  const addDl = (label, fmt)=>{ const b = document.createElement('div'); b.textContent = label; b.className='menu-item'; b.onclick = (e)=>{ e.stopPropagation(); if (typeof opts.onDownload==='function') opts.onDownload(pathKey, fmt); dlMenu.style.display='none'; }; dlMenu.appendChild(b); };
-      addDl('Download JSON','json'); addDl('Download JUnit','junit'); addDl('Download HTML','html');
-      dlBtn.addEventListener('click', (e)=>{ e.stopPropagation(); dlMenu.style.display = (dlMenu.style.display === 'none') ? 'block' : 'none'; });
-      document.addEventListener('click', ()=>{ try{ dlMenu.style.display='none'; }catch{} }); dlWrap.appendChild(dlBtn); dlWrap.appendChild(dlMenu);
+  const dlWrap = (window.hydreqSuitesDOM && window.hydreqSuitesDOM.buildDownloadMenu)
+    ? window.hydreqSuitesDOM.buildDownloadMenu(pathKey, opts.onDownload)
+    : (function(){
+      const span = document.createElement('span'); span.className='suite-download pos-relative d-inline-block';
+      return span;
+    })();
 
   const actions = document.createElement('span'); actions.className='suite-actions ml-auto row gap-6';
       const delBtn = document.createElement('button'); delBtn.className = 'btn btn-ghost btn-xs'; delBtn.title='Delete suite'; delBtn.setAttribute('aria-label','Delete suite'); delBtn.textContent='🗑'; delBtn.dataset.path = pathKey;
@@ -108,7 +128,14 @@
       li.appendChild(name);
   li.classList.add('mb-6');
       if (selectedSet.has(pathKey)) li.classList.add('selected');
-      li.onclick = () => { if (selectedSet.has(pathKey)) selectedSet.delete(pathKey); else selectedSet.add(pathKey); if (typeof opts.onToggleSelect==='function') opts.onToggleSelect(pathKey, Array.from(selectedSet)); const sc = document.getElementById('selCount'); if (sc) sc.textContent = selectedSet.size + ' selected'; li.classList.toggle('selected'); };
+      li.onclick = () => {
+        if (selectedSet.has(pathKey)) selectedSet.delete(pathKey);
+        else selectedSet.add(pathKey);
+        if (typeof opts.onToggleSelect==='function') opts.onToggleSelect(pathKey, Array.from(selectedSet));
+        const sc = document.getElementById('selCount');
+        if (sc) sc.textContent = selectedSet.size + ' selected';
+        li.classList.toggle('selected');
+      };
 
       // If caller supplied preloaded tests, populate testsDiv
       try{
@@ -118,7 +145,10 @@
           preloaded.forEach(t=>{
             const cont = document.createElement('div'); cont.className='suite-test-container';
             const row = document.createElement('div'); row.className='suite-test-item';
-            const nm = document.createElement('span'); nm.className='suite-test-name'; nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent; nm.dataset.name = nm.textContent;
+            const nm = document.createElement('span');
+            nm.className='suite-test-name';
+            nm.textContent = t.name || t.Name || '(unnamed)';
+            nm.title = nm.textContent; nm.dataset.name = nm.textContent;
             const stmap = lastStatusObj[pathKey] || {};
             const status = stmap[nm.dataset.name] || '';
             const badge = document.createElement('span'); badge.className='status-badge suite-test-status';

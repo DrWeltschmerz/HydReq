@@ -11,7 +11,7 @@
     {
       "label": "test: all",
       "type": "shell",
-      "command": "go test -race ./...",
+      "command": "go test -race ./... && npx mocha --timeout 5000 \"internal/webui/static/test/**/*.spec.js\"",
       "problemMatcher": ["$go"],
       "group": { "kind": "test", "isDefault": true }
     },

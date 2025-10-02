@@ -414,11 +414,11 @@ function renderTests() {
     testContainer.appendChild(testDiv);
     
     // Check if we need to add collapsible details row
-    if (result && result.status && (result.status === 'failed' || (result.status === 'skipped' && Array.isArray(result.messages) && result.messages.length))) {
+    if (result && result.status && (result.status === 'failed' || result.status === 'skipped')) {
       const details = document.createElement('details');
       details.className = 'ed-test-details';
       const sum = document.createElement('summary'); sum.textContent = 'details'; details.appendChild(sum);
-      const pre = document.createElement('pre'); pre.className = 'message-block ' + (result.status==='failed'?'fail':'skip'); pre.textContent = (Array.isArray(result.messages) && result.messages.length) ? result.messages.join('\n') : 'No details reported';
+      const pre = document.createElement('pre'); pre.className = 'message-block ' + (result.status==='failed'?'fail':'skip'); pre.textContent = (Array.isArray(result.messages) && result.messages.length) ? result.messages.join('\n') : 'skipped';
       details.appendChild(pre);
       testContainer.appendChild(details);
     }
@@ -898,280 +898,52 @@ function openEditor(path, data){
   
   modal = document.getElementById('editorModal');
   if (!modal){
-    modal = document.createElement('div'); modal.id='editorModal'; modal.innerHTML = `
-      <div class="editor-root">
-        <div class="ed-header">
-          <div class="ed-header-left">
-            <div class="fw-600">Edit: <span id="ed_path"></span></div>
-          </div>
-          <div class="ed-actions">
-            <label class="label cursor-pointer ed-row-6 ed-ai-center">
-              <span class="label-text">Comfortable</span>
-              <input id="ed_density" type="checkbox" class="toggle toggle-sm" title="Toggle comfortable density">
-            </label>
-            <label class="label cursor-pointer ed-row-6 ed-ai-center" title="Include dependsOn when running the selected test">
-              <span class="label-text">with deps</span>
-              <input id="ed_run_with_deps" type="checkbox" class="toggle toggle-sm">
-            </label>
-            <label class="label cursor-pointer ed-row-6 ed-ai-center" title="Include all tests from previous stages before the selected one">
-              <span class="label-text">with previous stages</span>
-              <input id="ed_run_with_prevstages" type="checkbox" class="toggle toggle-sm">
-            </label>
-            <button id="ed_run_test" class="btn btn-sm" title="Validate and run the selected test without saving">Run test</button>
-            <button id="ed_run_suite" class="btn btn-sm" title="Validate and run the whole suite without saving">Run suite</button>
-            <button id="ed_validate" class="btn btn-sm">Validate</button>
-            <button id="ed_save" class="btn btn-sm">Save</button>
-            <button id="ed_save_close" class="btn btn-sm">Save & Close</button>
-            <button id="ed_close" type="button" class="btn btn-sm" title="Close">Close</button>
-            <span id="ed_dirty_indicator" class="pill" title="You have unsaved changes" style="margin-left:8px; display:none; background:#fde2e1; color:#b91c1c">Unsaved</span>
-          </div>
-        </div>
-        <div class="ed-main">
-          <!-- Column 1: Tests List -->
-          <div id="col-tests" class="ed-col">
-            <div class="ed-col-header">
-              <span class="fw-600">Tests</span>
-              <div class="ed-row-6">
-                <button id="ed_collapse_tests" class="btn btn-xs ed-collapse-btn" title="Collapse/Expand tests">◀</button>
-                <button id="ed_add_test" class="btn btn-xs" title="Add test">+</button>
-                <button id="ed_del_test" class="btn btn-xs" title="Delete selected">−</button>
-              </div>
-            </div>
-            <div class="ed-col-content">
-              <div id="ed_tests" class="ed-tests-list"></div>
-            </div>
-          </div>
-          
-          <!-- Column 2: Visual Editor -->
-          <div id="col-visual" class="ed-col">
-            <div class="ed-col-header">
-              <span class="fw-600">Visual Editor</span>
-              <div class="ed-row-6">
-                <button id="ed_collapse_visual" class="btn btn-xs ed-collapse-btn" title="Collapse/Expand visual editor">◀</button>
-              </div>
-            </div>
-            <div class="ed-col-content" id="pane_visual">
-            <div class="ed-center">
-              <details open class="ed-panel">
-                <summary class="ed-summary">🏠 Suite Configuration</summary>
-                <div class="ed-body ed-grid-2-140" id="ed_suite_form">
-                  <label>Name *</label>
-                  <input id="ed_suite_name" type="text" required/>
-                  <label>Base URL *</label>
-                  <input id="ed_suite_baseurl" type="text" placeholder="https://api.example.com" required/>
-                  <label class="ed-col-span-full ed-mt-6 fw-600">Variables</label>
-                  <div class="ed-col-span-full" id="ed_suite_vars"></div>
-                  <label class="ed-col-span-full ed-mt-6 fw-600">Auth</label>
-                  <div class="ed-col-span-full ed-grid-2-160">
-                    <label>Bearer env</label>
-                    <div class="ed-row-8 ed-ai-center">
-                      <input id="ed_auth_bearer" type="text" placeholder="DEMO_BEARER"/>
-                      <span id="ed_auth_bearer_status" class="pill" title="env presence">?</span>
-                    </div>
-                    <label>Basic env</label>
-                    <div class="ed-row-8 ed-ai-center">
-                      <input id="ed_auth_basic" type="text" placeholder="BASIC_B64"/>
-                      <span id="ed_auth_basic_status" class="pill" title="env presence">?</span>
-                    </div>
-                  </div>
-                  <div class="ed-col-span-full ed-grid-2-160 ed-ai-center">
-                    <label>Auth header (preview)</label>
-                    <div id="ed_auth_preview" class="ed-mono-dim">(none)</div>
-                  </div>
-                  <div class="ed-col-span-full ed-grid-2-160 ed-ai-start">
-                    <label>Suite hooks</label>
-                    <div>
-                      <div class="ed-subhead">preSuite</div>
-                      <div id="ed_suite_presuite"></div>
-                      <div class="ed-spacer-8"></div>
-                      <div class="ed-subhead">postSuite</div>
-                      <div id="ed_suite_postsuite"></div>
-                    </div>
-                  </div>
-                </div>
-              </details>
-
-              <details open class="ed-panel">
-                <summary class="ed-summary">🧪 Test Configuration</summary>
-                <div class="ed-body ed-grid-2-130" id="ed_test_form">
-                  <label>Test name *</label>
-                  <input id="ed_test_name" type="text" placeholder="My test name" required/>
-                  <label>Stage</label>
-                  <input id="ed_stage" type="number" min="0"/>
-                  <label>Skip</label>
-                  <input id="ed_skip" type="checkbox"/>
-                  <label>Only</label>
-                  <input id="ed_only" type="checkbox"/>
-                </div>
-              </details>
-
-              <details open class="ed-panel">
-                <summary class="ed-summary">🌐 HTTP Request</summary>
-                <div class="ed-body ed-grid-2-130" id="ed_req_form">
-                  <label>Method *</label>
-                  <select id="ed_method" required>
-                    <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option>
-                  </select>
-                  <label>URL path *</label>
-                  <input id="ed_url" type="text" required/>
-                  <label>Timeout (ms)</label>
-                  <input id="ed_timeout" type="number" min="0"/>
-                  <label class="ed-col-span-full ed-mt-6 fw-600">Headers</label>
-                  <div class="ed-col-span-full" id="ed_headers"></div>
-                  <label class="ed-col-span-full ed-mt-6 fw-600">Query</label>
-                  <div class="ed-col-span-full" id="ed_query"></div>
-                  <label class="ed-col-span-full ed-mt-6 fw-600">Body (JSON/YAML)</label>
-                  <textarea id="ed_body" class="ed-col-span-full ed-textarea-md"></textarea>
-                </div>
-              </details>
-
-              <details open class="ed-panel">
-                <summary class="ed-summary">✅ Response Assertions</summary>
-                <div class="ed-body ed-grid-2-160" id="ed_assert_form">
-                  <label>Status *</label>
-                  <input id="ed_assert_status" type="number" min="0" required/>
-                  <label>Header equals</label>
-                  <div id="ed_assert_headerEquals" class="ed-grid-col-2"></div>
-                  <label>JSON equals (path → value)</label>
-                  <div id="ed_assert_jsonEquals" class="ed-grid-col-2"></div>
-                  <label>JSON contains (path → value)</label>
-                  <div id="ed_assert_jsonContains" class="ed-grid-col-2"></div>
-                  <label>Body contains</label>
-                  <div id="ed_assert_bodyContains" class="ed-grid-col-2"></div>
-                  <label>Max duration (ms)</label>
-                  <input id="ed_assert_maxDuration" type="number" min="0"/>
-                </div>
-              </details>
-
-              <details open class="ed-panel">
-                <summary class="ed-summary">📤 Extract Variables</summary>
-                <div class="ed-body" id="ed_extract"></div>
-              </details>
-
-
-
-              <details open class="ed-panel">
-                <summary class="ed-summary">🔗 Test Hooks</summary>
-                <div class="ed-body">
-                  <div class="ed-subhead">pre</div>
-                  <div id="ed_test_prehooks"></div>
-                  <div class="ed-spacer-8"></div>
-                  <div class="ed-subhead">post</div>
-                  <div id="ed_test_posthooks"></div>
-                </div>
-              </details>
-
-              <details open class="ed-panel">
-                <summary class="ed-summary">🔄 Retry Policy</summary>
-                <div class="ed-body ed-grid-2-160" id="ed_retry_form">
-                  <label>Enable retry</label>
-                  <input id="ed_retry_enable" type="checkbox"/>
-                  <label>Max attempts</label>
-                  <input id="ed_retry_max" type="number" min="0"/>
-                  <label>Backoff (ms)</label>
-                  <input id="ed_retry_backoff" type="number" min="0"/>
-                  <label>Jitter (%)</label>
-                  <input id="ed_retry_jitter" type="number" min="0" max="100"/>
-                </div>
-              </details>
-
-              <details open class="ed-panel tight">
-                <summary class="ed-summary">🔢 Data Matrix</summary>
-                <div class="ed-body" id="ed_matrix"></div>
-              </details>
-
-              <details open class="ed-panel tight">
-                <summary class="ed-summary">OpenAPI</summary>
-                <div class="ed-body ed-grid-2-160" id="ed_oapi_form">
-                  <label>Per-test override</label>
-                  <select id="ed_oapi_enabled">
-                    <option value="inherit">Inherit (suite default)</option>
-                    <option value="true">Enabled</option>
-                    <option value="false">Disabled</option>
-                  </select>
-                </div>
-              </details>
-            </div>
-            </div>
-          </div>
-          
-          <!-- Column 3: YAML Editor -->
-          <div id="col-yaml" class="ed-col">
-            <div class="ed-col-header">
-              <span class="fw-600">YAML Source</span>
-              <div class="ed-row-6">
-                <button id="ed_collapse_yaml" class="btn btn-xs ed-collapse-btn" title="Collapse/Expand YAML editor">◀</button>
-              </div>
-            </div>
-            <div class="ed-col-content" id="pane_yaml">
-              <textarea id="ed_raw" class="hidden"></textarea>
-              <div id="ed_yaml_editor" style="flex: 1;"></div>
-            </div>
-          </div>
-          
-          <!-- Column 4: Results -->
-          <div id="col-results" class="ed-col">
-            <div class="ed-col-header">
-              <span class="fw-600">Results</span>
-              <div class="ed-row-6">
-                <button id="ed_collapse_results" class="btn btn-xs ed-collapse-btn" title="Collapse/Expand results">◀</button>
-              </div>
-            </div>
-            <div class="ed-col-content">
-              <div id="ed_preview" class="ed-preview">
-                <details id="ed_quickrun_box" class="ed-section" open>
-                  <summary>Quick run</summary>
-                  <div id="ed_quickrun" class="log ed-scroll"></div>
-                </details>
-                <details id="ed_validation_box" class="ed-section" open>
-                  <summary class="ed-row-8 ed-ai-center ed-justify-between">
-                    <span>Validation</span>
-                    <button id="ed_copy_issues" class="btn btn-xs" title="Copy issues">Copy</button>
-                  </summary>
-                  <div id="ed_issues" class="ed-scroll"></div>
-                </details>
-              </div>
-            </div>
-          </div>
-        </div>
-        </div>
-      </div>`;
-    document.body.appendChild(modal);
-    try {
-      const addBtn = modal.querySelector('#ed_add_test');
-      const delBtn = modal.querySelector('#ed_del_test');
-      if (addBtn) {
-        addBtn.onclick = async ()=>{
-          const defaultName = `test ${working.tests.length+1}`;
-          const name = prompt('Enter test name:', defaultName);
-          const finalName = (name && name.trim()) ? name.trim() : defaultName;
-          working.tests.push({ name: finalName, request:{ method:'GET', url:'' }, assert:{ status:200 } });
-          selIndex = working.tests.length-1; renderTests(); renderForm(); try{ sync(); ensureYamlEditor(); await mirrorYamlFromVisual(true); }catch{} };
-      }
-      if (delBtn) {
-        delBtn.onclick = async ()=>{
-          if (working.tests.length===0) return;
-          if (!confirm('Delete selected test?')) return;
-          working.tests.splice(selIndex,1);
-          selIndex = Math.max(0, selIndex-1);
-          renderTests();
-          if (working.tests.length) renderForm();
-          try {
-            if (typeof window.__ed_sync === 'function') window.__ed_sync();
-            if (typeof window.__ed_writeYamlFromWorking === 'function') {
-              await window.__ed_writeYamlFromWorking(true);
-            } else if (typeof window.__ed_mirrorYamlFromVisual === 'function') {
-              await window.__ed_mirrorYamlFromVisual(true);
-            }
-          } catch {}
-        };
-      }
-    } catch(e){}
+    // Use the modular modal shell
+    if (window.hydreqEditorModal && typeof window.hydreqEditorModal.open === 'function') {
+      modal = window.hydreqEditorModal.open({ title: 'Editor', create: !!(data && data._new), path });
+    } else {
+      // Fallback: create an empty container to avoid breaking further logic
+      modal = document.createElement('div');
+      modal.id = 'editorModal';
+      document.body.appendChild(modal);
+    }
+    // Global modal UX hooks
     document.body.classList.add('modal-open');
     modal.addEventListener('wheel', (e)=>{ e.stopPropagation(); }, { passive: true });
     modal.addEventListener('touchmove', (e)=>{ e.stopPropagation(); }, { passive: true });
     modal.addEventListener('click', (e)=>{ if (e.target === modal) attemptClose(); });
   }
+  // Bind add/delete test buttons (ensure after modal exists)
+  try {
+    const addBtn = modal.querySelector('#ed_add_test');
+    const delBtn = modal.querySelector('#ed_del_test');
+    if (addBtn) {
+      addBtn.onclick = async ()=>{
+        const defaultName = `test ${working.tests.length+1}`;
+        const name = prompt('Enter test name:', defaultName);
+        const finalName = (name && name.trim()) ? name.trim() : defaultName;
+        working.tests.push({ name: finalName, request:{ method:'GET', url:'' }, assert:{ status:200 } });
+        selIndex = working.tests.length-1; renderTests(); renderForm(); try{ sync(); ensureYamlEditor(); await mirrorYamlFromVisual(true); }catch{} };
+    }
+    if (delBtn) {
+      delBtn.onclick = async ()=>{
+        if (working.tests.length===0) return;
+        if (!confirm('Delete selected test?')) return;
+        working.tests.splice(selIndex,1);
+        selIndex = Math.max(0, selIndex-1);
+        renderTests();
+        if (working.tests.length) renderForm();
+        try {
+          if (typeof window.__ed_sync === 'function') window.__ed_sync();
+          if (typeof window.__ed_writeYamlFromWorking === 'function') {
+            await window.__ed_writeYamlFromWorking(true);
+          } else if (typeof window.__ed_mirrorYamlFromVisual === 'function') {
+            await window.__ed_mirrorYamlFromVisual(true);
+          }
+        } catch {}
+      };
+    }
+  } catch(e){}
   modal.querySelector('#ed_path').textContent = path;
   const rawEl = modal.querySelector('#ed_raw');
   try {
@@ -1213,50 +985,17 @@ function openEditor(path, data){
   let __suppressDirty = false;
   function ensureYamlEditor(){
     if (yamlEditor) return yamlEditor;
-    
     const rawEl = modal.querySelector('#ed_raw');
-    if (!rawEl) {
-      console.error('Raw editor textarea element not found');
-      return null;
+    if (!rawEl) { console.error('Raw editor textarea element not found'); return null; }
+    if (window.hydreqEditorYAML && typeof window.hydreqEditorYAML.mount === 'function') {
+      yamlEditor = window.hydreqEditorYAML.mount(rawEl);
+      try { const el = yamlEditor && yamlEditor.getWrapperElement ? yamlEditor.getWrapperElement() : null; if (el) el.style.height = '100%'; } catch {}
+      setTimeout(() => { try{ yamlEditor && yamlEditor.refresh && yamlEditor.refresh(); }catch{} }, 0);
+      return yamlEditor;
     }
-    
-    yamlEditor = CodeMirror.fromTextArea(rawEl, {
-      mode: 'yaml',
-      lineNumbers: true,
-      theme: (isDocDark()? 'material-darker':'default'),
-      indentUnit: 2,
-      tabSize: 2,
-      indentWithTabs: false,
-      extraKeys: {
-        Tab: function(cm){ if (cm.somethingSelected()) cm.indentSelection('add'); else cm.replaceSelection('  ', 'end'); },
-        'Shift-Tab': function(cm){ cm.indentSelection('subtract'); }
-      }
-    });
-    
-    yamlEditor.on('beforeChange', function(cm, change){
-      if (!change || !Array.isArray(change.text)) return;
-      let changed = false;
-      const out = change.text.map(function(line){ if (line.indexOf('\t') !== -1){ changed = true; return line.replace(/\t/g, '  '); } return line; });
-      if (changed) change.update(change.from, change.to, out, change.origin);
-    });
-    
-    yamlEditor.on('change', function(){ 
-      yamlDirty = true; 
-      // Update visual editor when YAML changes
-      try {
-        updateVisualFromYaml();
-      } catch (e) {
-        console.error('Error updating visual from YAML:', e);
-      }
-      if (!__suppressDirty) markDirty();
-    });
-    
-    // Make sure the CodeMirror instance takes up full height
-    const editorElement = yamlEditor.getWrapperElement();
-    editorElement.style.height = '100%';
-    
-    setTimeout(()=> yamlEditor.refresh(), 0);
-    return yamlEditor;
+    // Fallback: no CodeMirror wrapper available
+    yamlEditor = null;
+    return null;
   }
   issuesEl.innerHTML = '';
   (function attachVisualDelegates(){
@@ -1275,7 +1014,11 @@ function openEditor(path, data){
   function markDirty(){
     try{
       // Compute dirty by comparing to baseline YAML
-      const cur = yamlEditor ? yamlEditor.getValue() : inMemoryYaml;
+      const cur = yamlEditor
+        ? ((window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
+            ? window.hydreqEditorYAML.getText()
+            : (yamlEditor.getValue ? yamlEditor.getValue() : inMemoryYaml))
+        : inMemoryYaml;
       const isDirty = (baselineYaml || '') !== (cur || '');
       dirty = isDirty;
       const di = modal && modal.querySelector && modal.querySelector('#ed_dirty_indicator');
@@ -1332,11 +1075,19 @@ function openEditor(path, data){
       collectFormData();
       
       const yamlText = await serializeWorkingToYamlImmediate();
-      if (yamlEditor && yamlText) {
-        const cur = yamlEditor.getValue();
-        if (force || cur !== yamlText) {
+      if ((yamlEditor || window.hydreqEditorYAML) && (yamlText || force)) {
+        const cur = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
+          ? window.hydreqEditorYAML.getText()
+          : (yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : '');
+        const nonEmpty = (t)=> !!(t && String(t).trim() !== '');
+        const toSet = nonEmpty(yamlText) ? yamlText : cur;
+        if ((force && nonEmpty(toSet) && toSet !== cur) || (!force && nonEmpty(yamlText) && cur !== yamlText)) {
           __suppressDirty = true;
-          yamlEditor.setValue(yamlText);
+          if (window.hydreqEditorYAML && window.hydreqEditorYAML.setText) {
+            window.hydreqEditorYAML.setText(toSet);
+          } else if (yamlEditor && yamlEditor.setValue) {
+            yamlEditor.setValue(toSet);
+          }
           yamlDirty = false;
           __suppressDirty = false;
         }
@@ -1372,8 +1123,11 @@ function openEditor(path, data){
       const rawEl = modal.querySelector('#ed_raw');
       if (yamlEditor) {
         __suppressDirty = true;
-        if (force || yamlEditor.getValue() !== yamlText) {
-          yamlEditor.setValue(yamlText);
+        const cur = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
+          ? window.hydreqEditorYAML.getText()
+          : (yamlEditor.getValue ? yamlEditor.getValue() : '');
+        if (force || cur !== yamlText) {
+          if (window.hydreqEditorYAML && window.hydreqEditorYAML.setText) window.hydreqEditorYAML.setText(yamlText); else if (yamlEditor.setValue) yamlEditor.setValue(yamlText);
         }
         __suppressDirty = false;
       } else if (rawEl) {
@@ -1421,9 +1175,11 @@ function openEditor(path, data){
   }
   
   async function validateRawAndApply(){ 
-    if (!yamlEditor) return false;
+    if (!yamlEditor && !(window.hydreqEditorYAML && window.hydreqEditorYAML.getText)) return false;
     try {
-      const rawText = yamlEditor.getValue();
+      const rawText = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
+        ? window.hydreqEditorYAML.getText()
+        : (yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : '');
       const parsed = jsyaml.load(rawText);
       working = normalizeParsed(parsed);
       return true;
@@ -1436,9 +1192,11 @@ function openEditor(path, data){
   async function switchTab(which){ 
     if (which === 'visual') {
       // Switching TO Visual: Parse YAML and update visual forms
-      if (yamlEditor) {
+      if (yamlEditor || (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)) {
         try {
-          const rawText = yamlEditor.getValue();
+          const rawText = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
+            ? window.hydreqEditorYAML.getText()
+            : (yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : '');
           if (rawText.trim()) {
             const parsed = jsyaml.load(rawText);
             working = normalizeParsed(parsed);
@@ -1461,9 +1219,7 @@ function openEditor(path, data){
       
       // Ensure YAML editor is initialized
       ensureYamlEditor();
-      if (yamlEditor) {
-        setTimeout(() => yamlEditor.refresh(), 0);
-      }
+      if (yamlEditor) { setTimeout(() => { try{ yamlEditor.refresh && yamlEditor.refresh(); }catch{} }, 0); }
     }
     try { localStorage.setItem('hydreq.editor.tab', which); } catch {}
   }
@@ -1471,8 +1227,10 @@ function openEditor(path, data){
   // Function to update visual editor from YAML editor
   function updateVisualFromYaml() {
     try {
-      if (!yamlEditor) return false;
-      const rawText = yamlEditor.getValue();
+      if (!yamlEditor && !(window.hydreqEditorYAML && window.hydreqEditorYAML.getText)) return false;
+      const rawText = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
+        ? window.hydreqEditorYAML.getText()
+        : (yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : '');
       if (rawText.trim()) {
         const parsed = jsyaml.load(rawText);
         working = normalizeParsed(parsed);
@@ -1491,27 +1249,36 @@ function openEditor(path, data){
   // Ensure YAML editor is setup and visible
   setTimeout(() => {
     ensureYamlEditor();
+    try{ syncEditorTheme(); }catch{}
     __suppressDirty = true;
-    // If we already have raw content, keep it as-is and just sync visual from YAML
-    if (__hadRaw) {
-      try { updateVisualFromYaml(); } catch {}
-    } else {
-      // No raw provided, mirror from visual to create initial YAML
-      mirrorYamlFromVisual(true);
-    }
-    if (yamlEditor) {
-      yamlEditor.refresh();
-      __suppressDirty = false;
-      
-      // Add change listener to the YAML editor to update visual form in real-time
-      yamlEditor.off('change', updateVisualFromYaml); // Remove previous listener if any
-      yamlEditor.on('change', () => {
-        updateVisualFromYaml();
-        yamlDirty = true;
-        if (!__suppressDirty) markDirty();
-      });
-    }
+    if (__hadRaw) { try { updateVisualFromYaml(); } catch {} } else { mirrorYamlFromVisual(true); }
+    try{ if (yamlEditor && yamlEditor.refresh) yamlEditor.refresh(); }catch{}
+    __suppressDirty = false;
+    // After async init, reset baseline and clear dirty indicator
+    try{
+      const curYaml = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText) ? window.hydreqEditorYAML.getText() : (yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : inMemoryYaml);
+      baselineYaml = curYaml || '';
+      dirty = false;
+      const di = modal.querySelector('#ed_dirty_indicator'); if (di) di.style.display = 'none';
+    }catch{}
   }, 100);
+
+  // Keep theme synced when document theme changes
+  try{
+    const mo = new MutationObserver(()=>{ try{ syncEditorTheme(); }catch{} });
+    mo.observe(document.documentElement, { attributes:true, attributeFilter:['data-theme','class'] });
+  }catch{}
+
+  // Keep local working model in sync with YAML editor state updates
+  try{
+    document.addEventListener('hydreq:editor:state:changed', (e)=>{
+      try{
+        const wk = (e && e.detail && e.detail.working) || {};
+        working = normalizeParsed(wk);
+        renderForm();
+      }catch{}
+    });
+  }catch{}
   
   // Column collapse functionality
   function setupColumnCollapseButton(buttonId, columnId) {
@@ -1526,7 +1293,7 @@ function openEditor(path, data){
         
         // Refresh YAML editor if it's the YAML column
         if (columnId === '#col-yaml' && !column.classList.contains('collapsed') && yamlEditor) {
-          setTimeout(() => yamlEditor.refresh(), 10);
+          setTimeout(() => { try{ yamlEditor.refresh && yamlEditor.refresh(); }catch{} }, 10);
         }
       });
     }
@@ -1643,9 +1410,20 @@ function openEditor(path, data){
   renderForm();
   ensureYamlEditor();
   __suppressDirty = true;
-  yamlEditor.setValue((inMemoryYaml || '').replace(/\t/g, '  '));
+  try{
+    const txt = (inMemoryYaml || '').replace(/\t/g, '  ');
+    if (window.hydreqEditorYAML && window.hydreqEditorYAML.setText) window.hydreqEditorYAML.setText(txt);
+    else if (yamlEditor && yamlEditor.setValue) yamlEditor.setValue(txt);
+  }catch{}
   __suppressDirty = false;
   yamlDirty = false;
+  // Reset baseline to current YAML to avoid false-dirty on open
+  try{
+    const curYaml = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText) ? window.hydreqEditorYAML.getText() : (yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : inMemoryYaml);
+    baselineYaml = curYaml || '';
+  }catch{}
+  // Seed global editor state working model
+  try{ if (window.hydreqEditorState && window.hydreqEditorState.setWorking) window.hydreqEditorState.setWorking(working); }catch{}
   const cacheKey = ()=>{ const t = (working.tests && working.tests[selIndex]) || {}; return selIndex + ':' + (t.name||('test '+(selIndex+1))); };
   function clearQuickRun(){ const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.innerHTML = ''; }
   function appendQuickRunLine(text, cls){ const qr = modal.querySelector('#ed_quickrun'); if (!qr) return; const d=document.createElement('div'); if (cls) d.className=cls; d.textContent=text; qr.appendChild(d); qr.scrollTop = qr.scrollHeight; }
@@ -1779,13 +1557,23 @@ function openEditor(path, data){
       const includeDeps = !!(modal.querySelector('#ed_run_with_deps')?.checked);
       const includePrevStages = !!(modal.querySelector('#ed_run_with_prevstages')?.checked);
       const env = parseEnvFromPage();
-      const payload = { parsed: working, testIndex: selIndex, env, runAll: false, includeDeps, includePrevStages };
       clearQuickRun(); appendQuickRunLine('Starting test...', 'dim');
-      const res = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      if (!res.ok){ let txt=''; try{ txt=await res.text(); }catch{} throw new Error('HTTP '+res.status+(txt?(': '+txt):'')); }
-      const data = await res.json();
-      if (data && data.runId){ listenToQuickRun(data.runId, working.tests[selIndex].name || `test ${selIndex+1}`); }
-      else {
+      // Try modular quick-run path first
+      try { if (window.hydreqEditorState && window.hydreqEditorState.setWorking) window.hydreqEditorState.setWorking(working); } catch {}
+      let started = false;
+      try{
+        if (window.hydreqEditorRun && typeof window.hydreqEditorRun.quickRun === 'function'){
+          const runId = await window.hydreqEditorRun.quickRun({ runAll: false, includeDeps, includePrevStages, testIndex: selIndex });
+          if (runId){ listenToQuickRun(runId, working.tests[selIndex].name || `test ${selIndex+1}`); started = true; }
+        }
+      }catch{}
+      if (!started){
+        const payload = { parsed: working, testIndex: selIndex, env, runAll: false, includeDeps, includePrevStages };
+        const res = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if (!res.ok){ let txt=''; try{ txt=await res.text(); }catch{} throw new Error('HTTP '+res.status+(txt?(': '+txt):'')); }
+        const data = await res.json();
+        if (data && data.runId){ listenToQuickRun(data.runId, working.tests[selIndex].name || `test ${selIndex+1}`); }
+        else {
         // Immediate result mode
         renderImmediateRunResult(data, working.tests[selIndex].name || `test ${selIndex+1}`);
         const status = (data.status||'').toLowerCase();
@@ -1795,6 +1583,7 @@ function openEditor(path, data){
         // propagate to suites list and suite badge
         try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, name, status); }catch{}
         try{ setSuiteRecord(status, data.durationMs||0, data.messages||[]); }catch{}
+        }
       }
     }catch(e){ console.error(e); appendQuickRunLine('Run failed: '+e.message, 'text-error'); }
   };
@@ -1861,7 +1650,11 @@ function openEditor(path, data){
   
   modal.querySelector('#ed_validate').onclick = async ()=>{ 
     try{
-      collectFormData(); const raw = yamlEditor? yamlEditor.getValue() : await serializeWorkingToYamlImmediate();
+      collectFormData();
+      let raw = '';
+      if (window.hydreqEditorYAML && window.hydreqEditorYAML.getText) raw = window.hydreqEditorYAML.getText();
+      else if (yamlEditor && yamlEditor.getValue) raw = yamlEditor.getValue();
+      else raw = await serializeWorkingToYamlImmediate();
       const response = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ raw }) });
       if (!response.ok) throw new Error('HTTP '+response.status);
       const v = await response.json(); renderIssues(v.issues || v.errors || [], v.yaml || raw);
@@ -1875,11 +1668,22 @@ function openEditor(path, data){
     try{
       collectFormData(); const env = parseEnvFromPage();
       clearQuickRun(); appendQuickRunLine('Starting suite...', 'dim');
-      const response = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working, env, runAll: true, includeDeps: true }) });
-      if (!response.ok){ let txt=''; try{ txt=await response.text(); }catch{} throw new Error('HTTP '+response.status+(txt?(': '+txt):'')); }
-      const data = await response.json();
-  if (data && data.runId){ listenToQuickRun(data.runId, working.name || 'suite'); }
-  else { renderImmediateRunResult(data, working.name || 'suite'); updateBadgesFromSuiteResult(data); setSuiteRecord((data.status||'').toLowerCase(), data.durationMs||0, data.messages||[]); }
+      // Try modular quick-run first
+      try { if (window.hydreqEditorState && window.hydreqEditorState.setWorking) window.hydreqEditorState.setWorking(working); } catch {}
+      let started = false;
+      try{
+        if (window.hydreqEditorRun && typeof window.hydreqEditorRun.quickRun === 'function'){
+          const runId = await window.hydreqEditorRun.quickRun({ runAll: true, includeDeps: true });
+          if (runId){ listenToQuickRun(runId, working.name || 'suite'); started = true; }
+        }
+      }catch{}
+      if (!started){
+        const response = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working, env, runAll: true, includeDeps: true }) });
+        if (!response.ok){ let txt=''; try{ txt=await response.text(); }catch{} throw new Error('HTTP '+response.status+(txt?(': '+txt):'')); }
+        const data = await response.json();
+        if (data && data.runId){ listenToQuickRun(data.runId, working.name || 'suite'); }
+        else { renderImmediateRunResult(data, working.name || 'suite'); updateBadgesFromSuiteResult(data); setSuiteRecord((data.status||'').toLowerCase(), data.durationMs||0, data.messages||[]); }
+      }
     }catch(e){ console.error(e); appendQuickRunLine('Suite run failed: '+e.message, 'text-error'); }
   }; }
 
@@ -1896,15 +1700,29 @@ function openEditor(path, data){
   modal.querySelector('#ed_save').onclick = async ()=>{ 
     try {
       collectFormData();
-      const yamlData = await serializeWorkingToYamlImmediate();
+      // Prefer saving raw YAML from editor to preserve formatting; fallback to serialize
+      let yamlData = '';
+      try{
+        if (window.hydreqEditorYAML && window.hydreqEditorYAML.getText) yamlData = window.hydreqEditorYAML.getText();
+        else if (yamlEditor && yamlEditor.getValue) yamlData = yamlEditor.getValue();
+        else yamlData = await serializeWorkingToYamlImmediate();
+      }catch{ yamlData = await serializeWorkingToYamlImmediate(); }
+      // If still empty, attempt a final serialization; otherwise abort save
+      if (!yamlData || !yamlData.trim()){
+        try{ yamlData = await serializeWorkingToYamlImmediate(); }catch{}
+      }
+      if (!yamlData || !yamlData.trim()){
+        alert('Nothing to save: YAML is empty.');
+        return;
+      }
 
       // Re-check path existence to guard against race conditions
       try{
-        const ck = await fetch('/api/editor/checkpath', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ path }) });
-        if (ck.ok){ const info = await ck.json(); if (info.exists && modal.dataset.isNew === '1'){
-            if (!confirm('File was created on disk since you opened the editor. Overwrite?')) return; // abort save
-        } }
-      }catch(e){}
+        if (modal.dataset.isNew === '1'){
+          const ck = await fetch('/api/editor/checkpath', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ path }) });
+          if (ck.ok){ const info = await ck.json(); if (info.exists){ if (!confirm('File was created on disk since you opened the editor. Overwrite?')) return; } }
+        }
+      }catch(e){ /* ignore checkpath on dev builds */ }
 
       // Validate before saving; surface warnings/errors
       try{
@@ -1917,11 +1735,11 @@ function openEditor(path, data){
         }
       }catch(e){ /* validation failed to run; allow save but warn */ if(!confirm('Validation failed to run. Proceed to save?')) return; }
 
-      // Send to save endpoint
+      // Send to save endpoint (backend expects `raw` to preserve formatting)
       const response = await fetch('/api/editor/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ path: path, content: yamlData })
+        body: JSON.stringify({ path: path, raw: yamlData })
       });
       
       if (response.ok) {
@@ -1956,8 +1774,15 @@ function openEditor(path, data){
     }
   };
   
-  modal.querySelector('#ed_close').onclick = ()=> attemptClose();
-  function syncEditorTheme(){ if (yamlEditor){ yamlEditor.setOption('theme', isDocDark() ? 'material-darker' : 'default'); yamlEditor.refresh(); } }
+  // Prefer modal close() if available; otherwise fallback
+  modal.querySelector('#ed_close').onclick = ()=> {
+    try{
+      if (dirty && !confirm('Discard unsaved changes?')) return;
+      if (window.hydreqEditorModal && typeof window.hydreqEditorModal.close === 'function') window.hydreqEditorModal.close();
+      else attemptClose();
+    }catch{}
+  };
+  function syncEditorTheme(){ try{ if (window.hydreqEditorYAML && window.hydreqEditorYAML.syncTheme) window.hydreqEditorYAML.syncTheme(); else if (yamlEditor){ yamlEditor.setOption('theme', isDocDark() ? 'material-darker' : 'default'); yamlEditor.refresh && yamlEditor.refresh(); } }catch{} }
   const lastTab = (function(){ try{ return localStorage.getItem('hydreq.editor.tab') }catch{ return null } })() || 'yaml';
   switchTab(lastTab === 'visual' ? 'visual' : 'yaml');
   if (working.tests && working.tests.length) { try{ renderQuickRunForSelection(); }catch{} }
@@ -2008,7 +1833,7 @@ function openEditor(path, data){
 
   // Note: Removed handlers for non-modal controls (clearLog/download buttons) to avoid referencing missing elements here.
   // Initial population of suites list
-  refresh();
+  try{ if (typeof window.refresh === 'function') window.refresh(); }catch{}
 }
 
 // Expose to window for backward compatibility

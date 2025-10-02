@@ -85,6 +85,8 @@ func (s *server) routes() {
 	// Editor endpoints (MVP)
 	s.mux.HandleFunc("/api/editor/suites", s.handleEditorSuites)
 	s.mux.HandleFunc("/api/editor/suite", s.handleEditorSuite)
+	// Path safety/existence check used by UI when creating files
+	s.mux.HandleFunc("/api/editor/checkpath", s.handleEditorCheckPath)
 	s.mux.HandleFunc("/api/editor/validate", s.handleEditorValidate)
 	s.mux.HandleFunc("/api/editor/save", s.handleEditorSave)
 	// Editor quick-run for a single test (in-memory)
