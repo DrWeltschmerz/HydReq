@@ -3,11 +3,18 @@ FROM golang:1.25 AS builder
 
 WORKDIR /build
 
-# Copy all source code (go mod download will happen during build)
+# Copy go mod files first for better caching
+COPY go.mod go.sum ./
+
+# Download dependencies separately for better caching and to avoid timeouts
+RUN go mod download
+
+# Copy source code
 COPY . .
 
 # Build static binary with optimizations
-RUN CGO_ENABLED=0 go build \
+# Add timeout and verbose flags for visibility
+RUN CGO_ENABLED=0 go build -v \
     -ldflags="-s -w -X main.version=${VERSION:-dev}" \
     -o hydreq \
     ./cmd/hydreq
