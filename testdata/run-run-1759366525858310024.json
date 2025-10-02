@@ -1,0 +1,35 @@
+{
+  "runAt": "2025-10-02T02:55:27.065478358+02:00",
+  "summary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "duration": 0
+  },
+  "suites": [
+    {
+      "suite": "dependsOn demo",
+      "summary": {
+        "total": 2,
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "duration": 2510455
+      },
+      "tests": [
+        {
+          "name": "create id",
+          "stage": 0,
+          "status": "passed",
+          "durationMs": 1
+        },
+        {
+          "name": "reuse extracted id",
+          "stage": 0,
+          "status": "passed"
+        }
+      ]
+    }
+  ]
+}
