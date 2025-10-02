@@ -60,7 +60,7 @@ func Run(addr string, openBrowser bool) error {
 	// Compile JSON Schema once if present so the UI validator matches CLI validator
 	if _, err := os.Stat("schemas/suite.schema.json"); err == nil {
 		if abs, aerr := filepath.Abs("schemas/suite.schema.json"); aerr == nil {
-			if sch, cerr := jsonschema.Compile("file://" + abs); cerr == nil {
+			if sch, cerr := jsonschema.Compile(valfmt.PathToFileURL(abs)); cerr == nil {
 				s.schema = sch
 			} else {
 				log.Printf("schema compile error: %v", cerr)

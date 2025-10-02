@@ -162,3 +162,24 @@ func _unusedEnsureJSON(b []byte) any {
 	_ = json.Unmarshal(b, &v)
 	return v
 }
+
+// PathToFileURL converts an absolute file path to a proper RFC 8089 file:// URL
+// that works consistently across Windows and Unix platforms.
+//
+// On Windows, converts C:\path\to\file to file:///C:/path/to/file
+// On Unix, converts /path/to/file to file:///path/to/file
+func PathToFileURL(absPath string) string {
+	// Convert backslashes to forward slashes for Windows paths
+	// We use strings.ReplaceAll instead of filepath.ToSlash because
+	// filepath.ToSlash only converts the OS-native separator
+	absPath = strings.ReplaceAll(absPath, "\\", "/")
+
+	// Ensure the path starts with / for proper file URL formatting
+	// Windows paths like C:/... become /C:/... then file:///C:/...
+	// Unix paths like /home/... stay as /home/... then file:///home/...
+	if !strings.HasPrefix(absPath, "/") {
+		absPath = "/" + absPath
+	}
+
+	return "file://" + absPath
+}
