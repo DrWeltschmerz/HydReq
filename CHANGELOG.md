@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.3.6-beta (2025-10-02)
+
+Highlights
+- Stabilized Web UI before refactor: restored 4‑column editor layout, hardened SSE flow, accurate stage visualization for dependsOn, and polished run UX (env/tag pills, badge updates, and counts).
+
+Features
+- Editor
+	- 4‑column editor restored (Tests • Visual • YAML • Results) with live, bi‑directional YAML⇄Visual sync and density toggle.
+	- Quick Run toggles: “with deps” (run selected test with its dependency chain) and “with previous stages” (run all earlier stages before the selected test).
+	- Per‑test and per‑suite delete actions keep YAML and visual state in sync.
+- Runner/Web UI stream
+	- SSE test events now include `path` to disambiguate per‑suite updates.
+	- For dependsOn DAGs, stage visualization is flattened to a single stage `0` (suiteStart `stages` map is `{0: total}`; test events emit `Stage=0`).
+	- Stage bars and suite progress are driven by tests that actually started; resilient to missing `testStart` in rare cases.
+- UI polish
+	- Header shows active env overrides and selected tags as small pills next to Batch progress (also mirrored in the sidebar).
+	- Tag chips rendered next to suite/test rows are clickable and stay in sync with the sidebar checkboxes (deselecting a chip unchecks its row and vice versa).
+
+Changes
+- Batch summary counts rely on `suiteEnd` summaries only to eliminate double counting.
+- Suite badges update deterministically: per‑test updates won’t reset unrelated suites; final status is set on `suiteEnd` (failed > skipped > passed priority).
+- Editor quick‑run and runner view use the same last‑status cache to keep badges consistent across views.
+
+Fixes
+- dependsOn stage bar now shows a single stage (0) with accurate totals and progress; removed spurious “stage 1” rows.
+- Eliminated badge flicker and unintended “unknown” resets when tests are filtered or not listed.
+- Corrected stage progress mismatches and cross‑suite test updates by matching on `payload.path`.
+
+Docs
+- Updated:
+	- `docs/cli.md`: clarified staged execution and single‑stage visualization for dependsOn.
+	- `docs/getting-started.md`: env/tag pills near Batch progress; Quick Run toggles explained.
+	- `docs/web-ui.md`: Quick Run options and visual cues (pills, tag sync, stage 0 for dependsOn).
+- Added:
+	- `docs/ui-audit.md`: current UI audit with issues and improvement targets.
+	- `docs/ui-refactor-plan.md`: phased refactor plan (housekeeping → modules → editor split → TypeScript → optional Preact islands).
+
+Notes
+- Internal SSE payloads now include `path` consistently; DAG test events use `Stage=0` for clarity. These are UI-facing protocol details and do not change the CLI.
+
 ## v0.3.5-beta (2025-09-24)
 
 Highlights
