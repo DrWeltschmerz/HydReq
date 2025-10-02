@@ -85,7 +85,7 @@ func main() {
 			var compiledSchema *jsonschema.Schema
 			if _, err := os.Stat("schemas/suite.schema.json"); err == nil {
 				if abs, aerr := filepath.Abs("schemas/suite.schema.json"); aerr == nil {
-					if sch, cerr := jsonschema.Compile("file://" + abs); cerr == nil {
+					if sch, cerr := jsonschema.Compile(valfmt.PathToFileURL(abs)); cerr == nil {
 						compiledSchema = sch
 					}
 				}
@@ -627,7 +627,7 @@ func main() {
 			// For true detachment, fork the process
 			if os.Getppid() == 1 {
 				// Already a daemon, just run
-				return gui.Run("0.0.0.0:8787", true)
+				return gui.Run("localhost:8787", true)
 			}
 			// Fork and exit parent
 			args := os.Args
@@ -648,14 +648,14 @@ func main() {
 			os.Exit(0)
 			return nil
 		}
-		return gui.Run("0.0.0.0:8787", true)
+		return gui.Run("localhost:8787", true)
 	}}
 	guiCmd.Flags().BoolVarP(&detach, "detach", "d", false, "Run GUI server in background")
 	rootCmd.AddCommand(guiCmd)
 
 	// Default to GUI when no args; TUI remains available via subcommand
 	if len(os.Args) == 1 {
-		if err := gui.Run("0.0.0.0:8787", true); err != nil {
+		if err := gui.Run("localhost:8787", true); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
