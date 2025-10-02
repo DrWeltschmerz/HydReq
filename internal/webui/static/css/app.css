@@ -227,6 +227,12 @@ a { color: var(--link); }
 .ai-center { align-items:center; }
 .ml-8 { margin-left: 8px; }
 .nowrap { white-space: nowrap; }
+/* Small utility helpers for spacing and sizing */
+.gap-12 { gap: 12px; }
+.mr-6 { margin-right: 6px; }
+.w-36px { width: 36px; }
+.h-36px { height: 36px; }
+.d-block { display: block; }
 
 /* Keep Batch progress header height stable when tags appear/disappear */
 #batchHeader { min-height: 52px; align-items: center; }
