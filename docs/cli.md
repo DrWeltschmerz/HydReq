@@ -27,6 +27,11 @@ Flags:
 - `--report-dir`: if set and no explicit report paths are provided, writes JSON, JUnit, and HTML reports into this directory using `<suite-name>-<timestamp>.{json,xml,html}` and also emits aggregated run-level artifacts `run-<timestamp>.{json,xml,html}`
 - `--output`: console output format: `summary` (default) or `json` (prints a detailed JSON result to stdout)
 
+Run semantics:
+- Staged execution: tests run by stage number (0..N). Workers apply per stage.
+- dependsOn chains: executed as a DAG but presented as a single stage (0) in the UI and SSE to keep progress simple and predictable.
+
+
 ## Import Commands
 
 Import external API collections to HydReq YAML suites:
