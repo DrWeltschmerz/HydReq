@@ -29,18 +29,18 @@
 </head>
 <body>
   <header>
-    <div style="display:flex; align-items:center; gap:12px">
-      <img id="hydreq_logo" src="/logo_notext.svg" alt="HydReq" style="height:36px; width:36px; display:block;"/>
+    <div class="row m-0 gap-12">
+      <img id="hydreq_logo" src="/logo_notext.svg" alt="HydReq" class="h-36px w-36px d-block"/>
       <div>HydReq — Hydra Request</div>
     </div>
     <div class="row m-0">
-              <label class="row m-0" style="gap:6px; align-items:center;">
+              <label class="row m-0 ed-row-6 ed-ai-center">
           <input id="autoRefreshSuites" type="checkbox"/>
           Auto-refresh
         </label>
   <label class="row m-0"><input id="onlyFailed" type="checkbox"/> Only failed</label>
   <label class="row m-0"><input id="autoScroll" type="checkbox"/> Auto-scroll</label>
-  <label class="row m-0" title="Theme"><span style="margin-right:6px">Theme</span>
+  <label class="row m-0" title="Theme"><span class="mr-6">Theme</span>
     <select id="themeSelect">
       <option value="light">Light</option>
       <option value="dark">Dark</option>
@@ -124,8 +124,8 @@
   <div class="row"><div class="flex-1">Suite progress — <span id="currentSuite">(none)</span></div><div class="pill" id="suiteText">0/0</div></div>
       <div class="progress"><div id="suiteBar"></div></div>
       <div id="stages"></div>
-  <div class="row" style="justify-content:space-between;align-items:center">
-    <div class="row ed-row-6 ed-ai-center"><h3 style="margin:0">Results</h3><span class="dim" title="For CI artifacts use CLI flags --report-json / --report-junit">(Reports via CLI)</span></div>
+  <div class="row ed-justify-between ed-ai-center">
+    <div class="row ed-row-6 ed-ai-center"><h3 class="m-0">Results</h3><span class="dim" title="For CI artifacts use CLI flags --report-json / --report-junit">(Reports via CLI)</span></div>
     <div class="row ed-row-6 ed-ai-center">
       <button id="downloadRunJSON" class="btn btn-sm" title="Download run JSON">Download Run JSON</button>
       <button id="downloadRunJUnit" class="btn btn-sm" title="Download run JUnit">Download Run JUnit</button>
