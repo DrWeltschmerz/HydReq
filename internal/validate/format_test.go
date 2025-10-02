@@ -8,11 +8,11 @@ import (
 
 func TestPathToFileURL(t *testing.T) {
 	tests := []struct {
-		name        string
-		input       string
-		wantPrefix  string
-		wantParsed  bool
-		wantScheme  string
+		name       string
+		input      string
+		wantPrefix string
+		wantParsed bool
+		wantScheme string
 	}{
 		{
 			name:       "Unix absolute path",
