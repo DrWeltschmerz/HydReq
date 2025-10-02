@@ -34,13 +34,17 @@ Phase 0: Housekeeping (no behavior changes)
 
 Phase 1: Module boundaries
 - Create `js/state/` with small modules:
-  - `tags.js`: get/set, events, persistence.
-  - `env.js`: kv model + render mirroring.
-  - `run.js`: start/cancel run, SSE subscribe, event shapes.
-- Extract SSE listener from `js/suites.js` into `js/run-listener.js` with callbacks.
-- Extract suites rendering into `js/suites-view.js`; keep the DOM IDs stable.
+  - `tags.js`: get/set, events, persistence. (done)
+  - `env.js`: kv model + render mirroring. (done)
+  - `run.js`: start/cancel run, SSE subscribe, event shapes. (done)
+- Extract SSE listener from `js/suites.js` into `js/run-listener.js` with callbacks. (done — run-listener.subscribe now parses SSE and awaits async handlers; suites.js delegates to it and retains a fallback EventSource for compatibility.)
+- Extract suites rendering into `js/suites-view.js`; keep the DOM IDs stable. (done)
+- Add server helper `POST /api/editor/checkpath` to validate client-proposed paths and report existence/safety. (done — supports the improved "New Suite" UX.)
+- New Suite UX: promptNewSuite now uses server-side check and opens the editor in "create" mode when the target file does not exist; the editor now shows a clear "New suite" banner, uses "Create" button labels, re-validates and asks to confirm on overwrite/validation warnings. (done)
+- Suite list details: Display test failure details below the test name, in a collapsed-by-default details/summary element with a scrollable, copy-friendly message block. (done)
+- Editor details styling: Unified scrollable message block across quick-run and per-test details. (done)
 
-Acceptance: suites list renders; SSE updates badges/progress as before; editor opens; quick-run works.
+Acceptance: suites list renders; SSE updates badges/progress as before; editor opens; quick-run works; New Suite flow presents a safer, validated create path; test details display clearly underneath the test name; suite list failure details are collapsed by default and expand on demand; message blocks are scrollable and easy to copy.
 
 Phase 2: Editor split
 - Split `js/editor.js` into submodules:
@@ -80,7 +84,7 @@ Phase 4: Preact islands (optional)
   - Badge propagation from SSE and editor quick-run
   - Tag chip ↔ checkbox sync
   - Env pills mirrored in header and aside
-- Unit tests (small): factor logic (tags/env state) into pure functions.
+- Unit tests (small): factor logic (tags/env state) into pure functions. (in-progress — adding Node-based unit tests using Mocha + JSDOM under internal/webui/static/test to validate run-listener and suites flush behavior.)
 
 ## Risks and mitigations
 
@@ -93,8 +97,32 @@ Phase 4: Preact islands (optional)
 
 ## Done criteria for refactor
 
-- No duplicate JS helpers; no dead files.
-- index.html has no inline styles; all CSS under `css/` or `editor.css`.
-- Themes defined once; editor and runner share tokens.
-- Suites and editor code split into modules; file sizes manageable (<500 lines typical per module).
-- All previously fixed correctness issues (dependsOn single-stage, batch counters, suite badge stability, path-filtered events) remain green.
+- No duplicate JS helpers; no dead files. (done)
+- index.html has no inline styles; all CSS under `css/` or `editor.css`. (done)
+- Themes defined once; editor and runner share tokens. (done)
+- Suites and editor code split into modules; file sizes manageable (<500 lines typical per module). (partially done - Phase 1 complete, Phase 2 in progress)
+- All previously fixed correctness issues (dependsOn single-stage, batch counters, suite badge stability, path-filtered events) remain green. (done)
+- Run-listener robustness: add reconnection/backoff with exponential delay and unit tests. (done — subscribe() now reconnects with capped backoff and stops on unsubscribe; tests under internal/webui/static/test/*reconnect*.spec.js)
+- Test details UX improvement: display details on a separate line underneath the test name. (done)
+- Automated E2E tests for UI interactions and rendering. (in progress)
+
+## Gaps and cleanup plan (Phase 0/1 follow-up)
+
+Observations
+- Some JS files remain large (e.g., `internal/webui/static/js/suites.js`, `editor.js`).
+- A few inline style assignments are still present in JS (layout/margins), should be moved to CSS classes.
+- Styles are largely centralized, but we still set ad-hoc style props (e.g., badge background colors) that should be expressed as classes/tokens.
+
+Plan
+1) Inline styles → CSS classes
+  - Create utility classes in `app.css` for row spacing, padding, hover, and badge states.
+  - Replace remaining `el.style.*` in `suites-view.js` and `suites.js` with class names.
+2) Split large JS files
+  - `suites.js`: extract `sse-handlers.js` (listen/handlers), `suite-state.js` (selection, lastStatus, buffering), `suite-dom.js` (DOM builders), keeping a thin orchestrator.
+  - `editor.js`: continue Phase 2 split (modal, state, yaml, forms/*, run).
+3) Status/badge CSS tokens
+  - Add `.status-passed|failed|skipped` classes with themed backgrounds; stop setting style.background inline.
+4) Tests
+  - Add E2E for suite expand and details collapse/expand; verify scrollability and copy behavior.
+5) Docs
+  - Keep this plan and Summary of findings in sync; link classes and modules as they land.

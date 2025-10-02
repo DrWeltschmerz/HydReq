@@ -116,18 +116,21 @@
         if (preloaded && Array.isArray(preloaded)){
           testsDiv.innerHTML='';
           preloaded.forEach(t=>{
-            const row = document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.padding='4px 6px';
-            const nm = document.createElement('span'); nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent; nm.dataset.name = nm.textContent;
+            const cont = document.createElement('div'); cont.className='suite-test-container';
+            const row = document.createElement('div'); row.className='suite-test-item';
+            const nm = document.createElement('span'); nm.className='suite-test-name'; nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent; nm.dataset.name = nm.textContent;
             const stmap = lastStatusObj[pathKey] || {};
             const status = stmap[nm.dataset.name] || '';
-            const badge = document.createElement('span'); badge.className='pill';
+            const badge = document.createElement('span'); badge.className='pill suite-test-status';
             if (status==='passed'){ badge.textContent='✓'; badge.style.background='rgba(16,185,129,0.12)'; }
             else if (status==='failed'){ badge.textContent='✗'; badge.style.background='rgba(239,68,68,0.08)'; }
             else if (status==='skipped'){ badge.textContent='-'; badge.style.background='rgba(245,158,11,0.06)'; }
             else { badge.textContent='·'; badge.style.opacity='.6'; }
-            row.appendChild(nm); row.appendChild(badge); testsDiv.appendChild(row);
+            row.appendChild(nm); row.appendChild(badge); cont.appendChild(row); testsDiv.appendChild(cont);
           });
           if (openSet.has(pathKey)) { testsDiv.classList.add('open'); testsDiv.style.display='block'; expandBtn.dataset.open='1'; expandBtn.textContent='▾'; }
+          // mark as loaded so callers can flush buffered events
+          try{ expandBtn.dataset.loaded = '1'; }catch(e){}
         }
       }catch(e){}
 
