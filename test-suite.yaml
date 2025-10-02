@@ -1,0 +1,27 @@
+name: "API Test Suite"
+baseUrl: "https://jsonplaceholder.typicode.com"
+vars:
+  userId: "1"
+tests:
+  - name: "Get user by ID"
+    request:
+      method: GET
+      url: "/users/${userId}"
+    assert:
+      status: 200
+      headers:
+        content-type: application/json
+  - name: "Create new post"
+    request:
+      method: POST
+      url: "/posts"
+      headers:
+        Content-Type: application/json
+      body: |
+        {
+          "title": "foo",
+          "body": "bar",
+          "userId": 1
+        }
+    assert:
+      status: 201

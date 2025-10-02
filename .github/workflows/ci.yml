@@ -8,48 +8,52 @@ on:
 
 jobs:
   validate:
-    name: Validate suites against schema
+    name: 🔍 Validate suites against schema
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.x'
-      - name: Build validator
+      - name: 📦 Build validator
         run: go build -o bin/validate ./cmd/validate
-      - name: Run validator
+      - name: ✅ Run validator
         run: ./bin/validate -dir testdata -schema schemas/suite.schema.json -quiet
 
   lint:
+    name: 🧹 Lint code
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.x'
-      - name: gofmt check
+      - name: 🎨 Check gofmt
         run: |
           fmt_out=$(gofmt -l . | grep -v '^$' || true)
           if [ -n "$fmt_out" ]; then
-            echo "The following files are not gofmt'ed:" >&2
+            echo "❌ The following files are not gofmt'ed:" >&2
             echo "$fmt_out" >&2
             exit 1
           fi
-      - name: go vet
+          echo "✅ Formatting check passed"
+      - name: 🔍 Run go vet
         run: go vet ./...
-      - name: go mod tidy check
+      - name: 📋 Check go mod tidy
         run: |
           cp go.mod go.mod.ci.bak
           cp go.sum go.sum.ci.bak
           go mod tidy
           if ! diff -q go.mod go.mod.ci.bak >/dev/null || ! diff -q go.sum go.sum.ci.bak >/dev/null; then
-            echo 'go.mod/go.sum changed after go mod tidy. Run it locally and commit.' >&2
+            echo '❌ go.mod/go.sum changed after go mod tidy. Run it locally and commit.' >&2
             diff -u go.mod.ci.bak go.mod || true
             diff -u go.sum.ci.bak go.sum || true
             exit 1
           fi
+          echo "✅ go.mod is tidy"
       
   test:
+    name: 🧪 Run unit tests
     runs-on: ubuntu-latest
     needs: [lint]
     steps:
@@ -57,7 +61,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.x'
-      - name: Cache Go modules
+      - name: 💾 Cache Go modules
         uses: actions/cache@v4
         with:
           path: |
@@ -66,10 +70,11 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Run unit tests (race)
+      - name: 🏃 Run unit tests (race)
         run: go test -race ./...
 
   pg-tests:
+    name: 🐘 Run PostgreSQL integration tests
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -87,12 +92,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.x'
-      - name: Run PG integration tests
+      - name: 🏃 Run PG integration tests
         env:
           PG_DSN: postgres://postgres:password@localhost:5432/qa?sslmode=disable
         run: go test -run TestPGIntegration -v ./internal/runner
 
   mssql-tests:
+    name: 🗄️ Run MSSQL integration tests
     runs-on: ubuntu-latest
     services:
       mssql:
@@ -109,13 +115,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.x'
-      - name: Run MSSQL integration tests
+      - name: 🏃 Run MSSQL integration tests
         env:
           MSSQL_DSN: sqlserver://sa:Your_password123@localhost:1433?database=master
         run: go test -run TestMSSQLIntegration -v ./internal/runner
 
   examples:
-    name: Run example suites (httpbin + PG + MSSQL + auth)
+    name: 📊 Run example suites (httpbin + PG + MSSQL + auth)
     runs-on: ubuntu-latest
     needs: [test]
     services:
@@ -149,7 +155,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.x'
-      - name: Cache Go modules
+      - name: 💾 Cache Go modules
         uses: actions/cache@v4
         with:
           path: |
@@ -158,18 +164,18 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Wait for services (httpbin)
+      - name: ⏳ Wait for services (httpbin)
         run: |
           for i in {1..60}; do curl -fsS http://localhost:8080/ip >/dev/null && break || sleep 2; done
-      - name: Build validator and validate suites
+      - name: 📦 Build validator and validate suites
         run: |
           go build -o bin/validate ./cmd/validate
           ./bin/validate -dir testdata -schema schemas/suite.schema.json -quiet
-      - name: Wait for MSSQL (port 1433)
+      - name: ⏳ Wait for MSSQL (port 1433)
         shell: bash
         run: |
           for i in {1..60}; do (echo > /dev/tcp/127.0.0.1/1433) >/dev/null 2>&1 && break || sleep 2; done
-      - name: Build and run examples
+      - name: 🚀 Build and run examples
         env:
           HTTPBIN_BASE_URL: http://localhost:8080
           ENABLE_DEMO_AUTH: "1"
@@ -177,7 +183,7 @@ jobs:
           MSSQL_DSN: sqlserver://sa:Your_password123@localhost:1433?database=master
         run: |
           ./scripts/run-examples.sh
-      - name: Upload example reports
+      - name: 📤 Upload example reports
         uses: actions/upload-artifact@v4
         if: always()
         with:

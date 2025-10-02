@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -620,14 +621,41 @@ func main() {
 	rootCmd.AddCommand(importCmd)
 
 	// GUI command
+	var detach bool
 	var guiCmd = &cobra.Command{Use: "gui", Short: "Launch browser-based GUI", RunE: func(cmd *cobra.Command, args []string) error {
-		return gui.Run("127.0.0.1:8787", true)
+		if detach {
+			// For true detachment, fork the process
+			if os.Getppid() == 1 {
+				// Already a daemon, just run
+				return gui.Run("0.0.0.0:8787", true)
+			}
+			// Fork and exit parent
+			args := os.Args
+			for i, arg := range args {
+				if arg == "--detach" || arg == "-d" {
+					args = append(args[:i], args[i+1:]...)
+					break
+				}
+			}
+			cmd := exec.Command(args[0], args[1:]...)
+			cmd.Stdout = nil
+			cmd.Stderr = nil
+			cmd.Stdin = nil
+			if err := cmd.Start(); err != nil {
+				return fmt.Errorf("failed to start detached process: %w", err)
+			}
+			fmt.Printf("HydReq GUI started in background (PID: %d)\n", cmd.Process.Pid)
+			os.Exit(0)
+			return nil
+		}
+		return gui.Run("0.0.0.0:8787", true)
 	}}
+	guiCmd.Flags().BoolVarP(&detach, "detach", "d", false, "Run GUI server in background")
 	rootCmd.AddCommand(guiCmd)
 
 	// Default to GUI when no args; TUI remains available via subcommand
 	if len(os.Args) == 1 {
-		if err := gui.Run("127.0.0.1:8787", true); err != nil {
+		if err := gui.Run("0.0.0.0:8787", true); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}

@@ -2,7 +2,7 @@ name: httpbin smoke
 baseUrl: ${ENV:HTTPBIN_BASE_URL}
 vars:
   token: demo123
-  # HTTPBIN_BASE_URL is provided via environment
+  HTTPBIN_BASE_URL: https://httpbin.org
 
 tests:
   - name: GET status 200

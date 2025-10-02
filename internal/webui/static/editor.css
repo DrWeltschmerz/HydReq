@@ -1,0 +1,208 @@
+/* Compact fields: narrow numeric inputs */
+#ed_stage, #ed_timeout, #ed_assert_status, #ed_assert_maxDuration,
+#ed_retry_max, #ed_retry_backoff, #ed_retry_jitter { max-width: 160px; }
+/* Align checkboxes toward the left edge of their column */
+#ed_skip, #ed_only, #ed_retry_enable { margin-left: 0; justify-self: start; }
+/* Densify grids and sections */
+#ed_suite_form, #ed_req_form, #ed_assert_form, #ed_flow_form, #ed_retry_form, #ed_oapi_form { gap: 6px !important; }
+#pane_visual details > summary { padding: 6px !important; }
+#pane_visual details > div { padding: 6px !important; }
+#ed_preview { gap: 6px !important; }
+/* Editor compact sizing for numeric fields */
+#ed_stage, #ed_timeout, #ed_assert_status, #ed_assert_maxDuration,
+#ed_retry_max, #ed_retry_backoff, #ed_retry_jitter {
+  max-width: 160px;
+}
+/* Align checkboxes to the left (no extra offset) */
+#ed_skip, #ed_only, #ed_retry_enable { margin-left: 0; }
+/* Modal scroll containment and compact sizing */
+#editorModal { overscroll-behavior: contain; }
+body.modal-open { overflow: hidden; }
+#editorModal .editor-root { font-size: 14px; }
+/* Runner area: slightly smaller fonts for denser output */
+#results, .run { font-size: 12px; }
+#suites li { font-size: 13px; }
+/* Ensure the embedded code editor fills its pane */
+.CodeMirror { height: 100%; width: 100%; border: 1px solid var(--bd); border-radius: 6px; }
+body.dark .CodeMirror { background: #0f172a; color: #e5e7eb; }
+/* Inputs/selects themed via variables */
+#editorModal input[type="text"],
+#editorModal input[type="number"],
+#editorModal select,
+#editorModal textarea {
+  background: var(--input-bg);
+  border: 1px solid var(--input-bd);
+  color: var(--input-fg);
+}
+#editorModal input[type="text"]:focus,
+#editorModal input[type="number"]:focus,
+#editorModal select:focus,
+#editorModal textarea:focus {
+  outline: 2px solid var(--input-focus);
+  outline-offset: 1px;
+  border-color: var(--input-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--input-focus) 25%, transparent);
+  background: var(--input-bg);
+}
+a { color: var(--link); }
+/* Splitter visual feedback */
+#ed_splitter:hover { background: #93c5fd !important; }
+#ed_splitter.dragging { background: #60a5fa !important; }
+/* Density overrides when comfortable is selected */
+#editorModal .editor-root.comfortable { font-size: 15px; }
+#editorModal .editor-root.comfortable input[type="text"],
+#editorModal .editor-root.comfortable input[type="number"],
+#editorModal .editor-root.comfortable select,
+#editorModal .editor-root.comfortable textarea { padding: 8px 10px; }
+#editorModal .editor-root.comfortable #pane_visual details > summary { padding: 8px !important; }
+#editorModal .editor-root.comfortable #pane_visual details > div { padding: 8px !important; }
+#editorModal .editor-root.comfortable #ed_suite_form,
+#editorModal .editor-root.comfortable #ed_req_form,
+#editorModal .editor-root.comfortable #ed_assert_form,
+#editorModal .editor-root.comfortable #ed_flow_form,
+#editorModal .editor-root.comfortable #ed_retry_form,
+#editorModal .editor-root.comfortable #ed_oapi_form { gap: 10px !important; }
+/* Overlay and modal layout classes */
+#editorModal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; }
+.editor-root { background: var(--bg); color: var(--txt); position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 90vw; height: 88vh; border: 1px solid var(--bd); border-radius: 8px; display: flex; flex-direction: column; min-height: 0; }
+.ed-header { padding: 8px 12px; border-bottom: 1px solid var(--bd); display: flex; gap: 12px; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg); z-index: 2; }
+.ed-header-left { display: flex; align-items: center; gap: 12px; }
+.ed-actions { display: flex; gap: 8px; align-items: center; }
+.ed-main { display: flex; gap: 8px; flex: 1; overflow: hidden; min-height: 0; }
+.ed-pane { display: flex; flex-direction: row; flex: 1 1 auto; gap: 8px; overflow: auto; padding: 8px; min-width: 0; min-height: 0; }
+.ed-tests-panel { 
+  flex: 0 0 280px; 
+  border: 1px solid var(--bd); 
+  border-radius: 6px; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; 
+  min-height: 0; 
+  background: var(--bg);
+  height: fit-content;
+  max-height: 100%;
+  transition: flex-basis 0.3s ease, min-width 0.3s ease;
+}
+.ed-tests-header { 
+  padding: 8px; 
+  border-bottom: 1px solid var(--bd); 
+  font-weight: 600; 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  background: var(--pill); 
+  position: sticky; 
+  top: 0; 
+  z-index: 1; 
+}
+.ed-tests-list { 
+  flex: 1; 
+  overflow-y: auto; 
+  overflow-x: hidden; 
+  min-height: 0; 
+  max-height: 400px;
+}
+.ed-center { 
+  flex: 1 1 auto; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px; 
+  overflow-y: auto; 
+  overflow-x: hidden; 
+  min-height: 0; 
+  min-width: 640px; 
+  padding-left: 8px;
+}
+.ed-panel { border: 1px solid var(--bd); border-radius: 6px; overflow: visible; }
+.ed-panel.tight { overflow: hidden; }
+.ed-summary { padding: 8px; border-bottom: 1px solid var(--bd); font-weight: 600; cursor: pointer; }
+.ed-body { padding: 8px; }
+.ed-grid-2-140 { display: grid; grid-template-columns: 140px 1fr; gap: 8px; }
+.ed-grid-2-130 { display: grid; grid-template-columns: 130px 1fr; gap: 8px; }
+.ed-grid-2-160 { display: grid; grid-template-columns: 160px 1fr; gap: 8px; }
+.ed-spacer-8 { height: 8px; }
+.ed-subhead { font-weight: 600; margin-bottom: 6px; }
+.ed-splitter { flex: 0 0 6px; cursor: col-resize; background: var(--bd); border-radius: 4px; align-self: stretch; }
+.ed-right { flex: 0 1 30%; margin: 8px; border: 1px solid var(--bd); border-radius: 6px; display: flex; flex-direction: column; min-width: 340px; max-width: 50%; resize: horizontal; overflow: auto; min-height: 0; }
+.ed-right-title { padding: 8px; border-bottom: 1px solid var(--bd); font-weight: 600; position: sticky; top: 0; background: var(--bg); z-index: 1; }
+.ed-preview { padding: 8px; overflow: auto; display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; }
+.ed-section { border: 1px solid var(--bd); border-radius: 6px; overflow: auto; display: flex; flex-direction: column; min-height: 0; }
+.ed-section summary { padding: 6px; font-weight: 600; cursor: pointer; position: sticky; top: 0; background: var(--bg); z-index: 1; }
+.ed-scroll { padding: 6px; overflow: auto; max-height: 40vh; }
+.text-error { color: #ef4444; }
+.text-warning { color: #f59e0b; }
+.text-success { color: #10b981; }
+.ed-tabs { gap: 6px; }
+.ed-row-6 { display: flex; gap: 6px; }
+.ed-row-8 { display: flex; gap: 8px; }
+
+/* Test list item styles */
+.ed-test-item {
+  padding: 8px;
+  border-bottom: 1px solid var(--bd);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+.ed-test-item:hover {
+  background: var(--pill);
+}
+.ed-test-item.selected {
+  background: var(--primary);
+  color: var(--primary-content);
+}
+.ed-test-name {
+  flex: 1;
+  font-weight: 500;
+}
+.ed-test-status {
+  margin-left: 8px;
+}
+
+/* Matrix editor styles */
+.ed-matrix-table {
+  margin-bottom: 8px;
+}
+.ed-matrix-row {
+  padding: 8px;
+  border: 1px solid var(--bd);
+  border-radius: 4px;
+  background: var(--pill);
+}
+.ed-matrix-values {
+  padding: 4px;
+  border: 1px dashed var(--bd);
+  border-radius: 4px;
+  background: var(--bg);
+}
+.ed-matrix-key {
+  font-weight: 500;
+}
+
+/* Debug styles - ensure proper layout */
+#pane_visual {
+  display: flex !important;
+  flex-direction: row !important;
+}
+.ed-tests-panel {
+  order: 1;
+}
+.ed-center {
+  order: 2;
+}
+
+/* YAML panel styles */
+.ed-yaml-panel {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--bd);
+  background: var(--bg);
+}
+.ed-yaml-header {
+  padding: 8px;
+  border-bottom: 1px solid var(--bd);
+  font-weight: 600;
+  background: var(--pill);
+}

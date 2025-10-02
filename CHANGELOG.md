@@ -1,5 +1,69 @@
 # Changelog
 
+## v0.3.6-beta (2025-10-02)
+
+Highlights
+- Stabilized Web UI before refactor: restored 4‑column editor layout, hardened SSE flow, accurate stage visualization for dependsOn, and polished run UX (env/tag pills, badge updates, and counts).
+
+Features
+- Editor
+	- 4‑column editor restored (Tests • Visual • YAML • Results) with live, bi‑directional YAML⇄Visual sync and density toggle.
+	- Quick Run toggles: “with deps” (run selected test with its dependency chain) and “with previous stages” (run all earlier stages before the selected test).
+	- Per‑test and per‑suite delete actions keep YAML and visual state in sync.
+- Runner/Web UI stream
+	- SSE test events now include `path` to disambiguate per‑suite updates.
+	- For dependsOn DAGs, stage visualization is flattened to a single stage `0` (suiteStart `stages` map is `{0: total}`; test events emit `Stage=0`).
+	- Stage bars and suite progress are driven by tests that actually started; resilient to missing `testStart` in rare cases.
+- UI polish
+	- Header shows active env overrides and selected tags as small pills next to Batch progress (also mirrored in the sidebar).
+	- Tag chips rendered next to suite/test rows are clickable and stay in sync with the sidebar checkboxes (deselecting a chip unchecks its row and vice versa).
+
+Changes
+- Batch summary counts rely on `suiteEnd` summaries only to eliminate double counting.
+- Suite badges update deterministically: per‑test updates won’t reset unrelated suites; final status is set on `suiteEnd` (failed > skipped > passed priority).
+- Editor quick‑run and runner view use the same last‑status cache to keep badges consistent across views.
+
+Fixes
+- dependsOn stage bar now shows a single stage (0) with accurate totals and progress; removed spurious “stage 1” rows.
+- Eliminated badge flicker and unintended “unknown” resets when tests are filtered or not listed.
+- Corrected stage progress mismatches and cross‑suite test updates by matching on `payload.path`.
+
+Docs
+- Updated:
+	- `docs/cli.md`: clarified staged execution and single‑stage visualization for dependsOn.
+	- `docs/getting-started.md`: env/tag pills near Batch progress; Quick Run toggles explained.
+	- `docs/web-ui.md`: Quick Run options and visual cues (pills, tag sync, stage 0 for dependsOn).
+- Added:
+	- `docs/ui-audit.md`: current UI audit with issues and improvement targets.
+	- `docs/ui-refactor-plan.md`: phased refactor plan (housekeeping → modules → editor split → TypeScript → optional Preact islands).
+
+Notes
+- Internal SSE payloads now include `path` consistently; DAG test events use `Stage=0` for clarity. These are UI-facing protocol details and do not change the CLI.
+
+## v0.3.5-beta (2025-09-24)
+
+Highlights
+- Major Web UI refactor and usability polish: improved a Visual editor mode, two-way YAML⇄Visual sync improvements, and numerous UX polish items that make editing and running suites more pleasant.
+
+Features
+- New-suite creation from the Web UI: users can create a new suite, which is saved under `testdata/` using a slugified filename and prefilled YAML scaffold (name, baseUrl, minimal test template).
+- Visual editor improvements:
+	- Dedicated "Test name" field in the Visual Request panel so test titles can be edited directly while editing request details.
+	- Rename tests via an inline pencil button next to test titles (replaces double-click UX); commits on blur/Enter, cancels on Escape.
+	- Tests list truncates long names with an ellipsis and exposes the full name as a tooltip to avoid UI breakage.
+	- Live two-way syncing between Visual controls and the YAML editor persisted during edits; Save/Save & Close trigger repository refresh to show newly created suites.
+- Reports and downloads: added small UX flows to download per-suite artifacts (JSON/JUnit/HTML) directly from the GUI where applicable.
+
+CI / Tests
+- Playwright-based E2E tests were added and integrated into the CI pipeline (smoke flows for editor and run flows). CI configs and helper scripts updated to run browser-driven tests and upload artifacts on failure.
+- `validate` job expanded: runs JSON Schema validation across `testdata/` and ensures example suites are valid before runs.
+
+Polish & Fixes
+- Fixed editor initialization bugs and YAML prefill for newly created suites (client now serializes parsed scaffold into YAML when opening a new in-memory suite).
+- Fixed UI sync and in-memory YAML variable redeclaration issues that previously caused editor failures.
+- Accessibility & small UI behavior fixes: run badges, quick-run box behavior, density toggle persistence, and better error messages when saving invalid suites.
+
+
 ## v0.3.4-beta (2025-09-24)
 
 Highlights

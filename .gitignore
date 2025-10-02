@@ -29,3 +29,9 @@ qa.sqlite
 
 # Feature proposals and planning
 Features.md
+
+# Playwright
+test-results/
+playwright-report/
+test/e2e/debug.png
+node_modules/

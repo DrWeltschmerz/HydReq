@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "$0")"/.. && pwd)"
-cd "$ROOT_DIR"
+# Color definitions for uniform styling
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
 
-echo "Building hydreq binary..."
+echo -e "${BOLD}${BLUE}Building hydreq binary...${NC}"
 go build -o bin/hydreq ./cmd/hydreq
 
 mkdir -p reports
@@ -22,18 +28,19 @@ export MSSQL_DSN="${MSSQL_DSN:-sqlserver://sa:Your_password123@localhost:1433?da
 # Optional: start compose services (httpbin/postgres/mssql) and wait
 if [[ "${START_SERVICES:-0}" == "1" ]]; then
 	if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-		echo "Starting compose services..."
+		echo -e "${CYAN}Starting compose services...${NC}"
 		docker compose -f docker-compose.yml up -d || true
-		echo "Waiting for httpbin at $HTTPBIN_BASE_URL..."
+		echo -e "${CYAN}Waiting for httpbin at $HTTPBIN_BASE_URL...${NC}"
 		for i in {1..30}; do curl -sf "$HTTPBIN_BASE_URL/ip" >/dev/null && break || sleep 2; done
-		echo "Waiting for Postgres..."; for i in {1..30}; do (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1 && break || sleep 2; done
-		echo "Waiting for MSSQL...";   for i in {1..30}; do (echo > /dev/tcp/127.0.0.1/1433) >/dev/null 2>&1 && break || sleep 2; done
+		echo -e "${CYAN}Waiting for Postgres...${NC}"; for i in {1..30}; do (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1 && break || sleep 2; done
+		echo -e "${CYAN}Waiting for MSSQL...${NC}";   for i in {1..30}; do (echo > /dev/tcp/127.0.0.1/1433) >/dev/null 2>&1 && break || sleep 2; done
 		started=1
 	fi
 fi
 
 
 # Run all suites in batch mode (single run command)
+echo -e "${BOLD}${BLUE}Running test suites...${NC}"
 if command -v timeout >/dev/null 2>&1; then
 	timeout 300s ./bin/hydreq run --workers 4 --report-dir reports
 else
@@ -41,11 +48,11 @@ else
 fi
 
 if [[ "${START_SERVICES:-0}" == "1" && "${KEEP_SERVICES:-0}" != "1" ]]; then
-	echo "Stopping compose services..."
+	echo -e "${CYAN}Stopping compose services...${NC}"
 	docker compose -f docker-compose.yml down --remove-orphans || true
 fi
 
-printf "\nArtifacts under ./reports (per-suite + run-<ts>.html/json/xml).\n"
+printf "\n${BOLD}${GREEN}Artifacts under ./reports (per-suite + run-<ts>.html/json/xml).${NC}\n"
 # Batch report last, bold and blue
 last_run_html=$(ls -1t reports/run-*.html 2>/dev/null | head -n1 || true)
 if [[ -n "${last_run_html}" ]]; then

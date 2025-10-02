@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -26,6 +27,7 @@ import (
 	"github.com/DrWeltschmerz/HydReq/internal/adapters/oapi"
 	"github.com/DrWeltschmerz/HydReq/internal/adapters/postman"
 	"github.com/DrWeltschmerz/HydReq/internal/adapters/restclient"
+	"github.com/DrWeltschmerz/HydReq/internal/report"
 	"github.com/DrWeltschmerz/HydReq/internal/runner"
 	"github.com/DrWeltschmerz/HydReq/internal/ui"
 	valfmt "github.com/DrWeltschmerz/HydReq/internal/validate"
@@ -49,6 +51,8 @@ type server struct {
 	runs    map[string]context.CancelFunc
 	ready   map[string]chan struct{}
 	schema  *jsonschema.Schema
+	// reports stores generated reports keyed by runId and suite path
+	reports map[string]map[string]any
 }
 
 func Run(addr string, openBrowser bool) error {
@@ -91,25 +95,140 @@ func (s *server) routes() {
 	s.mux.HandleFunc("/api/editor/hookrun", s.handleEditorHookRun)
 	// Import collection endpoint
 	s.mux.HandleFunc("/api/import", s.handleImport)
-	// Serve the embedded static/ directory at the root so / loads index.html directly
-	// Serve embedded static files with no-cache headers to prevent stale UI during local dev
-	if sub, err := fs.Sub(staticFS, "static"); err == nil {
-		fsHandler := http.FileServer(http.FS(sub))
+	// Optional: serve .env for UI preload (dev only; guard with HYDREQ_ENV_UI=1)
+	s.mux.HandleFunc("/api/env", s.handleEnvFile)
+	// report download endpoints
+	s.mux.HandleFunc("/api/report/run", s.handleReportRun)
+	s.mux.HandleFunc("/api/report/suite", s.handleReportSuite)
+	// Serve static UI: Prefer on-disk files in development when HYDREQ_UI_DEV/HYDREQ_UI_STATIC_DIR is set,
+	// otherwise fall back to embedded assets via go:embed.
+	if os.Getenv("HYDREQ_UI_DEV") == "1" || strings.EqualFold(os.Getenv("HYDREQ_UI_DEV"), "true") || os.Getenv("HYDREQ_UI_STATIC_DIR") != "" {
+		dir := strings.TrimSpace(os.Getenv("HYDREQ_UI_STATIC_DIR"))
+		if dir == "" {
+			// default path to the static directory relative to repo
+			dir = filepath.Join("internal", "webui", "static")
+		}
+		// normalize to absolute to aid debugging
+		if abs, err := filepath.Abs(dir); err == nil {
+			dir = abs
+		}
+		log.Printf("HydReq GUI: serving static files from disk (dev mode): %s", dir)
+		fsHandler := http.FileServer(http.Dir(dir))
 		s.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 			w.Header().Set("Pragma", "no-cache")
 			w.Header().Set("Expires", "0")
+			// favicon: try to serve if present; otherwise 204 to prevent noisy 404s
+			if r.URL.Path == "/favicon.ico" {
+				fav := filepath.Join(dir, "favicon.ico")
+				if _, err := os.Stat(fav); err == nil {
+					w.Header().Set("Content-Type", "image/x-icon")
+					http.ServeFile(w, r, fav)
+				} else {
+					w.WriteHeader(http.StatusNoContent)
+				}
+				return
+			}
+			if r.URL.Path == "/" || r.URL.Path == "" {
+				// Serve index.html directly to avoid FileServer directory redirects
+				idx := filepath.Join(dir, "index.html")
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				http.ServeFile(w, r, idx)
+				return
+			}
+			// MIME hints for some CDNs/clients that ignore extension -> type
+			if strings.HasSuffix(r.URL.Path, ".js") {
+				w.Header().Set("Content-Type", "application/javascript")
+			} else if strings.HasSuffix(r.URL.Path, ".css") {
+				w.Header().Set("Content-Type", "text/css")
+			}
 			fsHandler.ServeHTTP(w, r)
 		}))
 	} else {
-		fsHandler := http.FileServer(http.FS(staticFS))
-		s.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-			w.Header().Set("Pragma", "no-cache")
-			w.Header().Set("Expires", "0")
-			fsHandler.ServeHTTP(w, r)
-		}))
+		// Serve the embedded static/ directory at the root so / loads index.html directly
+		// Serve embedded static files with no-cache headers to prevent stale UI during local dev
+		if sub, err := fs.Sub(staticFS, "static"); err == nil {
+			fsHandler := http.FileServer(http.FS(sub))
+			s.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				w.Header().Set("Pragma", "no-cache")
+				w.Header().Set("Expires", "0")
+				if r.URL.Path == "/favicon.ico" {
+					// best-effort serve embedded favicon if present
+					if b, err := fs.ReadFile(sub, "favicon.ico"); err == nil {
+						w.Header().Set("Content-Type", "image/x-icon")
+						w.Write(b)
+					} else {
+						w.WriteHeader(http.StatusNoContent)
+					}
+					return
+				}
+				if r.URL.Path == "/" || r.URL.Path == "" {
+					// Serve embedded index.html explicitly to avoid redirect quirks
+					if b, err := fs.ReadFile(sub, "index.html"); err == nil {
+						w.Header().Set("Content-Type", "text/html; charset=utf-8")
+						w.Write(b)
+						return
+					}
+				}
+				// Set correct MIME types for JavaScript and CSS files
+				if strings.HasSuffix(r.URL.Path, ".js") {
+					w.Header().Set("Content-Type", "application/javascript")
+				} else if strings.HasSuffix(r.URL.Path, ".css") {
+					w.Header().Set("Content-Type", "text/css")
+				}
+				fsHandler.ServeHTTP(w, r)
+			}))
+		} else {
+			fsHandler := http.FileServer(http.FS(staticFS))
+			s.mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+				w.Header().Set("Pragma", "no-cache")
+				w.Header().Set("Expires", "0")
+				if r.URL.Path == "/favicon.ico" {
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+				if r.URL.Path == "/" || r.URL.Path == "" {
+					if b, err := fs.ReadFile(staticFS, "static/index.html"); err == nil {
+						w.Header().Set("Content-Type", "text/html; charset=utf-8")
+						w.Write(b)
+						return
+					}
+				}
+				// Set correct MIME types for JavaScript and CSS files
+				if strings.HasSuffix(r.URL.Path, ".js") {
+					w.Header().Set("Content-Type", "application/javascript")
+				} else if strings.HasSuffix(r.URL.Path, ".css") {
+					w.Header().Set("Content-Type", "text/css")
+				}
+				fsHandler.ServeHTTP(w, r)
+			}))
+		}
 	}
+}
+
+// handleEnvFile serves the contents of a .env file for UI preloading of env overrides.
+// Disabled by default; enable by setting HYDREQ_ENV_UI=1. Looks in working dir and bin/.env.
+func (s *server) handleEnvFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(405)
+		return
+	}
+	if os.Getenv("HYDREQ_ENV_UI") != "1" {
+		// Not enabled; pretend not found so we don't leak env accidentally
+		w.WriteHeader(404)
+		return
+	}
+	cands := []string{".env", filepath.Join("bin", ".env")}
+	for _, p := range cands {
+		if b, err := os.ReadFile(p); err == nil {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Write(b)
+			return
+		}
+	}
+	w.WriteHeader(404)
 }
 
 func (s *server) handleSuites(w http.ResponseWriter, r *http.Request) {
@@ -146,11 +265,39 @@ func (s *server) handleEditorSuites(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	list := findSuites()
 	type item struct {
-		Path string `json:"path"`
+		Path string   `json:"path"`
+		Name string   `json:"name,omitempty"`
+		Tags []string `json:"tags,omitempty"`
 	}
 	out := make([]item, 0, len(list))
 	for _, p := range list {
-		out = append(out, item{Path: p})
+		item := item{Path: p}
+		// Try to load suite to get the name and tags
+		if suite, err := runner.LoadSuite(p); err == nil {
+			if suite.Name != "" {
+				item.Name = suite.Name
+			}
+			// derive suite-level tags from union of test tags
+			if len(suite.Tests) > 0 {
+				set := map[string]struct{}{}
+				for _, tc := range suite.Tests {
+					for _, tg := range tc.Tags {
+						if tg == "" {
+							continue
+						}
+						set[tg] = struct{}{}
+					}
+				}
+				if len(set) > 0 {
+					item.Tags = make([]string, 0, len(set))
+					for k := range set {
+						item.Tags = append(item.Tags, k)
+					}
+					sort.Strings(item.Tags)
+				}
+			}
+		}
+		out = append(out, item)
 	}
 	_ = json.NewEncoder(w).Encode(out)
 }
@@ -188,9 +335,63 @@ func (s *server) handleEditorSuite(w http.ResponseWriter, r *http.Request) {
 			resp["error"] = perr
 		}
 		_ = json.NewEncoder(w).Encode(resp)
+	case http.MethodDelete:
+		// Delete a suite file at the provided path. Restricted to testdata/*.yml/.yaml
+		path := r.URL.Query().Get("path")
+		if !isEditablePath(path) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte("invalid path"))
+			return
+		}
+		if _, err := os.Stat(path); err != nil {
+			if os.IsNotExist(err) {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			log.Printf("delete suite stat error: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("unable to access file"))
+			return
+		}
+		if err := os.Remove(path); err != nil {
+			log.Printf("delete suite remove error: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("failed to delete"))
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	default:
 		w.WriteHeader(405)
 	}
+}
+
+type checkPathReq struct {
+	Path string `json:"path"`
+}
+type checkPathResp struct {
+	Safe   bool `json:"safe"`
+	Exists bool `json:"exists"`
+}
+
+func (s *server) handleEditorCheckPath(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(405)
+		return
+	}
+	var req checkPathReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(400)
+		return
+	}
+	safe := isEditablePath(req.Path)
+	exists := false
+	if safe {
+		if _, err := os.Stat(req.Path); err == nil {
+			exists = true
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(checkPathResp{Safe: safe, Exists: exists})
 }
 
 type validateReq struct {
@@ -330,14 +531,27 @@ func (s *server) handleEditorValidate(w http.ResponseWriter, r *http.Request) {
 			issues = append(issues, map[string]any{"path": "baseUrl", "message": "baseUrl is empty (requests should use path only)", "severity": "warning"})
 		}
 		if parsed.Auth != nil {
+			isEnvName := func(v string) bool {
+				if strings.TrimSpace(v) == "" {
+					return false
+				}
+				re := regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
+				return re.MatchString(v)
+			}
 			if strings.TrimSpace(parsed.Auth.BearerEnv) != "" {
-				if _, ok := os.LookupEnv(parsed.Auth.BearerEnv); !ok {
-					issues = append(issues, map[string]any{"path": "auth.bearerEnv", "message": "environment variable not set: " + parsed.Auth.BearerEnv, "severity": "info"})
+				be := strings.TrimSpace(parsed.Auth.BearerEnv)
+				if isEnvName(be) {
+					if _, ok := os.LookupEnv(be); !ok {
+						issues = append(issues, map[string]any{"path": "auth.bearerEnv", "message": "environment variable not set: " + be, "severity": "info"})
+					}
 				}
 			}
 			if strings.TrimSpace(parsed.Auth.BasicEnv) != "" {
-				if _, ok := os.LookupEnv(parsed.Auth.BasicEnv); !ok {
-					issues = append(issues, map[string]any{"path": "auth.basicEnv", "message": "environment variable not set: " + parsed.Auth.BasicEnv, "severity": "info"})
+				ba := strings.TrimSpace(parsed.Auth.BasicEnv)
+				if isEnvName(ba) {
+					if _, ok := os.LookupEnv(ba); !ok {
+						issues = append(issues, map[string]any{"path": "auth.basicEnv", "message": "environment variable not set: " + ba, "severity": "info"})
+					}
 				}
 			}
 		}
@@ -555,6 +769,10 @@ func atomicWriteWithBackup(path string, data []byte) error {
 	}
 	dir := filepath.Dir(path)
 	base := filepath.Base(path)
+	// ensure parent directory exists (tests/CI may write into testdata/ which might not exist)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
 	tmp := filepath.Join(dir, "."+base+".tmp")
 	if err := os.WriteFile(tmp, data, 0644); err != nil {
 		return err
@@ -592,11 +810,12 @@ func (s *server) handleEditorEnvCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 type testRunReq struct {
-	Parsed      interface{}       `json:"parsed"`
-	TestIdx     int               `json:"testIndex"`
-	Env         map[string]string `json:"env"`
-	RunAll      bool              `json:"runAll,omitempty"`
-	IncludeDeps bool              `json:"includeDeps,omitempty"`
+	Parsed            interface{}       `json:"parsed"`
+	TestIdx           int               `json:"testIndex"`
+	Env               map[string]string `json:"env"`
+	RunAll            bool              `json:"runAll,omitempty"`
+	IncludeDeps       bool              `json:"includeDeps,omitempty"`
+	IncludePrevStages bool              `json:"includePrevStages,omitempty"`
 }
 type testRunResp struct {
 	Name       string              `json:"name"`
@@ -814,7 +1033,7 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("bad suite model"))
 		return
 	}
-	// Build a temporary suite: either a single test (optionally with dependencies) or the whole suite (value type)
+	// Build a temporary suite: either a single test (optionally with dependencies and/or previous stages) or the whole suite (value type)
 	single := suite
 	if !tr.RunAll {
 		if tr.TestIdx < 0 || tr.TestIdx >= len(suite.Tests) {
@@ -822,18 +1041,21 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte("invalid test index"))
 			return
 		}
-		// If IncludeDeps=true, take the transitive closure of dependsOn for the selected test
+		// Compose test list based on flags:
+		// - IncludeDeps: closure of dependsOn for the selected test
+		// - IncludePrevStages: all tests with Stage < selected.Stage
+		// If neither flag set, run only selected test
+		target := suite.Tests[tr.TestIdx]
+		needNames := map[string]struct{}{}
+		includeAny := false
 		if tr.IncludeDeps {
-			// Build name -> test map first
+			includeAny = true
 			byName := map[string]models.TestCase{}
 			for _, t := range suite.Tests {
 				byName[t.Name] = t
 			}
-			// Collect names recursively
-			target := suite.Tests[tr.TestIdx].Name
-			need := map[string]struct{}{target: {}}
-			var stack []string
-			stack = append(stack, target)
+			stack := []string{target.Name}
+			needNames[target.Name] = struct{}{}
 			for len(stack) > 0 {
 				n := stack[len(stack)-1]
 				stack = stack[:len(stack)-1]
@@ -842,27 +1064,39 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				for _, dep := range t.DependsOn {
-					if _, ok := need[dep]; !ok {
-						need[dep] = struct{}{}
+					if _, ok := needNames[dep]; !ok {
+						needNames[dep] = struct{}{}
 						stack = append(stack, dep)
 					}
 				}
 			}
-			// Preserve original order but filter to only needed tests
-			filtered := make([]models.TestCase, 0, len(need))
+		}
+		if tr.IncludePrevStages {
+			includeAny = true
+			ts := target.Stage
+			for i := 0; i < len(suite.Tests); i++ {
+				t := suite.Tests[i]
+				if t.Stage < ts {
+					needNames[t.Name] = struct{}{}
+				}
+			}
+			// also ensure target included
+			needNames[target.Name] = struct{}{}
+		}
+		singleCopy := suite
+		if includeAny {
+			// preserve original order but filter to only needed tests
+			filtered := make([]models.TestCase, 0, len(needNames))
 			for _, t := range suite.Tests {
-				if _, ok := need[t.Name]; ok {
+				if _, ok := needNames[t.Name]; ok {
 					filtered = append(filtered, t)
 				}
 			}
-			singleCopy := suite
 			singleCopy.Tests = filtered
-			single = singleCopy
 		} else {
-			singleCopy := suite
-			singleCopy.Tests = []models.TestCase{suite.Tests[tr.TestIdx]}
-			single = singleCopy
+			singleCopy.Tests = []models.TestCase{target}
 		}
+		single = singleCopy
 	}
 	// run with one worker and isolated context; capture messages via OnResult
 	var captured runner.TestResult
@@ -917,9 +1151,12 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 		}
 		resp = testRunResp{Name: name, Status: status, DurationMs: sum.Duration.Milliseconds(), Messages: msgs, Cases: allResults}
 	} else {
-		// Single test result
+		// Single test run request (may include deps and/or previous stages)
+		// If multiple tests executed, return per-case results too so UI can show all outputs
+		multi := (tr.IncludeDeps || tr.IncludePrevStages) && len(allResults) > 1
+		// Derive overall status from summary if multiple, otherwise from captured
 		status := captured.Status
-		if status == "" {
+		if status == "" || multi {
 			if sum.Failed > 0 {
 				status = "failed"
 			} else if sum.Skipped > 0 {
@@ -929,7 +1166,24 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		name := suite.Tests[tr.TestIdx].Name
-		msgs := captured.Messages
+		// Build messages: for multi, list each test line and details; otherwise keep captured
+		var msgs []string
+		if multi {
+			for _, r := range allResults {
+				prefix := "✓"
+				if r.Status == "failed" {
+					prefix = "✗"
+				} else if r.Status == "skipped" {
+					prefix = "-"
+				}
+				msgs = append(msgs, fmt.Sprintf("%s %s (%d ms)", prefix, r.Name, r.DurationMs))
+				if len(r.Messages) > 0 {
+					msgs = append(msgs, r.Messages...)
+				}
+			}
+		} else {
+			msgs = captured.Messages
+		}
 		if runErr != nil {
 			if errors.Is(runErr, runner.ErrSuiteNotRunnable) {
 				status = "failed"
@@ -940,10 +1194,13 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 			msgs = []string{}
 		}
 		dur := captured.DurationMs
-		if dur == 0 {
+		if multi || dur == 0 {
 			dur = sum.Duration.Milliseconds()
 		}
 		resp = testRunResp{Name: name, Status: status, DurationMs: dur, Messages: msgs}
+		if multi {
+			resp.Cases = allResults
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)
@@ -952,9 +1209,11 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 func mustRead(p string) []byte { b, _ := os.ReadFile(p); return b }
 
 type runReq struct {
-	Suites  []string          `json:"suites"`
-	Workers int               `json:"workers"`
-	Env     map[string]string `json:"env"`
+	Suites         []string          `json:"suites"`
+	Workers        int               `json:"workers"`
+	Env            map[string]string `json:"env"`
+	Tags           []string          `json:"tags"`
+	DefaultTimeout int               `json:"defaultTimeout"`
 }
 type runResp struct {
 	RunID string `json:"runId"`
@@ -981,7 +1240,7 @@ func (s *server) handleRun(w http.ResponseWriter, r *http.Request) {
 	s.streams[id] = ch
 	s.ready[id] = rd
 	s.mu.Unlock()
-	go s.runSuites(id, req.Suites, req.Workers, req.Env)
+	go s.runSuites(id, req.Suites, req.Workers, req.Env, req.Tags, req.DefaultTimeout)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(runResp{RunID: id})
 }
@@ -1110,7 +1369,275 @@ func (s *server) handleImport(w http.ResponseWriter, r *http.Request) {
 	w.Write(yamlData)
 }
 
-func (s *server) runSuites(id string, suites []string, workers int, env map[string]string) {
+// handleReportRun streams a run-level report (batch) in either json|junit|html
+func (s *server) handleReportRun(w http.ResponseWriter, r *http.Request) {
+	runId := r.URL.Query().Get("runId")
+	if runId == "" {
+		http.Error(w, "runId required", 400)
+		return
+	}
+	format := r.URL.Query().Get("format")
+	if format == "" {
+		format = "json"
+	}
+	s.mu.Lock()
+	repmap, ok := s.reports[runId]
+	s.mu.Unlock()
+	if !ok {
+		// fallback: serve on-disk report files if CLI produced them
+		reportDir := "reports"
+		switch format {
+		case "html":
+			p := filepath.Join(reportDir, runId+".html")
+			if _, err := os.Stat(p); err == nil {
+				w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(p))
+				http.ServeFile(w, r, p)
+				return
+			}
+		case "json":
+			p := filepath.Join(reportDir, runId+".json")
+			if _, err := os.Stat(p); err == nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(p))
+				http.ServeFile(w, r, p)
+				return
+			}
+		case "junit":
+			p := filepath.Join(reportDir, runId+".xml")
+			if _, err := os.Stat(p); err == nil {
+				w.Header().Set("Content-Type", "application/xml")
+				w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(p))
+				http.ServeFile(w, r, p)
+				return
+			}
+		}
+		// try generic extensions
+		for _, ext := range []string{".html", ".json", ".xml"} {
+			p := filepath.Join("reports", runId+ext)
+			if _, err := os.Stat(p); err == nil {
+				http.ServeFile(w, r, p)
+				return
+			}
+		}
+		http.Error(w, "report not found", 404)
+		return
+	}
+	switch format {
+	case "json":
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", "attachment; filename=run-"+runId+".json")
+		var br report.BatchReport
+		if v, ok := repmap["batch::detailed"]; ok {
+			if bb, ok2 := v.(report.BatchReport); ok2 {
+				br = bb
+			}
+		}
+		if len(br.Suites) == 0 {
+			for k, v := range repmap {
+				if strings.HasSuffix(k, "::detailed") {
+					if dr, ok := v.(report.DetailedReport); ok {
+						br.Suites = append(br.Suites, dr)
+					}
+				}
+			}
+			br.RunAt = time.Now()
+			var sum report.Summary
+			for _, s2 := range br.Suites {
+				sum.Total += s2.Summary.Total
+				sum.Passed += s2.Summary.Passed
+				sum.Failed += s2.Summary.Failed
+				sum.Skipped += s2.Summary.Skipped
+			}
+			br.Summary = sum
+		}
+		_ = report.WriteJSONBatchTo(w, br)
+	case "junit":
+		w.Header().Set("Content-Type", "application/xml")
+		w.Header().Set("Content-Disposition", "attachment; filename=run-"+runId+".xml")
+		var sum report.Summary
+		if v, ok := repmap["batch::summary"]; ok {
+			if ssum, ok2 := v.(report.Summary); ok2 {
+				sum = ssum
+			}
+		}
+		if sum.Total == 0 {
+			for _, v := range repmap {
+				if dr, ok := v.(report.DetailedReport); ok {
+					sum.Total += dr.Summary.Total
+					sum.Passed += dr.Summary.Passed
+					sum.Failed += dr.Summary.Failed
+					sum.Skipped += dr.Summary.Skipped
+				}
+			}
+		}
+		_ = report.WriteJUnitBatchSummaryTo(w, sum)
+	case "html":
+		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("Content-Disposition", "attachment; filename=run-"+runId+".html")
+		var br report.BatchReport
+		if v, ok := repmap["batch::detailed"]; ok {
+			if bb, ok2 := v.(report.BatchReport); ok2 {
+				br = bb
+			}
+		}
+		if len(br.Suites) == 0 {
+			for k, v := range repmap {
+				if strings.HasSuffix(k, "::detailed") {
+					if dr, ok := v.(report.DetailedReport); ok {
+						br.Suites = append(br.Suites, dr)
+					}
+				}
+			}
+			br.RunAt = time.Now()
+			var sum report.Summary
+			for _, s2 := range br.Suites {
+				sum.Total += s2.Summary.Total
+				sum.Passed += s2.Summary.Passed
+				sum.Failed += s2.Summary.Failed
+				sum.Skipped += s2.Summary.Skipped
+			}
+			br.Summary = sum
+		}
+		reportDir := "reports"
+		if err := os.MkdirAll(reportDir, 0o755); err != nil {
+			http.Error(w, "failed to create reports directory", 500)
+			return
+		}
+		// prefer runTS recorded during run; fallback to runId timestamp parsing
+		runTS := ""
+		if v, ok := s.reports[runId]["runTS"]; ok {
+			if sTS, ok2 := v.(string); ok2 {
+				runTS = sTS
+			}
+		}
+		if runTS == "" {
+			// fall back to using runId suffix if it looks like run-<ts>
+			if strings.HasPrefix(runId, "run-") {
+				runTS = strings.TrimPrefix(runId, "run-")
+			} else {
+				runTS = time.Now().Format("20060102-150405")
+			}
+		}
+		outPath := filepath.Join(reportDir, fmt.Sprintf("run-%s.html", runTS))
+		if err := report.WriteHTMLBatch(outPath, br); err != nil {
+			http.Error(w, "failed to generate report", 500)
+			return
+		}
+		w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(outPath))
+		http.ServeFile(w, r, outPath)
+	default:
+		http.Error(w, "unsupported format", 400)
+	}
+}
+
+// handleReportSuite streams a suite-level report identified by runId & path
+func (s *server) handleReportSuite(w http.ResponseWriter, r *http.Request) {
+	runId := r.URL.Query().Get("runId")
+	path := r.URL.Query().Get("path")
+	if runId == "" || path == "" {
+		http.Error(w, "runId and path required", 400)
+		return
+	}
+	format := r.URL.Query().Get("format")
+	if format == "" {
+		format = "json"
+	}
+	s.mu.Lock()
+	repmap, ok := s.reports[runId]
+	s.mu.Unlock()
+	if !ok {
+		// try on-disk fallbacks
+		reportDir := "reports"
+		p := filepath.Join(reportDir, runId+".html")
+		if _, err := os.Stat(p); err == nil {
+			w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(p))
+			http.ServeFile(w, r, p)
+			return
+		}
+		baseName := sanitizeFilename(filepath.Base(path))
+		// Try common CLI filename patterns: <basename>-<runTS>.html
+		matches, _ := filepath.Glob(filepath.Join(reportDir, baseName+"-*.html"))
+		if len(matches) > 0 {
+			w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(matches[0]))
+			http.ServeFile(w, r, matches[0])
+			return
+		}
+		// If runId encodes a run timestamp like run-<ts>, try matching *-<ts>.html
+		if strings.HasPrefix(runId, "run-") {
+			runTS := strings.TrimPrefix(runId, "run-")
+			matches2, _ := filepath.Glob(filepath.Join(reportDir, "*-"+runTS+".html"))
+			if len(matches2) > 0 {
+				w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(matches2[0]))
+				http.ServeFile(w, r, matches2[0])
+				return
+			}
+			// also try combined baseName with runTS in filename
+			matches3, _ := filepath.Glob(filepath.Join(reportDir, "*"+baseName+"*"+runTS+"*.html"))
+			if len(matches3) > 0 {
+				w.Header().Set("Content-Disposition", "attachment; filename="+filepath.Base(matches3[0]))
+				http.ServeFile(w, r, matches3[0])
+				return
+			}
+		}
+		http.Error(w, "report not found", 404)
+		return
+	}
+	key := path + "::detailed"
+	v, ok := repmap[key]
+	if !ok {
+		baseName := sanitizeFilename(filepath.Base(path))
+		matches, _ := filepath.Glob(filepath.Join("reports", "*"+baseName+"*.html"))
+		if len(matches) > 0 {
+			http.ServeFile(w, r, matches[0])
+			return
+		}
+		http.Error(w, "suite report not found", 404)
+		return
+	}
+	dr, ok := v.(report.DetailedReport)
+	if !ok {
+		http.Error(w, "invalid report", 500)
+		return
+	}
+	switch format {
+	case "json":
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+sanitizeFilename(dr.Suite)+".json\"")
+		_ = report.WriteJSONDetailedTo(w, dr)
+	case "junit":
+		w.Header().Set("Content-Type", "application/xml")
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+sanitizeFilename(dr.Suite)+".xml\"")
+		_ = report.WriteJUnitDetailedTo(w, dr.Suite, dr.Summary, dr.TestCases)
+	case "html":
+		w.Header().Set("Content-Type", "text/html")
+		// ensure reports dir exists
+		if err := os.MkdirAll("reports", 0o755); err != nil {
+			http.Error(w, "failed to create reports directory", 500)
+			return
+		}
+		// Use runTS recorded during the run to match CLI naming (<sanitized>-<runTS>.html)
+		runTS := ""
+		if v, ok := s.reports[runId]["runTS"]; ok {
+			if sTS, ok2 := v.(string); ok2 {
+				runTS = sTS
+			}
+		}
+		if runTS == "" {
+			runTS = time.Now().Format("20060102-150405")
+		}
+		outPath := filepath.Join("reports", fmt.Sprintf("%s-%s.html", sanitizeFilename(dr.Suite), runTS))
+		if err := report.WriteHTMLDetailed(outPath, dr); err != nil {
+			http.Error(w, "failed to generate report", 500)
+			return
+		}
+		w.Header().Set("Content-Disposition", "attachment; filename=\""+filepath.Base(outPath)+"\"")
+		http.ServeFile(w, r, outPath)
+	default:
+		http.Error(w, "unsupported format", 400)
+	}
+}
+
+func (s *server) runSuites(id string, suites []string, workers int, env map[string]string, tags []string, defaultTimeout int) {
 	out := func(ev any) {
 		b, _ := json.Marshal(ev)
 		s.mu.Lock()
@@ -1139,6 +1666,15 @@ func (s *server) runSuites(id string, suites []string, workers int, env map[stri
 	ctx, cancel := context.WithCancel(context.Background())
 	s.mu.Lock()
 	s.runs[id] = cancel
+	// initialize report map for this run and record runTS for filename parity with CLI
+	if s.reports == nil {
+		s.reports = map[string]map[string]any{}
+	}
+	if s.reports[id] == nil {
+		s.reports[id] = map[string]any{}
+	}
+	runTS := time.Now().Format("20060102-150405")
+	s.reports[id]["runTS"] = runTS
 	s.mu.Unlock()
 Loop:
 	for _, path := range suites {
@@ -1147,7 +1683,7 @@ Loop:
 			break Loop
 		default:
 		}
-		s.runOneWithCtx(ctx, path, workers, env, out)
+		s.runOneWithCtx(id, ctx, path, workers, env, tags, defaultTimeout, out)
 	}
 	out(evt{Type: "batchEnd"})
 	out(evt{Type: "done"})
@@ -1158,7 +1694,7 @@ Loop:
 	s.mu.Unlock()
 }
 
-func (s *server) runOneWithCtx(ctx context.Context, path string, workers int, env map[string]string, out func(any)) {
+func (s *server) runOneWithCtx(runId string, ctx context.Context, path string, workers int, env map[string]string, tags []string, defaultTimeout int, out func(any)) {
 	type evt struct {
 		Type    string `json:"type"`
 		Payload any    `json:"payload"`
@@ -1177,6 +1713,14 @@ func (s *server) runOneWithCtx(ctx context.Context, path string, workers int, en
 	// compute totals and stage counts from loaded suite
 	stageCounts := map[int]int{}
 	total := 0
+	// detect dependsOn DAG usage
+	hasDeps := false
+	for _, tc := range suite.Tests {
+		if len(tc.DependsOn) > 0 {
+			hasDeps = true
+			break
+		}
+	}
 	// determine if any test has Only=true
 	only := false
 	for _, tc := range suite.Tests {
@@ -1203,14 +1747,41 @@ func (s *server) runOneWithCtx(ctx context.Context, path string, workers int, en
 			}
 		}
 		total += combos
-		stageCounts[tc.Stage] = stageCounts[tc.Stage] + combos
+		if !hasDeps {
+			stageCounts[tc.Stage] = stageCounts[tc.Stage] + combos
+		}
+	}
+	if hasDeps {
+		// For dependsOn chains, we render a single stage (0) with total equal to all runnable tests
+		stageCounts = map[int]int{0: total}
 	}
 	out(evt{Type: "suiteStart", Payload: map[string]any{"path": path, "name": suite.Name, "total": total, "stages": stageCounts}})
+	var allResults []runner.TestResult
 	runWithSuite := func() (runner.Summary, error) {
-		return runner.RunSuite(ctx, suite, runner.Options{Workers: workers, OnStart: func(tr runner.TestResult) {
-			out(evt{Type: "testStart", Payload: tr})
+		return runner.RunSuite(ctx, suite, runner.Options{Workers: workers, Tags: tags, DefaultTimeoutMs: defaultTimeout, OnStart: func(tr runner.TestResult) {
+			// include suite path to disambiguate FE counters
+			out(evt{Type: "testStart", Payload: map[string]any{
+				"path":       path,
+				"Name":       tr.Name,
+				"Stage":      tr.Stage,
+				"Tags":       tr.Tags,
+				"Status":     tr.Status,
+				"DurationMs": tr.DurationMs,
+				"Messages":   tr.Messages,
+			}})
 		}, OnResult: func(tr runner.TestResult) {
-			out(evt{Type: "test", Payload: tr})
+			// collect results for detailed report and stream events
+			allResults = append(allResults, tr)
+			// include suite path to disambiguate FE counters
+			out(evt{Type: "test", Payload: map[string]any{
+				"path":       path,
+				"Name":       tr.Name,
+				"Stage":      tr.Stage,
+				"Tags":       tr.Tags,
+				"Status":     tr.Status,
+				"DurationMs": tr.DurationMs,
+				"Messages":   tr.Messages,
+			}})
 		}})
 	}
 	var sum runner.Summary
@@ -1238,6 +1809,59 @@ func (s *server) runOneWithCtx(ctx context.Context, path string, workers int, en
 			"durationMs": sum.Duration.Milliseconds(),
 		},
 	}})
+
+	// Build and persist a detailed report for this suite so downloads work like CLI
+	dr := report.DetailedReport{
+		Suite:   suite.Name,
+		Summary: report.FromRunner(sum.Total, sum.Passed, sum.Failed, sum.Skipped, sum.Duration),
+	}
+	for _, r := range allResults {
+		tc := report.TestCase{
+			Name:       r.Name,
+			Stage:      r.Stage,
+			Tags:       r.Tags,
+			Status:     r.Status,
+			DurationMs: r.DurationMs,
+			Messages:   r.Messages,
+		}
+		dr.TestCases = append(dr.TestCases, tc)
+	}
+
+	// write files under reports/ using runTS recorded for the run (or fallback)
+	if err := os.MkdirAll("reports", 0o755); err == nil {
+		// find runTS using the runId provided to this function
+		s.mu.Lock()
+		runTS := ""
+		if m, ok := s.reports[runId]; ok {
+			if v, ok2 := m["runTS"]; ok2 {
+				if sTS, ok3 := v.(string); ok3 {
+					runTS = sTS
+				}
+			}
+		}
+		if runTS == "" {
+			runTS = time.Now().Format("20060102-150405")
+		}
+		s.mu.Unlock()
+		fnameBase := sanitizeFilename(suite.Name)
+		outHTML := filepath.Join("reports", fmt.Sprintf("%s-%s.html", fnameBase, runTS))
+		_ = report.WriteHTMLDetailed(outHTML, dr)
+		outJSON := filepath.Join("reports", fmt.Sprintf("%s-%s.json", fnameBase, runTS))
+		_ = report.WriteJSONDetailed(outJSON, dr)
+		// store in in-memory reports map under the run that owns this execution if present
+		s.mu.Lock()
+		for rid, m := range s.reports {
+			if m == nil {
+				continue
+			}
+			// heuristics: if streams exist for rid, associate
+			if _, ok := s.streams[rid]; ok {
+				s.reports[rid][path+"::detailed"] = dr
+				break
+			}
+		}
+		s.mu.Unlock()
+	}
 }
 
 type totals struct {
@@ -1315,6 +1939,12 @@ func execLookPath(bin string) (string, error) { return exec.LookPath(bin) }
 func spawn(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	return cmd.Start()
+}
+
+func sanitizeFilename(s string) string {
+	s = strings.ReplaceAll(s, " ", "-")
+	s = strings.ReplaceAll(s, "/", "-")
+	return s
 }
 
 // withEnv temporarily applies env overrides while executing fn, then restores previous values.

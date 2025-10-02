@@ -7,7 +7,7 @@ import (
 
 func TestConvert(t *testing.T) {
 	// Use the same test data as Postman since Newman uses the same format
-	file, err := os.Open("../../../testdata/complex-postman.json")
+	file, err := os.Open("../../../source-imports/complex-postman.json")
 	if err != nil {
 		t.Fatalf("Failed to open test file: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestConvert(t *testing.T) {
 
 func TestConvertWithEnvironmentVariables(t *testing.T) {
 	// Test that Newman properly passes environment variables to Postman converter
-	file, err := os.Open("../../../testdata/complex-postman.json")
+	file, err := os.Open("../../../source-imports/complex-postman.json")
 	if err != nil {
 		t.Fatalf("Failed to open test file: %v", err)
 	}

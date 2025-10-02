@@ -3,6 +3,7 @@ package report
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -72,6 +73,13 @@ func WriteJSONDetailed(path string, rep DetailedReport) error {
 	return enc.Encode(rep)
 }
 
+// WriteJSONDetailedTo writes the JSON detailed report to an io.Writer (streaming).
+func WriteJSONDetailedTo(w io.Writer, rep DetailedReport) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(rep)
+}
+
 // Minimal JUnit XML
 func WriteJUnitSummary(path string, sum Summary, suiteName string) error {
 	xml := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
@@ -101,6 +109,30 @@ func WriteJUnitDetailed(path string, suite string, sum Summary, tests []TestCase
 	}
 	fmt.Fprintf(b, "</testsuite>\n")
 	return os.WriteFile(path, []byte(b.String()), 0644)
+}
+
+// WriteJUnitDetailedTo writes JUnit XML for a detailed report to an io.Writer.
+func WriteJUnitDetailedTo(w io.Writer, suite string, sum Summary, tests []TestCase) error {
+	b := &strings.Builder{}
+	fmt.Fprintf(b, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+	fmt.Fprintf(b, "<testsuite name=\"%s\" tests=\"%d\" failures=\"%d\" skipped=\"%d\" time=\"%0.3f\">\n", suite, sum.Total, sum.Failed, sum.Skipped, sum.Duration.Seconds())
+	for _, tc := range tests {
+		fmt.Fprintf(b, "  <testcase name=\"%s\" time=\"%0.3f\">\n", xmlEscape(tc.Name), float64(tc.DurationMs)/1000.0)
+		switch tc.Status {
+		case "skipped":
+			fmt.Fprintf(b, "    <skipped/>\n")
+		case "failed":
+			msg := ""
+			if len(tc.Messages) > 0 {
+				msg = xmlEscape(strings.Join(tc.Messages, "; "))
+			}
+			fmt.Fprintf(b, "    <failure message=\"%s\"/>\n", msg)
+		}
+		fmt.Fprintf(b, "  </testcase>\n")
+	}
+	fmt.Fprintf(b, "</testsuite>\n")
+	_, err := io.WriteString(w, b.String())
+	return err
 }
 
 func xmlEscape(s string) string {
@@ -134,6 +166,13 @@ func WriteJSONBatch(path string, br BatchReport) error {
 	return enc.Encode(br)
 }
 
+// WriteJSONBatchTo writes the batch report to an io.Writer (streaming).
+func WriteJSONBatchTo(w io.Writer, br BatchReport) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(br)
+}
+
 // Minimal JUnit wrapper for batch: we emit a <testsuite name="batch"> with totals only.
 func WriteJUnitBatchSummary(path string, sum Summary) error {
 	xml := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
@@ -141,4 +180,14 @@ func WriteJUnitBatchSummary(path string, sum Summary) error {
 </testsuite>
 `, sum.Total, sum.Failed, sum.Skipped, sum.Duration.Seconds())
 	return os.WriteFile(path, []byte(xml), 0644)
+}
+
+// WriteJUnitBatchSummaryTo writes a minimal JUnit batch summary to an io.Writer.
+func WriteJUnitBatchSummaryTo(w io.Writer, sum Summary) error {
+	xml := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="batch" tests="%d" failures="%d" skipped="%d" time="%0.3f">
+</testsuite>
+`, sum.Total, sum.Failed, sum.Skipped, sum.Duration.Seconds())
+	_, err := io.WriteString(w, xml)
+	return err
 }

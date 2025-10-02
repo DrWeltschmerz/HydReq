@@ -13,6 +13,13 @@ if [[ ! -f "$REPORT_JSON" ]]; then
   exit 2
 fi
 
+# Add a small logo to the top of the markdown summary if the file exists in repo root
+if [[ -f "./logo_notext.svg" ]]; then
+  # GitHub renders relative images in PR comments when posted from the repo root
+  echo "![HydReq](./logo_notext.svg)"
+  echo
+fi
+
 # Detect batch vs single-suite report
 if jq -e '.suites' "$REPORT_JSON" >/dev/null; then
   # Batch report

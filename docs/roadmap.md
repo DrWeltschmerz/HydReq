@@ -79,11 +79,16 @@ Or, as some work can overlap:
 ---
 
 # Near-term
-- Reports in GUI (download JSON/JUnit artifacts)
-- Tags filter and default-timeout in GUI header (basic inputs added; refine UX and persistence)
-- Editor polish: collapse persistence, Convert… cleanup, DSN helpers per driver docs, "Run with deps" badges
-- YAML-preserving save path (optional raw mode with comments/order retained)
-- OAuth2 client credentials helper for suite auth
+ - Reports in GUI (download JSON/JUnit artifacts) ✅ implemented (UI exposes per-suite artifact download links).
+ - Tags filter and default-timeout in GUI header (basic inputs added; refine UX and persistence) ⚠ partially done (inputs present; UX/persistence tweaks remain).
+ - Editor polish: collapse persistence, Convert… cleanup, DSN helpers per driver docs, "Run with deps" badges ✅ many editor polishes implemented: Test name input, rename pencil, truncation/tooltip, live YAML sync, quick-run badges.
+ - YAML-preserving save path (optional raw mode with comments/order retained) ⚠ planned (not yet implemented; requires opt-in raw save mode and comment-preserving serializer).
+ - OAuth2 client credentials helper for suite auth ⚠ planned (design stage).
+
+Follow-ups (short-term)
+- Replace `prompt()` flows with an inline modal for naming suites/tests (improves accessibility and consistency).
+- Add keyboard-only affordances and aria-labels for inline rename button (accessibility).
+- Replace the pencil innerHTML with an SVG icon and add hover-only reveal for a cleaner look.
 
 # Medium-term
 - Results history in GUI and diffs between runs
