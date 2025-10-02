@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.7-beta (Unreleased)
+
+Fixes
+- Fixed Windows file path handling: schema compilation now properly converts Windows paths (e.g., `C:\path\to\file`) to valid file:// URLs (`file:///C:/path/to/file`) to prevent "invalid port" errors.
+- Changed server binding from `0.0.0.0:8787` to `localhost:8787` for better cross-platform compatibility and easier browser access.
+
+Technical
+- Added `PathToFileURL` helper function in `internal/validate` package to handle cross-platform file URL conversion following RFC 8089.
+- Updated schema compilation in `internal/webui`, `cmd/validate`, and `cmd/hydreq` to use the new helper function.
+
 ## v0.3.6-beta (2025-10-02)
 
 Highlights

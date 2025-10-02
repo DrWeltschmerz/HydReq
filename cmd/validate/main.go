@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	valfmt "github.com/DrWeltschmerz/HydReq/internal/validate"
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v5"
 	kyaml "sigs.k8s.io/yaml"
 )
@@ -28,7 +29,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "schema path error: %v\n", err)
 		os.Exit(2)
 	}
-	schemaURL := "file://" + absSchema
+	schemaURL := valfmt.PathToFileURL(absSchema)
 
 	sch, err := jsonschema.Compile(schemaURL)
 	if err != nil {

@@ -3,6 +3,10 @@ bin/
 *.log
 .DS_Store
 
+# Build artifacts in root
+/hydreq
+/validate
+
 # Generated reports and artifacts
 reports/
 report.json
