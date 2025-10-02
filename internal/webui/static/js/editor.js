@@ -323,7 +323,7 @@ function showFieldValidation(element, errors) {
   }
 }
 
-// Render the test list in the editor modal
+  // Render the test list in the editor modal
 function renderTests() {
   const testsEl = modal.querySelector('#ed_tests');
   if (!testsEl) return;
@@ -411,11 +411,11 @@ function renderTests() {
     testContainer.appendChild(testDiv);
     
     // Check if we need to add collapsible details row
-    if (result && result.status && result.status === 'failed' && result.messages && result.messages.length) {
+    if (result && result.status && result.status === 'failed') {
       const details = document.createElement('details');
       details.className = 'ed-test-details';
       const sum = document.createElement('summary'); sum.textContent = 'details'; details.appendChild(sum);
-      const pre = document.createElement('pre'); pre.className = 'message-block fail'; pre.textContent = result.messages.join('\n');
+      const pre = document.createElement('pre'); pre.className = 'message-block fail'; pre.textContent = (Array.isArray(result.messages) && result.messages.length) ? result.messages.join('\n') : 'No details reported';
       details.appendChild(pre);
       testContainer.appendChild(details);
     }
@@ -1680,6 +1680,8 @@ function openEditor(path, data){
             const d = tc.durationMs||tc.DurationMs||0;
             const icon=s==='passed'?'✓':(s==='failed'?'✗':(s==='skipped'?'○':'·'));
             appendQuickRunLine(`${icon} ${nm}${d?` (${d}ms)`:''}`, s==='passed'?'text-success':(s==='failed'?'text-error':'text-warning'));
+            const msgs = tc.messages || tc.Messages || [];
+            if (Array.isArray(msgs) && msgs.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = msgs.join('\n'); det.appendChild(pre); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(det); }
             return;
           }
         }
@@ -1717,6 +1719,8 @@ function openEditor(path, data){
       try{ 
         localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); 
       }catch{} 
+      // Push details to suites sidebar so both views are in sync
+      try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (typeof window.setSuiteTestDetails==='function' && (status||'').toLowerCase()==='failed') window.setSuiteTestDetails(pth, t.name||'', messages||[]); }catch{}
       renderTests(); 
     }catch(e){} 
   }
@@ -1734,14 +1738,14 @@ function openEditor(path, data){
           // persist per-test record for freshness
           setTestRecord(nm, st, dur, Array.isArray(msgs)? msgs: []);
           // propagate to suites list if available
-          try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, nm, st); }catch{}
+          try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, nm, st); if (typeof window.setSuiteTestDetails==='function' && st==='failed') window.setSuiteTestDetails(pth, nm, Array.isArray(msgs)?msgs:[]); }catch{}
         });
       } else if (res.name && res.status){
         const idx = getTestIndexByName(res.name);
         if (idx>=0) updateTestBadgeByIndex(idx, (res.status||'').toLowerCase(), res.messages || []);
         const st = (res.status||'').toLowerCase();
         setTestRecord(res.name, st, res.durationMs||0, res.messages||[]);
-        try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, res.name, st); }catch{}
+        try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, res.name, st); if (typeof window.setSuiteTestDetails==='function' && st==='failed') window.setSuiteTestDetails(pth, res.name, Array.isArray(res.messages)?res.messages:[]); }catch{}
       }
     }catch(e){}
   }
@@ -1822,7 +1826,7 @@ function openEditor(path, data){
             } 
           }catch{}
           // propagate to suites list
-          try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, name, s); }catch{}
+          try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, name, s); if (typeof window.setSuiteTestDetails==='function' && s==='failed') window.setSuiteTestDetails(pth, name, Array.isArray(payload.Messages)?payload.Messages:[]); }catch{}
           if (Array.isArray(payload.Messages) && payload.Messages.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = payload.Messages.join('\n'); det.appendChild(pre); quickRunBox.appendChild(det); }
         } else if (type === 'suiteEnd'){
           const s = payload.summary || {};
@@ -1979,9 +1983,12 @@ function openEditor(path, data){
       Object.keys(lastMap).forEach(nm=>{
         const st = (lastMap[nm]||'').toLowerCase();
         if (!st) return;
-        setTestRecord(nm, st, 0, []);
+        // Try to find details/duration from summary.tests
+        let dur = 0; let msgs = [];
+        try{ const tc = summary && Array.isArray(summary.tests) ? summary.tests.find(c=> (c.name||c.Name)===nm) : null; if (tc){ dur = tc.durationMs||tc.DurationMs||0; msgs = tc.messages || tc.Messages || []; } }catch{}
+        setTestRecord(nm, st, dur, Array.isArray(msgs)?msgs:[]);
         const idx = getTestIndexByName(nm);
-        if (idx>=0) updateTestBadgeByIndex(idx, st, []);
+        if (idx>=0) updateTestBadgeByIndex(idx, st, Array.isArray(msgs)?msgs:[]);
       });
       // Suite-level record based on summary or badge
       if (summary && summary.summary){

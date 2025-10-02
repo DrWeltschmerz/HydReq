@@ -43,6 +43,7 @@ function renderSuites(list){
           // ensure visible if already loaded
           try{ testsDiv.classList.add('open'); testsDiv.style.display = 'block'; }catch(e){}
           try{ flushPendingForPath(pathKey); }catch(e){}
+          try{ hydrateFromSummary(pathKey); }catch(e){}
           if (expandBtn._resolveExpand) { expandBtn._resolveExpand(); expandBtn._expandPromise = null; expandBtn._resolveExpand = null; }
           return;
         }
@@ -71,6 +72,7 @@ function renderSuites(list){
             // make tests visible after load
             try{ testsDiv.classList.add('open'); testsDiv.style.display = 'block'; }catch(e){}
             try{ flushPendingForPath(pathKey); }catch(e){}
+            try{ hydrateFromSummary(pathKey); }catch(e){}
           }
         }catch(err){ try{ testsDiv.innerHTML = '<div class="dim">Failed to load tests</div>'; }catch(e){} }
         try{ if (spinner && spinner.parentNode) spinner.remove(); }catch(e){}
@@ -94,7 +96,7 @@ function renderSuites(list){
             const btn = li.querySelector('button[aria-controls]') || li.querySelector('button');
             const loaded = btn && btn.dataset && btn.dataset.loaded === '1';
             const open = btn && btn.dataset && btn.dataset.open === '1';
-            if (loaded || open) { try{ flushPendingForPath(p); }catch(e){} }
+            if (loaded || open) { try{ flushPendingForPath(p); }catch(e){} try{ hydrateFromSummary(p); }catch(e){} }
           }catch(e){}
         });
       }catch(e){}
@@ -338,7 +340,9 @@ function listen(id){
       if (results) results.appendChild(wrap);
       row = {container: wrap, line}; testRows.set(key, row);
     }
-    try{ const m = lastStatus.get(currentSuitePath) || new Map(); m.set(Name, (Status||'').toLowerCase()); lastStatus.set(currentSuitePath, m); }catch(e){}
+  try{ const m = lastStatus.get(currentSuitePath) || new Map(); m.set(Name, (Status||'').toLowerCase()); lastStatus.set(currentSuitePath, m); }catch(e){}
+  // Persist/update details in lastSuiteSummary for cross-view sync
+  try{ upsertLastSuiteTest(currentSuitePath||'', Name, Status||'', DurationMs||0, Array.isArray(Messages)? Messages: []); }catch(e){}
     row.line.className = (Status==='passed'?'ok':(Status==='failed'?'fail':'skip'));
     if (Status==='skipped') {
       row.line.textContent = `- ${Name} (tags)`;
@@ -648,6 +652,41 @@ window.initSuites = initSuites;
 window.getSuiteLastStatus = function(path){ try{ const m = lastStatus.get(path)||new Map(); return Object.fromEntries(m.entries()); }catch(e){ return {}; } };
 window.getSuiteSummary = function(path){ try{ return lastSuiteSummary.get(path) || null; }catch(e){ return null; } };
 window.getSuiteBadgeStatus = function(path){ try{ const li = document.querySelector('#suites li[data-path="'+path+'"]'); const sb = li && li.querySelector && li.querySelector('.suite-badge'); return (sb && sb.dataset && sb.dataset.status) ? sb.dataset.status : 'unknown'; }catch(e){ return 'unknown'; } };
+// Internal helper to upsert a test record into lastSuiteSummary[path]
+function upsertLastSuiteTest(path, name, status, durationMs, messages){
+  try{
+    if (!path || !name) return;
+    const rec = lastSuiteSummary.get(path) || { summary: null, tests: [] };
+    const tests = Array.isArray(rec.tests) ? rec.tests : [];
+    const idx = tests.findIndex(t=> (t.name||t.Name) === name);
+    const testRec = {
+      name: name,
+      status: (status||'').toLowerCase(),
+      durationMs: durationMs||0,
+      messages: Array.isArray(messages)? messages: []
+    };
+    if (idx>=0) tests[idx] = testRec; else tests.push(testRec);
+    rec.tests = tests; lastSuiteSummary.set(path, rec);
+  }catch(e){}
+}
+// Allow external callers (e.g., editor) to set per-test details for a suite
+window.setSuiteTestDetails = function(path, name, messages){
+  try{
+    if (!path || !name) return;
+    // Persist into lastSuiteSummary for editor pre-seed
+    upsertLastSuiteTest(path, name, (lastStatus.get(path)||new Map()).get(name) || 'failed', 0, messages||[]);
+    // If expanded in UI, ensure details block exists and update it
+    const li = document.querySelector('#suites li[data-path="'+path+'"]');
+    if (!li) return;
+    const testsDiv = li.querySelector('.suite-tests'); if (!testsDiv) return;
+    const cont = Array.from(testsDiv.children).find(r => { try{ return r.classList && r.classList.contains('suite-test-container') && r.querySelector('.suite-test-name') && (r.querySelector('.suite-test-name').dataset.name === name); }catch(e){ return false; } });
+    if (!cont) return;
+    let det = cont.querySelector('details.suite-test-details');
+    if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); cont.appendChild(det); }
+    let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block fail'; det.appendChild(pre); }
+    pre.textContent = Array.isArray(messages) && messages.length ? messages.join('\n') : 'No details reported';
+  }catch(e){}
+};
 // Allow external callers (e.g., editor) to set per-test status for a suite and update UI if expanded
 window.setSuiteTestStatus = function(path, name, status){
   try{
@@ -705,6 +744,8 @@ function flushPendingForPath(pathKey){
         const Messages = ev.Messages || ev.messages || [];
         // Update lastStatus map
         try{ map.set(Name, Status); }catch(e){}
+        // Persist this test's latest details into lastSuiteSummary so editor can consume
+        try{ upsertLastSuiteTest(pathKey, Name, Status, DurationMs, Array.isArray(Messages)? Messages: []); }catch(e){}
 
         // If testsDiv exists, update or insert a row for the test
         if (testsDiv){
@@ -751,6 +792,48 @@ function flushPendingForPath(pathKey){
     // Clear pending events for this path
     try{ pendingTestEvents.delete(pathKey); }catch(e){}
   }catch(e){ /* ignore */ }
+}
+
+/**
+ * Hydrate an expanded suite's tests list from lastSuiteSummary: set badges and render details
+ * so editor-originated updates (status/messages) appear even if no pending events exist.
+ */
+function hydrateFromSummary(pathKey){
+  try{
+    if (!pathKey) return;
+    const rec = lastSuiteSummary.get(pathKey);
+    if (!rec || !Array.isArray(rec.tests) || rec.tests.length === 0) return;
+    const li = document.querySelector('#suites li[data-path="'+pathKey+'"]');
+    if (!li) return;
+    const testsDiv = li.querySelector('.suite-tests');
+    if (!testsDiv) return;
+    const map = lastStatus.get(pathKey) || new Map();
+    rec.tests.forEach(t=>{
+      try{
+        const nm = t.name || t.Name || '';
+        if (!nm) return;
+        const st = (t.status || t.Status || map.get(nm) || '').toLowerCase();
+        const msgs = t.messages || t.Messages || [];
+        const cont = Array.from(testsDiv.children).find(r => { try{ return r.classList && r.classList.contains('suite-test-container') && r.querySelector('.suite-test-name') && (r.querySelector('.suite-test-name').dataset.name === nm); }catch(e){ return false; } });
+        if (!cont) return;
+        const badgeEl = cont.querySelector('.suite-test-status');
+        if (badgeEl){
+          if (st === 'passed'){ badgeEl.textContent='✓'; badgeEl.style.background='rgba(16,185,129,0.12)'; badgeEl.style.opacity='1'; }
+          else if (st === 'failed'){ badgeEl.textContent='✗'; badgeEl.style.background='rgba(239,68,68,0.08)'; badgeEl.style.opacity='1'; }
+          else if (st === 'skipped'){ badgeEl.textContent='-'; badgeEl.style.background='rgba(245,158,11,0.06)'; badgeEl.style.opacity='1'; }
+        }
+        if (st === 'failed'){
+          let det = cont.querySelector('details.suite-test-details');
+          if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); cont.appendChild(det); }
+          let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block fail'; det.appendChild(pre); }
+          pre.textContent = (Array.isArray(msgs) && msgs.length) ? msgs.join('\n') : 'No details reported';
+        }
+        // keep lastStatus in sync with summary
+        try{ map.set(nm, st); }catch(e){}
+      }catch(e){}
+    });
+    try{ lastStatus.set(pathKey, map); }catch(e){}
+  }catch(e){}
 }
 
 // Expand a suite in the UI by its canonical path; awaits any expand promise
