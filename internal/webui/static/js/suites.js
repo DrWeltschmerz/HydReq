@@ -39,7 +39,13 @@ function renderSuites(list){
         const testsDiv = li.querySelector('.suite-tests');
         if (!testsDiv) return;
         // Toggle handling is managed by view; now fetch tests when not loaded
-        if (expandBtn.dataset.loaded === '1') { if (expandBtn._resolveExpand) { expandBtn._resolveExpand(); expandBtn._expandPromise = null; expandBtn._resolveExpand = null; } return; }
+        if (expandBtn.dataset.loaded === '1') {
+          // ensure visible if already loaded
+          try{ testsDiv.classList.add('open'); testsDiv.style.display = 'block'; }catch(e){}
+          try{ flushPendingForPath(pathKey); }catch(e){}
+          if (expandBtn._resolveExpand) { expandBtn._resolveExpand(); expandBtn._expandPromise = null; expandBtn._resolveExpand = null; }
+          return;
+        }
         let spinner = null; try{ spinner = document.createElement('span'); spinner.className='spinner'; expandBtn.insertBefore(spinner, expandBtn.firstChild); }catch(e){}
         try{
           const p = encodeURIComponent(pathKey);
@@ -48,13 +54,22 @@ function renderSuites(list){
             const dd = await res.json(); const parsed = dd.parsed || dd; const tests = (parsed && parsed.tests) ? parsed.tests : [];
             testsDiv.innerHTML='';
             tests.forEach(t=>{
-              const row = document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.padding='4px 6px';
-              const nm = document.createElement('span'); nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent; nm.dataset.name = nm.textContent;
+              // Container per test with main row and optional details row beneath
+              const cont = document.createElement('div'); cont.className = 'suite-test-container';
+              const row = document.createElement('div'); row.className = 'suite-test-item';
+              const nm = document.createElement('span'); nm.className='suite-test-name'; nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent; nm.dataset.name = nm.textContent;
               try{ const tt = t.tags || t.Tags || []; if (Array.isArray(tt) && tt.length){ const tw=document.createElement('span'); tw.className='row wrap gap-4px'; tw.style.marginLeft='6px'; const selectedArr = Array.from(selected); tt.slice(0,4).forEach(x=>{ const b=document.createElement('span'); b.className='pill tag-chip'; b.dataset.tag = x; b.textContent = '#'+x; b.style.fontSize='10px'; if (selectedArr.includes(x)) b.classList.add('selected'); b.addEventListener('click', (ev)=>{ ev.stopPropagation(); if (window.toggleSelectedTag) window.toggleSelectedTag(x); }); tw.appendChild(b); }); nm.appendChild(tw); } }catch(e){}
-              const badge = document.createElement('span'); badge.className='pill'; const pathMap = lastStatus.get(pathKey); const keyName = nm.dataset.name; const st = pathMap ? (pathMap.get(keyName)||'') : ''; if (st==='passed'){ badge.textContent='✓'; badge.style.background='rgba(16,185,129,0.12)'; } else if (st==='failed'){ badge.textContent='✗'; badge.style.background='rgba(239,68,68,0.08)'; } else if (st==='skipped'){ badge.textContent='-'; badge.style.background='rgba(245,158,11,0.06)'; } else { badge.textContent='·'; badge.style.opacity='.6'; }
-              row.appendChild(nm); row.appendChild(badge); testsDiv.appendChild(row);
+              const badge = document.createElement('span'); badge.className='pill suite-test-status';
+              const pathMap = lastStatus.get(pathKey); const keyName = nm.dataset.name; const st = pathMap ? (pathMap.get(keyName)||'') : '';
+              if (st==='passed'){ badge.textContent='✓'; badge.style.background='rgba(16,185,129,0.12)'; }
+              else if (st==='failed'){ badge.textContent='✗'; badge.style.background='rgba(239,68,68,0.08)'; }
+              else if (st==='skipped'){ badge.textContent='-'; badge.style.background='rgba(245,158,11,0.06)'; }
+              else { badge.textContent='·'; badge.style.opacity='.6'; }
+              row.appendChild(nm); row.appendChild(badge); cont.appendChild(row); testsDiv.appendChild(cont);
             });
             expandBtn.dataset.loaded = '1';
+            // make tests visible after load
+            try{ testsDiv.classList.add('open'); testsDiv.style.display = 'block'; }catch(e){}
             try{ flushPendingForPath(pathKey); }catch(e){}
           }
         }catch(err){ try{ testsDiv.innerHTML = '<div class="dim">Failed to load tests</div>'; }catch(e){} }
@@ -70,7 +85,20 @@ function renderSuites(list){
       onDownload: function(pathKey, fmt){ downloadSuite(pathKey, fmt); },
       onRefresh: function(){ refresh(); }
     };
-    try{ window.hydreqSuitesView.render(list, opts); }catch(e){ console.error('suites-view render failed, falling back to inline implementation', e); }
+    try{ window.hydreqSuitesView.render(list, opts); 
+      // After render: flush pending events for any suites that are already marked open/loaded
+      try{
+        Array.from(document.querySelectorAll('#suites li')).forEach(li => {
+          try{
+            const p = li.getAttribute('data-path');
+            const btn = li.querySelector('button[aria-controls]') || li.querySelector('button');
+            const loaded = btn && btn.dataset && btn.dataset.loaded === '1';
+            const open = btn && btn.dataset && btn.dataset.open === '1';
+            if (loaded || open) { try{ flushPendingForPath(p); }catch(e){} }
+          }catch(e){}
+        });
+      }catch(e){}
+    }catch(e){ console.error('suites-view render failed, falling back to inline implementation', e); }
   }catch(e){ console.error('renderSuites delegation failed', e); }
 }
 
@@ -190,6 +218,7 @@ function listen(id){
   const suiteBar = document.getElementById('suiteBar');
   const suiteText = document.getElementById('suiteText');
   const currentSuiteEl = document.getElementById('currentSuite');
+
   // Prepare header pills for tags and env
   function renderHeaderTags(){
     try{
@@ -222,6 +251,7 @@ function listen(id){
       }
     }catch(e){}
   }
+
   // initial header render
   renderHeaderTags();
   renderHeaderEnv();
@@ -231,361 +261,242 @@ function listen(id){
   if (batchText) batchText.textContent = '0/0'; 
   if (suiteBar) setBar(suiteBar,0,1); 
   if (suiteText) suiteText.textContent = '0/0';
-  const es = new EventSource('/api/stream?runId=' + encodeURIComponent(id));
-  try{ es.onopen = function(){ try{ window.__E2E_ES_OPEN = true; }catch(e){} }; }catch(e){}
-  es.onmessage = async (e)=>{
-    const ev = JSON.parse(e.data);
-    const type = ev.type;
-    const payload = ev.payload || {};
-    async function expandSuiteByPath(target){
-      try{
-        const list = document.querySelectorAll('#suites li');
-        for (const li of list){
-          try{
-            const btnEl = li.querySelector('button[aria-controls]');
-            const pathKey = li.getAttribute('data-path') || (btnEl && btnEl.getAttribute && btnEl.getAttribute('data-path')) || null;
-            if (!pathKey) continue;
-            if (pathKey === target || li.querySelector('.spec-title')?.textContent === target){
-              const btn = btnEl || li.querySelector('button');
-              const testsDiv = li.querySelector('.suite-tests');
-              if (!testsDiv) return;
-              if (btn && btn.dataset.open !== '1') {
-                try{
-                  btn.click();
-                  if (btn._expandPromise && typeof btn._expandPromise.then === 'function'){
-                    await btn._expandPromise;
-                  }
-                  try{ flushPendingForPath(pathKey); }catch(e){}
-                }catch(e){}
-              }
-              return;
-            }
-          }catch(e){}
-        }
-      }catch(e){}
-    }
 
-    function flushPendingForPath(path){
-      try{
-        const evs = pendingTestEvents.get(path);
-        if (!evs || !evs.length) return;
-        const li = document.querySelector('#suites li[data-path="'+path+'"]');
-        if (!li) { pendingTestEvents.delete(path); return; }
-        const testsDiv = li.querySelector('.suite-tests');
-        if (!testsDiv) { pendingTestEvents.delete(path); return; }
-        evs.forEach(ev=>{
-          try{
-            const { Name, Status, DurationMs, Messages } = ev;
-            Array.from(testsDiv.children).forEach(r => {
-              try{ const nm = r.children[0]; const badge = r.children[1]; if (!nm||!badge) return; if (nm.textContent === Name){ if (Status==='passed'){ badge.textContent='✓'; badge.style.background='rgba(16,185,129,0.12)'; badge.style.opacity='1'; } else if (Status==='failed'){ badge.textContent='✗'; badge.style.background='rgba(239,68,68,0.08)'; badge.style.opacity='1'; } else if (Status==='skipped'){ badge.textContent='-'; badge.style.background='rgba(245,158,11,0.06)'; badge.style.opacity='1'; } }
-              }catch(e){}
-            });
-          }catch(e){}
-        });
-        pendingTestEvents.delete(path);
-      }catch(e){}
-    }
-    if (type === 'testStart'){
-      const {Name, Stage, path: evPath} = payload;
-      // Ignore stray testStart from previous suites if any
-      if (evPath && currentSuitePath && evPath !== currentSuitePath) {
-        return;
-      }
-      const wrap = document.createElement('div');
-      const line = document.createElement('div'); line.className='run'; line.textContent = '… ' + Name;
-      wrap.appendChild(line);
-      if (results) results.appendChild(wrap);
-      try{ window.__E2E_TESTSTART = true; }catch(e){}
-      const key = (currentSuitePath||'') + '::' + Name;
-      started.add(key);
-      testRows.set(key, {container: wrap, line});
-      // Ensure stage row exists; for DAG (dependsOn) new layers may appear
-      try{
-        const stId = 'stage_'+Stage;
-        let st = document.getElementById(stId);
-        let stt = document.getElementById('stage_txt_'+Stage);
-        if (!st || !stt){
-          const d=document.createElement('div'); d.className='row';
-          d.innerHTML='<div class="w-120px">stage '+Stage+'</div><div class="progress flex-1"><div id="'+stId+'" style="width:0%"></div></div><div class="pill" id="stage_txt_'+Stage+'">0/0</div>';
-          if (stages) stages.appendChild(d);
-          st = document.getElementById(stId); stt = document.getElementById('stage_txt_'+Stage);
-          dynamicStages.add(String(Stage));
-        }
-        // If this stage wasn't provided by suiteStart, grow its total on testStart
-        if (!suiteStagesFromStart.has(String(Stage))){
-          const parts = (stt.textContent||'0/0').split('/');
-          const done = parseInt(parts[0],10)||0; const total = (parseInt(parts[1],10)||0) + 1;
-          stt.textContent = done + '/' + total; st.style.width = pct(done,total)+'%';
-        }
-      }catch(e){}
-      scrollBottom();
-    }
-    if (type === 'batchStart'){
-      batch.total = payload.total; batch.done = 0; if (batchBar) setBar(batchBar,0,batch.total); if (batchText) batchText.textContent = '0/' + batch.total;
-    }
-    if (type === 'suiteStart'){
-      suite.total = payload.total; suite.done = 0; if (suiteBar) setBar(suiteBar,0,suite.total); if (suiteText) suiteText.textContent = '0/' + suite.total; if (stages) stages.innerHTML='';
-      if (currentSuiteEl) currentSuiteEl.textContent = (payload.name || payload.path || '');
-      currentSuitePath = payload.path || payload.name || null;
-      // Reset started markers per suite
-      try{ started.clear(); }catch(e){}
-      // Track stage keys from payload to distinguish dynamic stages introduced by DAG layers
-      try{ suiteStagesFromStart = new Set(Object.keys(payload.stages||{}).map(k=> String(k))); dynamicStages = new Set(); }catch(e){ suiteStagesFromStart = new Set(); dynamicStages = new Set(); }
-      // Reinforce header pills at the start of each suite
-      renderHeaderTags();
-      renderHeaderEnv();
-      // Clear per-suite last statuses for the new run of this suite
-      try{ if (currentSuitePath) lastStatus.set(currentSuitePath, new Map()); }catch(e){}
-  const nm = (payload.name || payload.path || '');
-  const pth = payload.path || '';
-  const base = pth ? pth.split('/').pop() : '';
-  const ln = document.createElement('div'); ln.textContent = base && nm ? `=== running: ${nm} (${base}) ===` : `=== running: ${nm} ===`; if (results) results.appendChild(ln);
-      scrollBottom();
-      let stageMap = payload.stages || {};
-      // Reconcile stage counts with current tag filters to avoid mismatch (mirror runner filtering logic roughly)
-      try{
-        const li = document.querySelector('#suites li[data-path="'+(payload.path||'')+'"]');
-        if (li) {
-          const testsDiv = li.querySelector('.suite-tests');
-          if (testsDiv && testsDiv.children.length) {
-            const selectedTags = (window.getSelectedTags && window.getSelectedTags()) || [];
-            if (Array.isArray(selectedTags) && selectedTags.length) {
-              const counts = {};
-              Array.from(testsDiv.children).forEach(r=>{
-                const nmEl = r.children && r.children[0];
-                if (!nmEl) return;
-                const tagChips = nmEl.querySelectorAll('.tag-chip');
-                const tags = Array.from(tagChips).map(ch=> ch.dataset.tag).filter(Boolean);
-                const ok = tags.length ? tags.some(t=> selectedTags.includes(t)) : false;
-                const stLbl = (r.querySelector('.pill')||{}).textContent || '';
-                // Derive stage number from DOM is not available; skip recalculation if missing
-                // We only zero out stages where everything would be filtered by tags, which we can't do reliably here
-                // So just keep backend-sent stageMap
-              });
-              // Keep stageMap as-is; backend already accounts for tags
-            }
-          }
-        }
-      }catch(e){}
-      for(const k in stageMap){
-        const d=document.createElement('div'); d.className='row';
-        d.innerHTML='<div class="w-120px">stage '+k+'</div><div class="progress flex-1"><div id="stage_'+k+'" style="width:0%"></div></div><div class="pill" id="stage_txt_'+k+'">0/'+stageMap[k]+'</div>';
-        if (stages) stages.appendChild(d);
-      }
-      try{ const target = payload.path || payload.name || ''; if (target) { try{ await expandSuiteByPath(target); }catch(e){} } }catch(e){}
-    }
-    if (type === 'test'){
-      const {Name, Status, DurationMs, Stage, Messages, Tags, path: evPath} = payload;
-      if (evPath && currentSuitePath && evPath !== currentSuitePath) {
-        // This test event belongs to a different suite; ignore for per-suite counters
-        return;
-      }
-      // Do not mutate batch-level aggregator here; rely on suiteEnd summaries to avoid double counting
-      const key = (currentSuitePath||'') + '::' + Name;
-      let row = testRows.get(key);
-      if (!row){
-        const wrap = document.createElement('div');
-        const line = document.createElement('div'); wrap.appendChild(line); if (results) results.appendChild(wrap);
-        row = {container: wrap, line}; testRows.set(key, row);
-      }
-      // Update last status for this suite/test
-      try{ const m = lastStatus.get(currentSuitePath) || new Map(); m.set(Name, (Status||'').toLowerCase()); lastStatus.set(currentSuitePath, m); }catch(e){}
-      row.line.className = (Status==='passed'?'ok':(Status==='failed'?'fail':'skip'));
-      if (Status==='skipped') {
-        row.line.textContent = `- ${Name} (tags)`;
-      } else {
-        row.line.textContent = (Status==='passed'?'✓':(Status==='failed'?'✗':'-')) + ' ' + Name + ' (' + DurationMs + ' ms)';
-        if (Status==='failed' && Array.isArray(Messages) && Messages.length){
-          let det = row.container.querySelector('details');
-          if (!det){ det = document.createElement('details'); const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); row.container.appendChild(det); }
-          let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='fail'; det.appendChild(pre); }
-          pre.textContent = Messages.join('\n');
-        }
-      }
-      // Increment per-suite and per-stage progress with resilience when a testStart might be missing
-      const skey = (currentSuitePath||'') + '::' + Name;
-      const hadStarted = started.has(skey);
-      // Ensure stage row exists (covers DAG dynamic layers); may also backfill totals for dynamic stages
-      let st = document.getElementById('stage_'+Stage); let stt = document.getElementById('stage_txt_'+Stage);
+  // Handler implementations extracted from original ES onmessage
+  function handleTestStart(payload){
+    const {Name, Stage, path: evPath} = payload;
+    if (evPath && currentSuitePath && evPath !== currentSuitePath) return;
+    const wrap = document.createElement('div');
+    const line = document.createElement('div'); line.className='run'; line.textContent = '… ' + Name;
+    wrap.appendChild(line);
+    if (results) results.appendChild(wrap);
+    try{ window.__E2E_TESTSTART = true; }catch(e){}
+    const key = (currentSuitePath||'') + '::' + Name;
+    started.add(key);
+    testRows.set(key, {container: wrap, line});
+    try{
+      const stId = 'stage_'+Stage;
+      let st = document.getElementById(stId);
+      let stt = document.getElementById('stage_txt_'+Stage);
       if (!st || !stt){
         const d=document.createElement('div'); d.className='row';
-        d.innerHTML='<div class="w-120px">stage '+Stage+'</div><div class="progress flex-1"><div id="stage_'+Stage+'" style="width:0%"></div></div><div class="pill" id="stage_txt_'+Stage+'">0/0</div>';
+        d.innerHTML='<div class="w-120px">stage '+Stage+'</div><div class="progress flex-1"><div id="'+stId+'" style="width:0%"></div></div><div class="pill" id="stage_txt_'+Stage+'">0/0</div>';
         if (stages) stages.appendChild(d);
-        st = document.getElementById('stage_'+Stage); stt = document.getElementById('stage_txt_'+Stage);
+        st = document.getElementById(stId); stt = document.getElementById('stage_txt_'+Stage);
+        dynamicStages.add(String(Stage));
       }
-      const isDynamic = !(suiteStagesFromStart && suiteStagesFromStart.has(String(Stage)));
-      if (hadStarted){
-        // Normal path: testStart seen previously
-        if(st && stt){ const txt = stt.textContent.split('/'); const done = (parseInt(txt[0],10)||0)+1; const total = parseInt(txt[1],10)||0; st.style.width = pct(done,total)+'%'; stt.textContent = done+'/'+total; }
-        suite.done++;
-        if (suiteBar) setBar(suiteBar, suite.done, suite.total); if (suiteText) suiteText.textContent = suite.done + '/' + suite.total;
-        started.delete(skey);
-      } else {
-        // Fallback: no testStart received (rare). Advance stage counters and suite done.
-        if(st && stt){
-          const txt = stt.textContent.split('/');
-          let done = parseInt(txt[0],10)||0; let total = parseInt(txt[1],10)||0;
-          if (isDynamic) { total += 1; }
-          done += 1;
-          st.style.width = pct(done,total)+'%'; stt.textContent = done+'/'+total;
+      if (!suiteStagesFromStart.has(String(Stage))){
+        const parts = (stt.textContent||'0/0').split('/');
+        const done = parseInt(parts[0],10)||0; const total = (parseInt(parts[1],10)||0) + 1;
+        stt.textContent = done + '/' + total; st.style.width = pct(done,total)+'%';
+      }
+    }catch(e){}
+    scrollBottom();
+  }
+
+  function handleBatchStart(payload){ batch.total = payload.total; batch.done = 0; if (batchBar) setBar(batchBar,0,batch.total); if (batchText) batchText.textContent = '0/' + batch.total; }
+
+  async function handleSuiteStart(payload){
+    suite.total = payload.total; suite.done = 0; if (suiteBar) setBar(suiteBar,0,suite.total); if (suiteText) suiteText.textContent = '0/' + suite.total; if (stages) stages.innerHTML='';
+    if (currentSuiteEl) currentSuiteEl.textContent = (payload.name || payload.path || '');
+    currentSuitePath = payload.path || payload.name || null;
+    try{ started.clear(); }catch(e){}
+    try{ suiteStagesFromStart = new Set(Object.keys(payload.stages||{}).map(k=> String(k))); dynamicStages = new Set(); }catch(e){ suiteStagesFromStart = new Set(); dynamicStages = new Set(); }
+    renderHeaderTags(); renderHeaderEnv();
+    try{ if (currentSuitePath) lastStatus.set(currentSuitePath, new Map()); }catch(e){}
+    const nm = (payload.name || payload.path || '');
+    const pth = payload.path || '';
+    const base = pth ? pth.split('/').pop() : '';
+    const ln = document.createElement('div'); ln.textContent = base && nm ? `=== running: ${nm} (${base}) ===` : `=== running: ${nm} ===`; if (results) results.appendChild(ln);
+    scrollBottom();
+    let stageMap = payload.stages || {};
+    try{
+      const li = document.querySelector('#suites li[data-path="'+(payload.path||'')+'"]');
+      if (li) {
+        const testsDiv = li.querySelector('.suite-tests');
+        if (testsDiv && testsDiv.children.length) {
+          const selectedTags = (window.getSelectedTags && window.getSelectedTags()) || [];
+          if (Array.isArray(selectedTags) && selectedTags.length) {
+            // keep backend-sent stageMap
+          }
         }
-        suite.done++;
-        if (suiteBar) setBar(suiteBar, suite.done, suite.total); if (suiteText) suiteText.textContent = suite.done + '/' + suite.total;
       }
-      try {
-        if (!document.getElementById('editorModal')) {
+    }catch(e){}
+    for(const k in stageMap){ const d=document.createElement('div'); d.className='row'; d.innerHTML='<div class="w-120px">stage '+k+'</div><div class="progress flex-1"><div id="stage_'+k+'" style="width:0%"></div></div><div class="pill" id="stage_txt_'+k+'">0/'+stageMap[k]+'</div>'; if (stages) stages.appendChild(d); }
+    try{ const target = payload.path || payload.name || ''; if (target) { try{ await expandSuiteByPath(target); }catch(e){} } }catch(e){}
+  }
+
+  function handleTest(payload){
+    const {Name, Status, DurationMs, Stage, Messages, Tags, path: evPath} = payload;
+    if (evPath && currentSuitePath && evPath !== currentSuitePath) return;
+    const key = (currentSuitePath||'') + '::' + Name;
+    let row = testRows.get(key);
+    if (!row){
+      const wrap = document.createElement('div'); wrap.className='runner-test-container';
+      const line = document.createElement('div'); line.className='runner-test-item';
+      wrap.appendChild(line);
+      if (results) results.appendChild(wrap);
+      row = {container: wrap, line}; testRows.set(key, row);
+    }
+    try{ const m = lastStatus.get(currentSuitePath) || new Map(); m.set(Name, (Status||'').toLowerCase()); lastStatus.set(currentSuitePath, m); }catch(e){}
+    row.line.className = (Status==='passed'?'ok':(Status==='failed'?'fail':'skip'));
+    if (Status==='skipped') {
+      row.line.textContent = `- ${Name} (tags)`;
+    } else {
+      row.line.textContent = (Status==='passed'?'✓':(Status==='failed'?'✗':'-')) + ' ' + Name + ' (' + DurationMs + ' ms)';
+      if (Status==='failed' && Array.isArray(Messages) && Messages.length){
+        let det = row.container.querySelector('details.suite-test-details');
+        if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); row.container.appendChild(det); }
+        let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block fail'; det.appendChild(pre); }
+        pre.textContent = Messages.join('\n');
+      }
+    }
+    const skey = (currentSuitePath||'') + '::' + Name;
+    const hadStarted = started.has(skey);
+    let st = document.getElementById('stage_'+Stage); let stt = document.getElementById('stage_txt_'+Stage);
+    if (!st || !stt){ const d=document.createElement('div'); d.className='row'; d.innerHTML='<div class="w-120px">stage '+Stage+'</div><div class="progress flex-1"><div id="stage_'+Stage+'" style="width:0%"></div></div><div class="pill" id="stage_txt_'+Stage+'">0/0</div>'; if (stages) stages.appendChild(d); st = document.getElementById('stage_'+Stage); stt = document.getElementById('stage_txt_'+Stage); }
+    const isDynamic = !(suiteStagesFromStart && suiteStagesFromStart.has(String(Stage)));
+    if (hadStarted){ if(st && stt){ const txt = stt.textContent.split('/'); const done = (parseInt(txt[0],10)||0)+1; const total = parseInt(txt[1],10)||0; st.style.width = pct(done,total)+'%'; stt.textContent = done+'/'+total; } suite.done++; if (suiteBar) setBar(suiteBar, suite.done, suite.total); if (suiteText) suiteText.textContent = suite.done + '/' + suite.total; started.delete(skey); }
+    else { if(st && stt){ const txt = stt.textContent.split('/'); let done = parseInt(txt[0],10)||0; let total = parseInt(txt[1],10)||0; if (isDynamic) { total += 1; } done += 1; st.style.width = pct(done,total)+'%'; stt.textContent = done+'/'+total; } suite.done++; if (suiteBar) setBar(suiteBar, suite.done, suite.total); if (suiteText) suiteText.textContent = suite.done + '/' + suite.total; }
+    try {
+      if (!document.getElementById('editorModal')) {
+        const updateBadgeForLi = (li) => {
+          if (!li) return;
           try {
-            const updateBadgeForLi = (li)=>{
-              if (!li) return;
-              try{
-                const sBadge = li.querySelector('.suite-badge');
-                // Use priority: failed > skipped > passed, but don't override failed status
-                if (Status === 'failed') { 
-                  if (sBadge) { 
-                    sBadge.textContent = '✗'; 
-                    sBadge.style.background='rgba(239,68,68,0.08)'; 
-                    sBadge.style.opacity='1'; 
-                    sBadge.dataset.status = 'failed'; 
-                  } 
-                }
-                else if (Status === 'passed') { 
-                  if (sBadge && sBadge.textContent !== '✗' && sBadge.dataset.status !== 'failed') { 
-                    sBadge.textContent = '✓'; 
-                    sBadge.style.background='rgba(16,185,129,0.12)'; 
-                    sBadge.style.opacity='1'; 
-                    sBadge.dataset.status = 'passed'; 
-                  } 
-                }
-                else if (Status === 'skipped') { 
-                  if (sBadge && sBadge.textContent !== '✗' && sBadge.dataset.status !== 'failed' && sBadge.dataset.status !== 'passed') { 
-                    sBadge.textContent = '-'; 
-                    sBadge.style.background='rgba(245,158,11,0.06)'; 
-                    sBadge.style.opacity='1'; 
-                    sBadge.dataset.status = 'skipped'; 
-                  } 
-                }
-                const testsDiv = li.querySelector('.suite-tests');
-                if (testsDiv){
-                  const expandBtnLocal = li.querySelector('button[aria-controls]');
-                  const loaded = expandBtnLocal && expandBtnLocal.dataset && expandBtnLocal.dataset.loaded === '1';
-                  if (!loaded){
-                    try{ const p = li.getAttribute('data-path') || (li.querySelector('.spec-title') && li.querySelector('.spec-title').textContent) || ''; if (p){ const arr = pendingTestEvents.get(p) || []; arr.push({ Name, Status, DurationMs, Messages }); pendingTestEvents.set(p, arr); } }catch(e){}
-                  } else {
-                    // Update individual test badges for expanded suites
-                    Array.from(testsDiv.children).forEach(r => { 
-                      try{ 
-                        const nmEl=r.children[0], badgeEl=r.children[1]; 
-                        if (!nmEl||!badgeEl) return; 
-                        const rowName = (nmEl.dataset && nmEl.dataset.name) ? nmEl.dataset.name : nmEl.textContent;
-                        if (rowName===Name){ 
-                          if (Status==='passed'){ 
-                            badgeEl.textContent='✓'; 
-                            badgeEl.style.background='rgba(16,185,129,0.12)'; 
-                            badgeEl.style.opacity='1'; 
-                          } else if (Status==='failed'){ 
-                            badgeEl.textContent='✗'; 
-                            badgeEl.style.background='rgba(239,68,68,0.08)'; 
-                            badgeEl.style.opacity='1'; 
-                          } else if (Status==='skipped'){ 
-                            badgeEl.textContent='-'; 
-                            badgeEl.style.background='rgba(245,158,11,0.06)'; 
-                            badgeEl.style.opacity='1'; 
-                          } 
-                        } 
-                      }catch(e){} 
-                    });
-                    // Don't reset suite badge to unknown when a single test row isn't found (e.g., filtered by tags)
-                    // We rely on suiteEnd to set the final suite badge
+            const sBadge = li.querySelector('.suite-badge');
+            if (Status === 'failed') {
+              if (sBadge) {
+                sBadge.textContent = '✗';
+                sBadge.style.background = 'rgba(239,68,68,0.08)';
+                sBadge.style.opacity = '1';
+                sBadge.dataset.status = 'failed';
+              }
+            } else if (Status === 'passed') {
+              if (sBadge && sBadge.textContent !== '✗' && sBadge.dataset.status !== 'failed') {
+                sBadge.textContent = '✓';
+                sBadge.style.background = 'rgba(16,185,129,0.12)';
+                sBadge.style.opacity = '1';
+                sBadge.dataset.status = 'passed';
+              }
+            } else if (Status === 'skipped') {
+              if (sBadge && sBadge.textContent !== '✗' && sBadge.dataset.status !== 'failed' && sBadge.dataset.status !== 'passed') {
+                sBadge.textContent = '-';
+                sBadge.style.background = 'rgba(245,158,11,0.06)';
+                sBadge.style.opacity = '1';
+                sBadge.dataset.status = 'skipped';
+              }
+            }
+
+            const testsDiv = li.querySelector('.suite-tests');
+            if (testsDiv) {
+              const expandBtnLocal = li.querySelector('button[aria-controls]');
+              const loaded = expandBtnLocal && expandBtnLocal.dataset && expandBtnLocal.dataset.loaded === '1';
+              if (!loaded) {
+                try {
+                  const p = li.getAttribute('data-path') || (li.querySelector('.spec-title') && li.querySelector('.spec-title').textContent) || '';
+                  if (p) {
+                    const arr = pendingTestEvents.get(p) || [];
+                    arr.push({ Name, Status, DurationMs, Messages });
+                    pendingTestEvents.set(p, arr);
                   }
-                }
-              }catch(e){}
-            };
-            
-            // Update suite badges for the current suite and any other suites that contain this test
-            if (currentSuitePath){ 
-              const li = document.querySelector('#suites li[data-path="'+currentSuitePath+'"]'); 
-              if (li) updateBadgeForLi(li); 
+                } catch (e) {}
+              } else {
+                Array.from(testsDiv.children).forEach(cont => {
+                  try {
+                    if (!cont.classList || !cont.classList.contains('suite-test-container')) return;
+                    const rowEl = cont.querySelector('.suite-test-item');
+                    const nmEl = rowEl && rowEl.querySelector('.suite-test-name');
+                    const badgeEl = rowEl && rowEl.querySelector('.suite-test-status');
+                    if (!nmEl || !badgeEl) return;
+                    const rowName = (nmEl.dataset && nmEl.dataset.name) ? nmEl.dataset.name : nmEl.textContent;
+                    if (rowName === Name) {
+                      if (Status === 'passed') {
+                        badgeEl.textContent = '✓';
+                        badgeEl.style.background = 'rgba(16,185,129,0.12)';
+                        badgeEl.style.opacity = '1';
+                      } else if (Status === 'failed') {
+                        badgeEl.textContent = '✗';
+                        badgeEl.style.background = 'rgba(239,68,68,0.08)';
+                        badgeEl.style.opacity = '1';
+                        // ensure collapsible details below the row (even if Messages are empty)
+                        let det = cont.querySelector('details.suite-test-details');
+                        if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); cont.appendChild(det); }
+                        let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block fail'; det.appendChild(pre); }
+                        const txt = (Array.isArray(Messages) && Messages.length) ? Messages.join('\n') : 'No details reported';
+                        pre.textContent = txt;
+                      } else if (Status === 'skipped') {
+                        badgeEl.textContent = '-';
+                        badgeEl.style.background = 'rgba(245,158,11,0.06)';
+                        badgeEl.style.opacity = '1';
+                      }
+                    }
+                  } catch (e) {}
+                });
+              }
             }
-            document.querySelectorAll('#suites li').forEach(li=>{ 
-              try{ 
-                if (li.getAttribute('data-path') === currentSuitePath) return; 
-                const testsDiv = li.querySelector('.suite-tests'); 
-                if (!testsDiv) return; 
-                const found = Array.from(testsDiv.children).some(r=> { const el=r.children && r.children[0]; if(!el) return false; const rn=(el.dataset&&el.dataset.name)?el.dataset.name:el.textContent; return rn===Name; });
-                if (found) { updateBadgeForLi(li); }
-              } catch(e) {} 
-            });
-          } catch(e) {}
-        } // end of if (!document.getElementById('editorModal')) branch
-      } catch(e) {} // end of outer try that wraps UI update logic
-    } // end of `if (type === 'test')` handler
+          } catch (e) {}
+        };
 
-    // Suite-level and batch-level events should be handled at the same level as 'test' (not nested inside it)
-    if (type === 'suiteEnd'){
-      batch.done++; if (batchBar) setBar(batchBar, batch.done, batch.total); if (batchText) batchText.textContent = batch.done + '/' + batch.total;
-      const name = payload.name || payload.path || '';
-      const s = payload.summary || {};
-      const line = `=== ${name} — ${s.passed||0} passed, ${s.failed||0} failed, ${s.skipped||0} skipped, total ${s.total||0} in ${s.durationMs||0} ms`;
-      const div = document.createElement('div'); div.textContent = line; if (results) results.appendChild(div);
-      // Aggregate strictly from suite summary
-      agg.suites++; agg.durationMs += (s.durationMs||0);
-      agg.passed += (s.passed||0); agg.failed += (s.failed||0); agg.skipped += (s.skipped||0); agg.total += (s.total||0);
-      // Update per-test lastStatus if suite provided tests array
-      try{
-        const pth = payload.path || payload.name || currentSuitePath;
-        if (Array.isArray(payload.tests) && pth){
-          const map = lastStatus.get(pth) || new Map();
-          payload.tests.forEach(t=>{ const nm=t.name||t.Name; const st=(t.status||t.Status||'').toLowerCase(); if (nm) map.set(nm, st); });
-          lastStatus.set(pth, map);
+        if (currentSuitePath) {
+          const li = document.querySelector('#suites li[data-path="' + currentSuitePath + '"]');
+          if (li) updateBadgeForLi(li);
         }
-        // Cache last suite summary for editor prepopulation
-        if (pth){
-          lastSuiteSummary.set(pth, { summary: s, tests: Array.isArray(payload.tests)? payload.tests: [] });
-        }
-      }catch(e){}
-      try{
-        let li = null;
-        if (payload.path){ li = document.querySelector('#suites li[data-path="'+payload.path+'"]'); }
-        if (!li && payload.name){
-          // Fallback: locate by suite title text if path is absent or element not found
-          li = Array.from(document.querySelectorAll('#suites li .spec-title')).map(n=> n.closest('li')).find(li0 => (li0.querySelector('.spec-title')||{}).textContent === payload.name) || null;
-        }
-        if (li){ 
-          const sb = li.querySelector('.suite-badge'); 
-          if (sb){ 
-            // Prioritize failed > skipped > passed
-            if ((s.failed||0) > 0 || sb.dataset.status === 'failed'){ 
-              sb.textContent = '✗'; 
-              sb.style.background='rgba(239,68,68,0.08)'; 
-              sb.style.opacity='1'; 
-              sb.dataset.status = 'failed'; 
-            } else if ((s.skipped||0) > 0 && (s.passed||0) === 0) { 
-              // All tests skipped, no passes
-              if (sb.dataset.status !== 'failed') { sb.textContent = '-'; sb.style.background='rgba(245,158,11,0.06)'; sb.style.opacity='1'; sb.dataset.status = 'skipped'; }
-            } else if ((s.passed||0) > 0) { 
-              // Some tests passed (with possible skips)
-              if (sb.dataset.status !== 'failed') { sb.textContent = '✓'; sb.style.background='rgba(16,185,129,0.12)'; sb.style.opacity='1'; sb.dataset.status = 'passed'; }
-            } else {
-              // No tests or unknown state
-              if (sb.dataset.status !== 'failed') { sb.textContent = '·'; sb.style.background=''; sb.style.opacity = '.6'; sb.dataset.status = 'unknown'; }
-            }
-            sb.classList.add('animate'); 
-            setTimeout(()=> sb.classList.remove('animate'), 220); 
-          } 
-        }
-      }catch(e){}
-      scrollBottom();
-    }
 
-    if (type === 'batchEnd'){
-      const div = document.createElement('div'); div.textContent = `=== Batch summary — ${agg.passed} passed, ${agg.failed} failed, ${agg.skipped} skipped, total ${agg.total} in ${agg.durationMs} ms (suites ${agg.suites}/${batch.total}) ===`; if (results) results.appendChild(div);
-      scrollBottom();
-    }
+        document.querySelectorAll('#suites li').forEach(li => {
+          try {
+            if (li.getAttribute('data-path') === currentSuitePath) return;
+            const testsDiv = li.querySelector('.suite-tests');
+            if (!testsDiv) return;
+            const found = Array.from(testsDiv.children).some(r => r.children && r.children[0] && r.children[0].textContent === Name);
+            if (found) updateBadgeForLi(li);
+          } catch (e) {}
+        });
+      }
+    } catch (e) {}
+  }
 
-  if (type === 'error'){ const d = document.createElement('div'); d.className='fail'; d.textContent = 'Error: ' + (payload.error||''); if (results) results.appendChild(d); try{ if (currentSuitePath){ const li = document.querySelector('#suites li[data-path="'+currentSuitePath+'"]'); if (li){ const sb = li.querySelector('.suite-badge'); if (sb){ sb.textContent='✗'; sb.style.background='rgba(239,68,68,0.08)'; sb.style.opacity='1'; sb.dataset.status='failed'; } } } }catch(e){} }
+  function handleSuiteEnd(payload){
+    batch.done++; if (batchBar) setBar(batchBar, batch.done, batch.total); if (batchText) batchText.textContent = batch.done + '/' + batch.total;
+    const name = payload.name || payload.path || '';
+    const s = payload.summary || {};
+    const line = `=== ${name} — ${s.passed||0} passed, ${s.failed||0} failed, ${s.skipped||0} skipped, total ${s.total||0} in ${s.durationMs||0} ms`;
+    const div = document.createElement('div'); div.textContent = line; if (results) results.appendChild(div);
+    agg.suites++; agg.durationMs += (s.durationMs||0);
+    agg.passed += (s.passed||0); agg.failed += (s.failed||0); agg.skipped += (s.skipped||0); agg.total += (s.total||0);
+    try{ const pth = payload.path || payload.name || currentSuitePath;
+      if (Array.isArray(payload.tests) && pth){ const map = lastStatus.get(pth) || new Map(); payload.tests.forEach(t=>{ const nm=t.name||t.Name; const st=(t.status||t.Status||'').toLowerCase(); if (nm) map.set(nm, st); }); lastStatus.set(pth, map); }
+      if (pth){ lastSuiteSummary.set(pth, { summary: s, tests: Array.isArray(payload.tests)? payload.tests: [] }); }
+    }catch(e){}
+    try{ let li = null; if (payload.path){ li = document.querySelector('#suites li[data-path="'+payload.path+'"]'); } if (!li && payload.name){ li = Array.from(document.querySelectorAll('#suites li .spec-title')).map(n=> n.closest('li')).find(li0 => (li0.querySelector('.spec-title')||{}).textContent === payload.name) || null; } if (li){ const sb = li.querySelector('.suite-badge'); if (sb){ if ((s.failed||0) > 0) { sb.textContent = '✗'; sb.style.background = 'rgba(239,68,68,0.08)'; sb.style.opacity = '1'; sb.dataset.status = 'failed'; } else { sb.textContent = '✓'; sb.style.background = 'rgba(16,185,129,0.12)'; sb.style.opacity = '1'; sb.dataset.status = 'passed'; } sb.classList.add('animate'); setTimeout(()=> sb.classList.remove('animate'), 220); } }
+    }catch(e){}
+    scrollBottom();
+  }
 
-    if (type === 'done'){ es.close(); window.lastRunId = id; window.currentRunId = null; }
-      }; // end es.onmessage
+  function handleBatchEnd(payload){ const div = document.createElement('div'); div.textContent = `=== Batch summary — ${agg.passed} passed, ${agg.failed} failed, ${agg.skipped} skipped, total ${agg.total} in ${agg.durationMs} ms (suites ${agg.suites}/${batch.total}) ===`; if (results) results.appendChild(div); scrollBottom(); }
+
+  function handleError(payload){ const d = document.createElement('div'); d.className='fail'; d.textContent = 'Error: ' + (payload.error||''); if (results) results.appendChild(d); try{ if (currentSuitePath){ const li = document.querySelector('#suites li[data-path="'+currentSuitePath+'"]'); if (li){ const sb = li.querySelector('.suite-badge'); if (sb){ sb.textContent='✗'; sb.style.background='rgba(239,68,68,0.08)'; sb.style.opacity='1'; sb.dataset.status='failed'; } } } }catch(e){} }
+
+  function handleDone(payload){ try{ window.lastRunId = id; window.currentRunId = null; }catch(e){} }
+
+  // Prefer the centralized run listener if available
+  let unsub = null;
+  if (window.hydreqRunListener && typeof window.hydreqRunListener.subscribe === 'function'){
+    unsub = window.hydreqRunListener.subscribe(id, {
+      testStart: handleTestStart,
+      batchStart: handleBatchStart,
+      suiteStart: handleSuiteStart,
+      test: handleTest,
+      suiteEnd: handleSuiteEnd,
+      batchEnd: handleBatchEnd,
+      error: handleError,
+      done: (p)=>{ handleDone(p); if (typeof unsub === 'function') try{ unsub(); }catch(e){} }
+    });
+  } else {
+    // Fallback: create EventSource directly
+    const es = new EventSource('/api/stream?runId=' + encodeURIComponent(id));
+    try{ es.onopen = function(){ try{ window.__E2E_ES_OPEN = true; }catch(e){} }; }catch(e){}
+    es.onmessage = async (e)=>{ const ev = JSON.parse(e.data); const type = ev.type; const payload = ev.payload || {}; if (type === 'testStart') try{ handleTestStart(payload); }catch(e){} else if (type === 'batchStart') try{ handleBatchStart(payload); }catch(e){} else if (type === 'suiteStart') try{ await handleSuiteStart(payload); }catch(e){} else if (type === 'test') try{ handleTest(payload); }catch(e){} else if (type === 'suiteEnd') try{ handleSuiteEnd(payload); }catch(e){} else if (type === 'batchEnd') try{ handleBatchEnd(payload); }catch(e){} else if (type === 'error') try{ handleError(payload); }catch(e){} else if (type === 'done') try{ handleDone(payload); es.close(); }catch(e){} };
+  }
 }
 
 // Prompt user to create a new suite
@@ -600,14 +511,28 @@ async function promptNewSuite() {
     return;
   }
 
-  // Check existence via the editor endpoint (returns 200 if exists)
+  // Server-side safety/existence check
+  let exists = false;
   try {
-    const resp = await fetch('/api/editor/suite?path=' + encodeURIComponent(path));
+    const resp = await fetch('/api/editor/checkpath', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ path }) });
     if (resp.ok) {
-      if (!confirm('A suite already exists at ' + path + '. Overwrite?')) return;
+      const info = await resp.json();
+      if (!info.safe) { alert('Proposed path is not allowed by server policy'); return; }
+      exists = !!info.exists;
+    } else {
+      // Fallback: probe GET editor/suite
+      try {
+        const r = await fetch('/api/editor/suite?path=' + encodeURIComponent(path));
+        exists = r.ok;
+      } catch(e){}
     }
-  } catch (e) {
-    // ignore network errors; we'll still open editor for new file
+  } catch(e){
+    // Network issues: probe gentle GET
+    try { const r = await fetch('/api/editor/suite?path=' + encodeURIComponent(path)); exists = r.ok; }catch(e){}
+  }
+
+  if (exists){
+    if (!confirm('A suite already exists at ' + path + '. Overwrite?')) return;
   }
 
   const parsed = {
@@ -620,7 +545,7 @@ async function promptNewSuite() {
   };
 
   try {
-    openEditor(path, parsed);
+    openEditor(path, { parsed: parsed, _new: !exists, exists: exists });
   } catch (e) {
     console.error('openEditor failed', e);
     alert('Failed to open editor: ' + (e && e.message ? e.message : e));
@@ -758,3 +683,89 @@ document.addEventListener('hydreq:tags-changed', ()=>{
     });
   }catch(e){}
 });
+
+/**
+ * Apply any buffered test events for a suite path into the UI (tests list and badges)
+ */
+function flushPendingForPath(pathKey){
+  try{
+    if (!pathKey) return;
+    const events = pendingTestEvents.get(pathKey) || [];
+    if (!events || events.length === 0) return;
+    const li = document.querySelector('#suites li[data-path="'+pathKey+'"]');
+    const testsDiv = li && li.querySelector && li.querySelector('.suite-tests');
+    const sBadge = li && li.querySelector && li.querySelector('.suite-badge');
+    const map = lastStatus.get(pathKey) || new Map();
+
+    events.forEach(ev => {
+      try{
+        const Name = ev.Name || ev.name || '(unnamed)';
+        const Status = (ev.Status || ev.status || '').toLowerCase();
+        const DurationMs = ev.DurationMs || ev.durationMs || 0;
+        const Messages = ev.Messages || ev.messages || [];
+        // Update lastStatus map
+        try{ map.set(Name, Status); }catch(e){}
+
+        // If testsDiv exists, update or insert a row for the test
+        if (testsDiv){
+          // Find or create container and main row
+          let cont = Array.from(testsDiv.children).find(r => { try{ return r.classList && r.classList.contains('suite-test-container') && r.querySelector('.suite-test-name') && (r.querySelector('.suite-test-name').dataset.name === Name); }catch(e){ return false; } });
+          if (!cont){
+            cont = document.createElement('div'); cont.className='suite-test-container';
+            const row = document.createElement('div'); row.className='suite-test-item';
+            const nm = document.createElement('span'); nm.className='suite-test-name'; nm.textContent = Name; nm.title = Name; nm.dataset.name = Name;
+            const badge = document.createElement('span'); badge.className='pill suite-test-status';
+            row.appendChild(nm); row.appendChild(badge); cont.appendChild(row); testsDiv.appendChild(cont);
+          }
+          const row = cont.querySelector('.suite-test-item');
+          const badgeEl = cont.querySelector('.suite-test-status');
+          if (Status === 'passed') { badgeEl.textContent='✓'; badgeEl.style.background='rgba(16,185,129,0.12)'; badgeEl.style.opacity='1'; }
+          else if (Status === 'failed') { badgeEl.textContent='✗'; badgeEl.style.background='rgba(239,68,68,0.08)'; badgeEl.style.opacity='1'; }
+          else if (Status === 'skipped') { badgeEl.textContent='-'; badgeEl.style.background='rgba(245,158,11,0.06)'; badgeEl.style.opacity='1'; }
+          // If failure details are present, ensure a details block exists beneath the row
+          if (Status === 'failed'){
+            let det = cont.querySelector('details.suite-test-details');
+            if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); cont.appendChild(det); }
+            let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block fail'; det.appendChild(pre); }
+            const txt = (Array.isArray(Messages) && Messages.length) ? Messages.join('\n') : 'No details reported';
+            pre.textContent = txt;
+          }
+        }
+      }catch(e){}
+    });
+
+    // persist map back
+    try{ lastStatus.set(pathKey, map); }catch(e){}
+
+    // Update suite badge based on aggregated map
+    try{
+      if (sBadge){
+        const anyFailed = Array.from(map.values()).some(v => v === 'failed');
+        const anyPassed = Array.from(map.values()).some(v => v === 'passed');
+        if (anyFailed){ sBadge.textContent='✗'; sBadge.style.background = 'rgba(239,68,68,0.08)'; sBadge.style.opacity = '1'; sBadge.dataset.status='failed'; }
+        else if (anyPassed){ sBadge.textContent='✓'; sBadge.style.background = 'rgba(16,185,129,0.12)'; sBadge.style.opacity = '1'; sBadge.dataset.status='passed'; }
+        else { sBadge.textContent='-'; sBadge.style.opacity='.6'; sBadge.dataset.status='unknown'; }
+      }
+    }catch(e){}
+
+    // Clear pending events for this path
+    try{ pendingTestEvents.delete(pathKey); }catch(e){}
+  }catch(e){ /* ignore */ }
+}
+
+// Expand a suite in the UI by its canonical path; awaits any expand promise
+async function expandSuiteByPath(pathKey){
+  try{
+    if (!pathKey) return;
+    const li = document.querySelector('#suites li[data-path="'+pathKey+'"]');
+    if (!li) return;
+    const btn = li.querySelector('button[aria-controls]') || li.querySelector('button');
+    if (!btn) return;
+    if (btn.dataset.open === '1') return; // already open
+    // simulate user click to reuse existing handlers and loading behavior
+    try{ btn.click(); }catch(e){}
+    if (btn._expandPromise && typeof btn._expandPromise.then === 'function'){
+      try{ await btn._expandPromise; }catch(e){}
+    }
+  }catch(e){}
+}

@@ -259,8 +259,28 @@ a { color: var(--link); }
 #suites li .suite-actions { margin-left: auto; display: flex; gap: 6px; }
 
 /* Editor tests list item styling and selection highlight */
+.ed-test-container { margin-bottom: 2px; }
 .ed-test-item { display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-radius:6px; cursor:pointer; }
 .ed-test-item:not(.selected):hover { background: var(--li-hov); }
+.ed-test-details { padding: 0 8px 6px 24px; font-size: 0.9em; }
+.ed-test-details > summary, .ed-msg-details > summary { cursor: pointer; opacity: .85; font-size: 12px; margin: 2px 0 4px; }
+.ed-test-messages { margin: 0; padding: 6px; border-radius: 4px; background-color: var(--bg-subtle); white-space: pre-wrap; overflow-wrap: break-word; max-height: 150px; overflow-y: auto; }
+.ed-test-messages.fail { background-color: var(--bg-err); color: var(--err); }
+
+/* Suites list: test rows and details beneath */
+.suite-test-container { margin: 2px 0; }
+.suite-test-item { display:flex; justify-content:space-between; align-items:center; padding:4px 6px; border-radius:6px; }
+.suite-test-item:hover { background: var(--li-hov); }
+.suite-test-name { display:inline-flex; align-items:baseline; gap:6px; }
+.suite-test-status { margin-left: 6px; }
+.suite-test-details { padding: 0 6px 8px 24px; }
+.suite-test-details > summary { cursor: pointer; opacity: .9; font-size: 12px; margin: 2px 0 4px; color: var(--error); }
+
+/* Unified message block styling for both editor and suites */
+.message-block { margin: 4px 0 0; padding: 8px; border-radius: 6px; background: var(--bg-subtle); color: inherit; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; border: 1px solid var(--bd); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 1.4; }
+.message-block.fail { background: rgba(239,68,68,0.08); color: var(--error); border-color: rgba(239,68,68,0.28); }
+.message-block.ok { background: rgba(16,185,129,0.08); color: var(--success); border-color: rgba(16,185,129,0.28); }
+.message-block.skip { background: rgba(245,158,11,0.08); color: var(--warning); border-color: rgba(245,158,11,0.28); }
 .ed-test-item.selected {
   background: var(--li-sel);
   border: 1px solid var(--bd);

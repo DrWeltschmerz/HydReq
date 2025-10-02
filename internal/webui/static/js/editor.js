@@ -333,6 +333,11 @@ function renderTests() {
   if (!working.tests || !Array.isArray(working.tests)) return;
 
   working.tests.forEach((test, index) => {
+    // Create a container for the test item and its details
+    const testContainer = document.createElement('div');
+    testContainer.className = 'ed-test-container';
+    
+    // Create the main test item row
     const testDiv = document.createElement('div');
     testDiv.className = 'ed-test-item';
     testDiv.dataset.index = String(index);
@@ -401,8 +406,21 @@ function renderTests() {
     if (statusBadge) right.appendChild(statusBadge);
     right.appendChild(del);
     testDiv.appendChild(right);
+    
+    // Add the main row to the container
+    testContainer.appendChild(testDiv);
+    
+    // Check if we need to add collapsible details row
+    if (result && result.status && result.status === 'failed' && result.messages && result.messages.length) {
+      const details = document.createElement('details');
+      details.className = 'ed-test-details';
+      const sum = document.createElement('summary'); sum.textContent = 'details'; details.appendChild(sum);
+      const pre = document.createElement('pre'); pre.className = 'message-block fail'; pre.textContent = result.messages.join('\n');
+      details.appendChild(pre);
+      testContainer.appendChild(details);
+    }
 
-    testsEl.appendChild(testDiv);
+    testsEl.appendChild(testContainer);
   });
 }
 
@@ -850,7 +868,7 @@ function hookList(container, hooks, options, onChange){
       let res; try { res = await fetch('/api/editor/hookrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working, scope, testIndex: selIndex, hook: payload, env })}); } catch(e){ out.textContent = 'Network error'; return; }
       if (!res.ok){ const t=await res.text().catch(()=> ''); out.textContent = 'Run failed: ' + t; return; }
       const r = await res.json(); const icon = r.status==='passed'?'✓':(r.status==='failed'?'✗':'-'); const hdr = document.createElement('div'); hdr.style.fontWeight='600'; hdr.textContent = `${icon} hook ${r.name||''} (${r.durationMs||0} ms)`; out.innerHTML=''; out.appendChild(hdr);
-      if (Array.isArray(r.messages) && r.messages.length){ const pre=document.createElement('pre'); pre.className = (r.status==='failed'?'fail':(r.status==='skipped'?'skip':'ok')); pre.textContent = r.messages.join('\n'); out.appendChild(pre); }
+  if (Array.isArray(r.messages) && r.messages.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (r.status==='failed'?'fail':(r.status==='skipped'?'skip':'ok')); pre.textContent = r.messages.join('\n'); det.appendChild(pre); out.appendChild(det); }
       if (r.vars && Object.keys(r.vars).length){ const det=document.createElement('details'); const sum=document.createElement('summary'); sum.textContent='vars'; det.appendChild(sum); const pre=document.createElement('pre'); pre.textContent = JSON.stringify(r.vars,null,2); det.appendChild(pre); out.appendChild(det); }
     };
     // getter
@@ -1647,8 +1665,7 @@ function openEditor(path, data){
         const icon=s==='passed'?'✓':(s==='failed'?'✗':(s==='skipped'?'○':'·'));
         appendQuickRunLine(`${icon} ${nm}${tr.durationMs?` (${tr.durationMs}ms)`:''}`, s==='passed'?'text-success':(s==='failed'?'text-error':'text-warning'));
         if (Array.isArray(tr.messages) && tr.messages.length){
-          const pre=document.createElement('pre'); pre.className=(s==='failed'?'fail':(s==='skipped'?'skip':'ok'));
-          pre.textContent=tr.messages.join('\n'); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(pre);
+          const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = tr.messages.join('\n'); det.appendChild(pre); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(det);
         }
         return;
       }
@@ -1674,7 +1691,7 @@ function openEditor(path, data){
         const icon=s==='passed'?'✓':(s==='failed'?'✗':(s==='skipped'?'○':'·'));
         appendQuickRunLine(`${icon} ${nm}${sr.durationMs?` (${sr.durationMs}ms)`:''}`, s==='passed'?'text-success':(s==='failed'?'text-error':'text-warning'));
         if (Array.isArray(sr.messages) && sr.messages.length){
-          const pre=document.createElement('pre'); pre.className=(s==='failed'?'fail':(s==='skipped'?'skip':'ok'));
+          const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className='message-block ' + (s==='failed'?'fail':(s==='skipped'?'skip':'ok'));
           pre.textContent=sr.messages.join('\n'); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(pre);
         }
         return;
@@ -1687,7 +1704,22 @@ function openEditor(path, data){
   try{ window.__ed_renderQuickRunForSelection = renderQuickRunForSelection; }catch(e){}
   function updateSuiteBadgeUI(path, status){ try{ if (!path) return; const li = document.querySelector('#suites li[data-path="'+path+'"]'); if (!li) return; const sb = li.querySelector('.suite-badge'); if (!sb) return; if (status==='failed'){ sb.textContent='✗'; sb.style.background='rgba(239,68,68,0.08)'; sb.style.opacity='1'; sb.dataset.status='failed'; } else if (status==='passed'){ if (sb.dataset.status!=='failed'){ sb.textContent='✓'; sb.style.background='rgba(16,185,129,0.12)'; sb.style.opacity='1'; sb.dataset.status='passed'; } } else if (status==='skipped'){ if (sb.dataset.status!=='failed' && sb.dataset.status!=='passed'){ sb.textContent='-'; sb.style.background='rgba(245,158,11,0.06)'; sb.style.opacity='1'; sb.dataset.status='skipped'; } } }catch(e){} }
   function getTestIndexByName(name){ if (!name) return -1; if (!Array.isArray(working.tests)) return -1; for (let i=0;i<working.tests.length;i++){ if ((working.tests[i].name||'') === name) return i; } return -1; }
-  function updateTestBadgeByIndex(idx, status){ try{ if (idx<0) return; const t = (working.tests && working.tests[idx]) || {}; const key = idx + ':' + (t.name||('test '+(idx+1))); testRunCache.set(key, { status: status, name: t.name }); try{ localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); }catch{} renderTests(); }catch(e){} }
+  function updateTestBadgeByIndex(idx, status, messages){ 
+    try{ 
+      if (idx<0) return; 
+      const t = (working.tests && working.tests[idx]) || {}; 
+      const key = idx + ':' + (t.name||('test '+(idx+1))); 
+      testRunCache.set(key, { 
+        status: status, 
+        name: t.name,
+        messages: messages || []
+      }); 
+      try{ 
+        localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); 
+      }catch{} 
+      renderTests(); 
+    }catch(e){} 
+  }
   function updateBadgesFromSuiteResult(res){
     try{
       if (!res) return;
@@ -1698,7 +1730,7 @@ function openEditor(path, data){
           const dur = c.DurationMs || c.durationMs || 0;
           const msgs = c.Messages || c.messages || [];
           const idx = getTestIndexByName(nm);
-          if (idx>=0) updateTestBadgeByIndex(idx, st);
+          if (idx>=0) updateTestBadgeByIndex(idx, st, msgs);
           // persist per-test record for freshness
           setTestRecord(nm, st, dur, Array.isArray(msgs)? msgs: []);
           // propagate to suites list if available
@@ -1706,7 +1738,7 @@ function openEditor(path, data){
         });
       } else if (res.name && res.status){
         const idx = getTestIndexByName(res.name);
-        if (idx>=0) updateTestBadgeByIndex(idx, (res.status||'').toLowerCase());
+        if (idx>=0) updateTestBadgeByIndex(idx, (res.status||'').toLowerCase(), res.messages || []);
         const st = (res.status||'').toLowerCase();
         setTestRecord(res.name, st, res.durationMs||0, res.messages||[]);
         try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, res.name, st); }catch{}
@@ -1714,8 +1746,8 @@ function openEditor(path, data){
     }catch(e){}
   }
   function renderImmediateRunResult(res, label){ const details = modal.querySelector('#ed_quickrun_box'); if (details) details.open = true; const s = (res.status||'').toLowerCase(); if (res.name){ const icon = s==='passed'?'✓':(s==='failed'?'✗':(s==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${res.name}${res.durationMs?` (${res.durationMs}ms)`:''}`, s==='passed'?'text-success':(s==='failed'?'text-error':'text-warning')); }
-    if (Array.isArray(res.messages) && res.messages.length){ const pre=document.createElement('pre'); pre.className = (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = res.messages.join('\n'); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(pre); }
-    if (Array.isArray(res.cases) && res.cases.length){ res.cases.forEach(c=>{ const cs=(c.Status||'').toLowerCase(); const icon = cs==='passed'?'✓':(cs==='failed'?'✗':(cs==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${c.Name}${c.DurationMs?` (${c.DurationMs}ms)`:''}`, cs==='passed'?'text-success':(cs==='failed'?'text-error':'text-warning')); if (Array.isArray(c.Messages) && c.Messages?.length){ const pre=document.createElement('pre'); pre.className = (cs==='failed'?'fail':(cs==='skipped'?'skip':'ok')); pre.textContent = c.Messages.join('\n'); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(pre); } }); }
+  if (Array.isArray(res.messages) && res.messages.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = res.messages.join('\n'); det.appendChild(pre); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(det); }
+  if (Array.isArray(res.cases) && res.cases.length){ res.cases.forEach(c=>{ const cs=(c.Status||'').toLowerCase(); const icon = cs==='passed'?'✓':(cs==='failed'?'✗':(cs==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${c.Name}${c.DurationMs?` (${c.DurationMs}ms)`:''}`, cs==='passed'?'text-success':(cs==='failed'?'text-error':'text-warning')); if (Array.isArray(c.Messages) && c.Messages?.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (cs==='failed'?'fail':(cs==='skipped'?'skip':'ok')); pre.textContent = c.Messages.join('\n'); det.appendChild(pre); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(det); } }); }
   }
   function renderIssues(issues, yamlPreview){
     const issuesEl = modal.querySelector('#ed_issues'); if (!issuesEl) return;
@@ -1751,7 +1783,7 @@ function openEditor(path, data){
         const status = (data.status||'').toLowerCase();
         const name = data.name || (working.tests[selIndex].name || `test ${selIndex+1}`);
         setTestRecord(name, status, data.durationMs||0, data.messages||[]);
-        updateTestBadgeByIndex(selIndex, status);
+        updateTestBadgeByIndex(selIndex, status, data.messages || []);
         // propagate to suites list and suite badge
         try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, name, status); }catch{}
         try{ setSuiteRecord(status, data.durationMs||0, data.messages||[]); }catch{}
@@ -1777,17 +1809,37 @@ function openEditor(path, data){
           const line = document.createElement('div'); line.textContent = `${icon} ${name}${dur?` (${dur}ms)`:''}`;
           if (s==='passed') line.className='text-success'; else if (s==='failed') line.className='text-error'; else if (s==='skipped') line.className='text-warning';
           quickRunBox.appendChild(line); quickRunBox.scrollTop = quickRunBox.scrollHeight;
-          try{ const idx = getTestIndexByName(name); setTestRecord(name, s, dur||0, payload.Messages||[]); if (idx>=0) updateTestBadgeByIndex(idx, s); else { const key = cacheKey(); testRunCache.set(key, { status: s, name }); localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); } }catch{}
+          try{ 
+            const idx = getTestIndexByName(name); 
+            const messages = payload.Messages || [];
+            setTestRecord(name, s, dur||0, messages); 
+            if (idx>=0) {
+              updateTestBadgeByIndex(idx, s, messages);
+            } else { 
+              const key = cacheKey(); 
+              testRunCache.set(key, { status: s, name, messages }); 
+              localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); 
+            } 
+          }catch{}
           // propagate to suites list
           try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, name, s); }catch{}
-          if (Array.isArray(payload.Messages) && payload.Messages.length){ const pre=document.createElement('pre'); pre.className = (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = payload.Messages.join('\n'); quickRunBox.appendChild(pre); }
+          if (Array.isArray(payload.Messages) && payload.Messages.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = payload.Messages.join('\n'); det.appendChild(pre); quickRunBox.appendChild(det); }
         } else if (type === 'suiteEnd'){
           const s = payload.summary || {};
           appendQuickRunLine(`=== ${payload.name || payload.path || 'suite'} — ${(s.passed||0)} passed, ${(s.failed||0)} failed, ${(s.skipped||0)} skipped, total ${(s.total||0)} in ${(s.durationMs||0)} ms`);
           const st = ((s.failed||0)>0)? 'failed' : (((s.passed||0)>0)? 'passed' : (((s.skipped||0)>0)? 'skipped' : 'unknown'));
           setSuiteRecord(st, s.durationMs||0, []);
           // We may not get individual test events; try to update badges from payload if available
-          try{ if (Array.isArray(payload.tests)){ payload.tests.forEach(t=>{ const idx=getTestIndexByName(t.name||t.Name); const st=(t.status||t.Status||'').toLowerCase(); if (idx>=0) updateTestBadgeByIndex(idx, st); }); } }catch{}
+          try{ 
+            if (Array.isArray(payload.tests)){ 
+              payload.tests.forEach(t=>{ 
+                const idx=getTestIndexByName(t.name||t.Name); 
+                const st=(t.status||t.Status||'').toLowerCase(); 
+                const msgs = t.messages || t.Messages || [];
+                if (idx>=0) updateTestBadgeByIndex(idx, st, msgs); 
+              }); 
+            } 
+          }catch{}
         } else if (type === 'error'){
           appendQuickRunLine('Error: '+(payload.error||''), 'text-error');
           setSuiteRecord('failed', 0, [payload.error||'']);
@@ -1827,19 +1879,41 @@ function openEditor(path, data){
   const copyIssuesBtn = modal.querySelector('#ed_copy_issues');
   if (copyIssuesBtn){ copyIssuesBtn.onclick = async ()=>{ try{ const el = modal.querySelector('#ed_issues'); const txt = el? el.innerText : ''; await navigator.clipboard.writeText(txt); copyIssuesBtn.textContent='Copied'; setTimeout(()=> copyIssuesBtn.textContent='Copy', 1200); }catch(e){ console.error('Copy failed', e); } }; }
   
+  // At top of openEditor() after computing working and modal existence
+  const isNewFile = !!(data && data._new);
+  try{ const bannerWrap = modal.querySelector('#ed_new_banner'); if (isNewFile && !bannerWrap){ const b = document.createElement('div'); b.id='ed_new_banner'; b.className='pill'; b.style.background='#eef6ff'; b.style.color='#0369a1'; b.style.marginRight='8px'; b.textContent = 'New suite (will create file at ' + path + ')'; const headerLeft = modal.querySelector('.ed-header-left'); if (headerLeft) headerLeft.insertBefore(b, headerLeft.firstChild); } }catch(e){}
+  try{ const saveBtn = modal.querySelector('#ed_save'); const saveCloseBtn = modal.querySelector('#ed_save_close'); if (isNewFile){ if (saveBtn) saveBtn.textContent = 'Create'; if (saveCloseBtn) saveCloseBtn.textContent = 'Create & Close'; modal.dataset.isNew = '1'; } else { modal.dataset.isNew = '0'; } }catch{}
+
+  // Enhanced save handler: validate and re-check existence before saving
   modal.querySelector('#ed_save').onclick = async ()=>{ 
     try {
       collectFormData();
       const yamlData = await serializeWorkingToYamlImmediate();
-      
+
+      // Re-check path existence to guard against race conditions
+      try{
+        const ck = await fetch('/api/editor/checkpath', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ path }) });
+        if (ck.ok){ const info = await ck.json(); if (info.exists && modal.dataset.isNew === '1'){
+            if (!confirm('File was created on disk since you opened the editor. Overwrite?')) return; // abort save
+        } }
+      }catch(e){}
+
+      // Validate before saving; surface warnings/errors
+      try{
+        const valRes = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ raw: yamlData }) });
+        if (valRes.ok){ const v = await valRes.json(); const issues = v.issues || v.errors || [];
+          if (Array.isArray(issues) && issues.length){
+            const txt = issues.slice(0,8).map(i=>i.message||JSON.stringify(i)).join('\n');
+            if (!confirm('Validation returned issues:\n' + txt + '\n\nProceed and save anyway?')) return;
+          }
+        }
+      }catch(e){ /* validation failed to run; allow save but warn */ if(!confirm('Validation failed to run. Proceed to save?')) return; }
+
       // Send to save endpoint
       const response = await fetch('/api/editor/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          path: path,
-          content: yamlData
-        })
+        body: JSON.stringify({ path: path, content: yamlData })
       });
       
       if (response.ok) {
@@ -1847,6 +1921,11 @@ function openEditor(path, data){
         // Update baseline to latest YAML and recompute dirty
         baselineYaml = yamlData || '';
         markDirty();
+        // If this was a new file, update UI state so subsequent saves are normal
+        if (modal.dataset.isNew === '1'){
+          modal.dataset.isNew = '0';
+          if (saveBtn) saveBtn.textContent = 'Save'; if (saveCloseBtn) saveCloseBtn.textContent = 'Save & Close';
+        }
       } else {
         const error = await response.text();
         alert('✗ Save failed: ' + error);
@@ -1857,11 +1936,10 @@ function openEditor(path, data){
     }
   };
   
+  // Save & Close also respects new-mode
   modal.querySelector('#ed_save_close').onclick = async ()=>{ 
     try {
-      // Save first
       await modal.querySelector('#ed_save').onclick();
-      // Then close if save succeeded
       if (!dirty) {
         attemptClose();
       }
@@ -1903,7 +1981,7 @@ function openEditor(path, data){
         if (!st) return;
         setTestRecord(nm, st, 0, []);
         const idx = getTestIndexByName(nm);
-        if (idx>=0) updateTestBadgeByIndex(idx, st);
+        if (idx>=0) updateTestBadgeByIndex(idx, st, []);
       });
       // Suite-level record based on summary or badge
       if (summary && summary.summary){
