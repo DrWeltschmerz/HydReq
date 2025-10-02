@@ -2,11 +2,27 @@
 
 ## v0.3.7-beta (Unreleased)
 
+Features
+- **Official Docker image**: Lightweight multi-architecture Docker image (~30MB) published to GitHub Container Registry (ghcr.io/drweltschmerz/hydreq)
+  - Multi-stage build with Alpine Linux base for minimal footprint
+  - Supports linux/amd64 and linux/arm64 architectures
+  - Runs as non-root user for security
+  - Automated builds via GitHub Actions on push to main and release tags
+  - Semantic versioning tags (latest, v1, v1.2, v1.2.3)
+
+Documentation
+- Added comprehensive Docker documentation (`docs/docker.md`) with quick start, configuration, CI/CD integration examples (GitHub Actions, GitLab CI, Jenkins), and troubleshooting
+- Added `docker-compose.example.yml` with ready-to-use example configuration
+- Updated `README.md`, `docs/getting-started.md`, and `docs/README.md` with Docker installation instructions and usage examples
+
 Fixes
 - Fixed Windows file path handling: schema compilation now properly converts Windows paths (e.g., `C:\path\to\file`) to valid file:// URLs (`file:///C:/path/to/file`) to prevent "invalid port" errors.
 - Changed server binding from `0.0.0.0:8787` to `localhost:8787` for better cross-platform compatibility and easier browser access.
 
 Technical
+- Added `Dockerfile` with multi-stage build (golang:1.25 builder, alpine:3.21 runtime)
+- Added `.dockerignore` for optimized Docker build context
+- Added `.github/workflows/docker.yml` for automated multi-architecture Docker builds and publishing
 - Added `PathToFileURL` helper function in `internal/validate` package to handle cross-platform file URL conversion following RFC 8089.
 - Updated schema compilation in `internal/webui`, `cmd/validate`, and `cmd/hydreq` to use the new helper function.
 
