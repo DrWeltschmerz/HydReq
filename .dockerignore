@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+.github
+
+# Build artifacts
+bin/
+dist/
+*.out
+*.log
+
+# Reports and test results
+reports/
+*.report.json
+*.report.xml
+report.json
+report.xml
+report-debug.html
+test-results/
+playwright-report/
+
+# Databases and temp files
+qa.sqlite
+*.sqlite
+*.db
+*.tmp
+
+# IDE/editor
+.vscode/
+.idea/
+*.bak*
+
+# Local environment files
+.env
+
+# Node modules (for Playwright tests)
+node_modules/
+test/e2e/node_modules/
+
+# Documentation that's not needed in the image
+docs/
+Summary of findings.md
+CHANGELOG.md
+index-old.html
+
+# Development scripts (keep scripts/ that might be useful)
+test/
+
+# Docker files themselves
+Dockerfile*
+docker-compose*.yml
+.dockerignore

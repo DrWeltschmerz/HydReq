@@ -57,6 +57,7 @@
   - [Copilot and editor support](#copilot-and-editor-support)
   - [Data generators](#data-generators)
   - [Features](#features)
+  - [Docker usage](#docker-usage)
   - [Adapters (import)](#adapters-import)
   - [Reports](#reports)
   - [Batch run and summaries](#batch-run-and-summaries)
@@ -95,8 +96,20 @@
 
 ### Install
 
-- Prebuilt binaries (recommended): download from Releases. Archives include examples (`testdata/`), JSON schema, VS Code mappings, and Copilot prompts.
-- From source:
+- **Prebuilt binaries (recommended):** Download from [Releases](https://github.com/DrWeltschmerz/HydReq/releases). Archives include examples (`testdata/`), JSON schema, VS Code mappings, and Copilot prompts.
+- **Docker:**
+  ```bash
+  # Run the Web UI
+  docker run -p 8787:8787 ghcr.io/drweltschmerz/hydreq:latest
+  
+  # Run tests from a local directory
+  docker run -v $(pwd)/testdata:/testdata ghcr.io/drweltschmerz/hydreq:latest run -f /testdata/example.yaml -v
+  
+  # Run all tests in a directory
+  docker run -v $(pwd)/testdata:/testdata -v $(pwd)/reports:/reports \
+    ghcr.io/drweltschmerz/hydreq:latest run --report-dir /reports
+  ```
+- **From source:**
   - `go install github.com/DrWeltschmerz/HydReq/cmd/hydreq@latest`
   - or `go build -o bin/hydreq ./cmd/hydreq`
 
@@ -219,6 +232,76 @@ Embed dynamic data anywhere interpolation works:
 | 📊 Matrix Expansion | Data-driven test combinations |
 | 🪝 Hooks | Pre/post suite/test with HTTP, SQL, and JavaScript execution |
 | 📋 Reports | JSON, JUnit, HTML with summaries and details |
+
+
+### Docker Usage
+
+HydReq provides an official lightweight Docker image for easy deployment and CI/CD integration.
+
+#### Quick Start
+
+**Run the Web UI:**
+```bash
+docker run -p 8787:8787 ghcr.io/drweltschmerz/hydreq:latest
+# Then open http://localhost:8787 in your browser
+```
+
+**Run CLI tests:**
+```bash
+# Run a single suite
+docker run -v $(pwd)/testdata:/testdata \
+  ghcr.io/drweltschmerz/hydreq:latest \
+  run -f /testdata/example.yaml -v
+
+# Run all suites with reports
+docker run -v $(pwd)/testdata:/testdata \
+           -v $(pwd)/reports:/reports \
+  ghcr.io/drweltschmerz/hydreq:latest \
+  run --workers 4 --report-dir /reports
+```
+
+#### Environment Variables
+
+Pass environment variables to tests:
+```bash
+docker run -p 8787:8787 \
+  -e HTTPBIN_BASE_URL=http://api.example.com \
+  -e DEMO_BEARER=your-token \
+  ghcr.io/drweltschmerz/hydreq:latest
+```
+
+#### Available Tags
+
+- `latest` — Latest stable release from main branch
+- `v1.2.3` — Specific version
+- `v1.2` — Latest patch version
+- `v1` — Latest minor version
+- `main` — Latest commit from main branch (development)
+
+#### Image Details
+
+- **Base:** Alpine Linux (minimal footprint)
+- **Size:** ~30MB compressed
+- **Architectures:** `linux/amd64`, `linux/arm64`
+- **User:** Runs as non-root user `hydreq` (UID 1000)
+- **Port:** 8787 (Web UI)
+
+#### CI/CD Integration
+
+Use in GitHub Actions:
+```yaml
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run API tests
+        run: |
+          docker run -v $(pwd)/testdata:/testdata \
+                     -v $(pwd)/reports:/reports \
+            ghcr.io/drweltschmerz/hydreq:latest \
+            run --report-dir /reports
+```
 
 
 ### Adapters (import)
