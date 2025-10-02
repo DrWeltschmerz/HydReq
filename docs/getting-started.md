@@ -3,10 +3,31 @@
 HydReq is a lightweight API test runner with a Web UI and CLI. Author tests in YAML and run them locally or in CI.
 
 ## Install
-- Download a prebuilt binary from Releases and unzip, or
-- Build from source:
-  - `go install github.com/DrWeltschmerz/HydReq/cmd/hydreq@latest`
-  - or `go build -o bin/hydreq ./cmd/hydreq`
+
+Choose one of the following methods:
+
+### 1. Docker (Recommended for quick start)
+```bash
+# Run the Web UI
+docker run -p 8787:8787 ghcr.io/drweltschmerz/hydreq:latest
+
+# Run tests
+docker run -v $(pwd)/testdata:/testdata \
+  ghcr.io/drweltschmerz/hydreq:latest \
+  run -f /testdata/example.yaml -v
+```
+
+See [Docker documentation](docker.md) for more details.
+
+### 2. Prebuilt Binaries
+- Download from [Releases](https://github.com/DrWeltschmerz/HydReq/releases) and unzip
+
+### 3. From Source
+```bash
+go install github.com/DrWeltschmerz/HydReq/cmd/hydreq@latest
+# or
+go build -o bin/hydreq ./cmd/hydreq
+```
 
 ## Quick start (GUI)
 1) Run `hydreq` with no args.

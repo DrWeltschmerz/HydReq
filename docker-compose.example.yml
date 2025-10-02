@@ -1,0 +1,44 @@
+# Example docker-compose configuration for running HydReq
+# This file demonstrates how to use HydReq with Docker Compose
+
+version: '3.8'
+
+services:
+  # HydReq service with Web UI
+  hydreq:
+    image: ghcr.io/drweltschmerz/hydreq:latest
+    ports:
+      - "8787:8787"
+    volumes:
+      # Mount your test suites (read-only)
+      - ./testdata:/testdata:ro
+      # Mount reports directory (read-write)
+      - ./reports:/reports
+    environment:
+      # Example environment variables for your tests
+      - HTTPBIN_BASE_URL=http://httpbin:80
+      - DEMO_BEARER=demo-token
+      # Add your own variables here
+      # - API_KEY=your-key
+      # - BASE_URL=https://api.example.com
+    depends_on:
+      - httpbin
+    # Uncomment to run CLI tests instead of GUI:
+    # command: run --workers 4 --report-dir /reports
+
+  # Example test service: httpbin
+  httpbin:
+    image: kennethreitz/httpbin
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/ip"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+# Usage:
+# 1. Start services: docker-compose up
+# 2. Open Web UI: http://localhost:8787
+# 3. View httpbin: http://localhost:8080
+# 4. Stop services: docker-compose down
