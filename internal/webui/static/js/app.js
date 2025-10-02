@@ -115,8 +115,8 @@ function initApp(){
     // Broadcast to any listeners (suites/test chips)
     try{ document.dispatchEvent(new CustomEvent('hydreq:tags-changed')); }catch{}
   }
-  window.getSelectedTags = function(){ return readTagState().selected; };
-  window.setSelectedTags = function(arr){
+  if (!window.getSelectedTags) window.getSelectedTags = function(){ return readTagState().selected; };
+  if (!window.setSelectedTags) window.setSelectedTags = function(arr){
     const st = readTagState();
     const uniq = Array.from(new Set((arr||[]).filter(Boolean)));
     writeTagState(st.list, uniq);
@@ -125,7 +125,7 @@ function initApp(){
     // Rebuild rows/checkboxes if the helper is available
     try{ typeof __hydreq_syncTagRows === 'function' ? __hydreq_syncTagRows() : (window.__hydreq_syncTagRows && window.__hydreq_syncTagRows()); }catch{}
   };
-  window.toggleSelectedTag = function(tag){
+  if (!window.toggleSelectedTag) window.toggleSelectedTag = function(tag){
     if (!tag) return;
     const st = readTagState();
     const s = new Set(st.selected);
