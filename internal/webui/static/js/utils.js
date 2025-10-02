@@ -32,9 +32,23 @@ function parseEnv(){
 // Render active environment variables as pills
 function renderActiveEnv(env){
   const envActive = document.getElementById('env_active');
-  if (!envActive) return;
-  envActive.innerHTML='';
-  Object.keys(env).forEach(k=>{ const b=document.createElement('span'); b.className='pill'; b.textContent=k; envActive.appendChild(b); });
+  if (envActive){
+    envActive.innerHTML='';
+    Object.keys(env).forEach(k=>{ const b=document.createElement('span'); b.className='pill'; b.textContent=k; envActive.appendChild(b); });
+  }
+  // Also mirror into header next to Batch progress
+  const topWrap = document.getElementById('activeEnvTopWrap');
+  const top = document.getElementById('activeEnvTop');
+  if (topWrap && top){
+    top.innerHTML='';
+    const keys = Object.keys(env);
+    if (keys.length){
+      topWrap.classList.remove('invisible');
+      keys.slice(0,12).forEach(k=>{ const b=document.createElement('span'); b.className='pill'; b.textContent=k; b.style.fontSize='10px'; top.appendChild(b); });
+    } else {
+      topWrap.classList.add('invisible');
+    }
+  }
 }
 
 // Debounce function for delaying execution

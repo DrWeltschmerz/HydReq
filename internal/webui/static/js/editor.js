@@ -4,93 +4,29 @@
 (function() {
   const style = document.createElement('style');
   style.textContent = `
-    .ed-main {
-      display: flex;
-      flex-direction: row;
-      height: calc(100vh - 60px);
-      overflow: hidden;
-    }
-    .ed-col {
-      display: flex;
-      flex-direction: column;
-      border-right: 1px solid var(--bd);
-      box-sizing: border-box;
-      min-width: 240px;
-      max-width: none;
-      transition: width 0.2s ease, flex-basis 0.2s ease;
-      overflow: hidden;
-        // Only include auth if any value is provided
-        const includePrevStages = !!(modal.querySelector('#ed_run_with_prevstages')?.checked);
-    .ed-col.collapsed {
-      flex: 0 0 40px !important;
-      min-width: 40px;
-      max-width: 40px;
-    }
-    .ed-col-content {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      overflow: auto;
-      box-sizing: border-box;
-    }
-    .ed-col-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px;
-      border-bottom: 1px solid var(--bd);
-      background-color: var(--surface);
-      box-sizing: border-box;
-    }
-    /* Collapsed header presentation: stack vertical title and keep collapse button visible */
-    .ed-col.collapsed .ed-col-header {
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      border-bottom: none;
-      height: 100%;
-      padding: 6px 4px;
-      cursor: default;
-    }
+    .ed-main { display: flex; flex-direction: row; height: calc(100vh - 60px); overflow: hidden; }
+    .ed-col { display: flex; flex-direction: column; border-right: 1px solid var(--bd); box-sizing: border-box; min-width: 240px; max-width: none; transition: width 0.2s ease, flex-basis 0.2s ease; overflow: hidden; }
+    .ed-col.collapsed { flex: 0 0 40px !important; min-width: 40px; max-width: 40px; }
+    .ed-col-content { display: flex; flex-direction: column; flex: 1; overflow: auto; box-sizing: border-box; }
+    .ed-col-header { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid var(--bd); background-color: var(--surface); box-sizing: border-box; }
+    .ed-col.collapsed .ed-col-header { flex-direction: column; align-items: center; justify-content: center; gap: 6px; border-bottom: none; height: 100%; padding: 6px 4px; cursor: default; }
     .ed-col.collapsed .ed-col-header .btn { padding: 2px 4px; }
-    .ed-col.collapsed .ed-col-header .fw-600 {
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      transform: rotate(180deg);
-      text-align: center;
-    }
-    /* Hide extra action controls in collapsed mode, keep the collapse button visible */
+    .ed-col.collapsed .ed-col-header .fw-600 { writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg); text-align: center; }
     .ed-col.collapsed .ed-col-header .ed-row-6 > :not(.ed-collapse-btn) { display: none; }
     .ed-col.collapsed .ed-col-header .ed-row-6 .ed-collapse-btn { display: inline-flex; }
     .ed-col.collapsed .ed-col-content { display: none; }
-    .ed-col.collapsed .ed-col-content {
-      display: none;
-    }
-  /* Column sizing: tests fixed; others flex to fill remaining space */
-  #col-tests { flex: 0 0 280px; min-width: 240px; }
-  #col-visual { flex: 2 1 500px; min-width: 0; }
-  #col-yaml { flex: 1 1 400px; min-width: 0; }
-  #col-results { flex: 1 1 400px; min-width: 0; }
-  /* When tests column is collapsed, override its fixed/min width */
-  #col-tests.collapsed { flex: 0 0 40px !important; min-width: 40px !important; max-width: 40px !important; }
-  /* When some columns are collapsed, remaining flexible columns stretch automatically due to flex settings above */
-    .ed-yaml-header {
-      padding: 8px;
-      background-color: var(--surface);
-      border-bottom: 1px solid var(--bd);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .ed-yaml-body {
-      flex: 1;
-      overflow: auto;
-    }
+    /* Column sizing: tests fixed; others flex to fill remaining space */
+    #col-tests { flex: 0 0 280px; min-width: 240px; }
+    #col-visual { flex: 2 1 500px; min-width: 0; }
+    #col-yaml { flex: 1 1 400px; min-width: 0; }
+    #col-results { flex: 1 1 400px; min-width: 0; }
+    /* When tests column is collapsed, override its fixed/min width */
+    #col-tests.collapsed { flex: 0 0 40px !important; min-width: 40px !important; max-width: 40px !important; }
+    .ed-yaml-header { padding: 8px; background-color: var(--surface); border-bottom: 1px solid var(--bd); display: flex; justify-content: space-between; align-items: center; }
+    .ed-yaml-body { flex: 1; overflow: auto; }
     .CodeMirror { height: 100%; min-height: 180px; }
     #col-yaml .ed-col-content { overflow: hidden; }
     #ed_yaml_editor, #pane_yaml { height: 100%; }
-
     /* Ensure editable test list selection is visibly highlighted */
     #col-tests .ed-test-item { display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-radius:6px; cursor:pointer; }
     #col-tests .ed-test-item:not(.selected):hover { background: var(--li-hov); }
@@ -1765,11 +1701,15 @@ function openEditor(path, data){
           if (idx>=0) updateTestBadgeByIndex(idx, st);
           // persist per-test record for freshness
           setTestRecord(nm, st, dur, Array.isArray(msgs)? msgs: []);
+          // propagate to suites list if available
+          try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, nm, st); }catch{}
         });
       } else if (res.name && res.status){
         const idx = getTestIndexByName(res.name);
         if (idx>=0) updateTestBadgeByIndex(idx, (res.status||'').toLowerCase());
-        setTestRecord(res.name, (res.status||'').toLowerCase(), res.durationMs||0, res.messages||[]);
+        const st = (res.status||'').toLowerCase();
+        setTestRecord(res.name, st, res.durationMs||0, res.messages||[]);
+        try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, res.name, st); }catch{}
       }
     }catch(e){}
   }
@@ -1808,7 +1748,13 @@ function openEditor(path, data){
       else {
         // Immediate result mode
         renderImmediateRunResult(data, working.tests[selIndex].name || `test ${selIndex+1}`);
-        const status = (data.status||'').toLowerCase(); const name = data.name || (working.tests[selIndex].name || `test ${selIndex+1}`); setTestRecord(name, status, data.durationMs||0, data.messages||[]); updateTestBadgeByIndex(selIndex, status);
+        const status = (data.status||'').toLowerCase();
+        const name = data.name || (working.tests[selIndex].name || `test ${selIndex+1}`);
+        setTestRecord(name, status, data.durationMs||0, data.messages||[]);
+        updateTestBadgeByIndex(selIndex, status);
+        // propagate to suites list and suite badge
+        try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, name, status); }catch{}
+        try{ setSuiteRecord(status, data.durationMs||0, data.messages||[]); }catch{}
       }
     }catch(e){ console.error(e); appendQuickRunLine('Run failed: '+e.message, 'text-error'); }
   };

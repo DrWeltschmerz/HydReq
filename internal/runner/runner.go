@@ -241,7 +241,7 @@ func RunSuite(ctx context.Context, s *models.Suite, opts Options) (Summary, erro
 						sum.Skipped++
 						ui.Skipf("%s (dep filtered: %s)", t.Name, dep)
 						if opts.OnResult != nil {
-							opts.OnResult(TestResult{Name: t.Name, Tags: t.Tags, Status: "skipped", Messages: []string{"dependency filtered: " + dep}})
+							opts.OnResult(TestResult{Name: t.Name, Stage: t.Stage, Tags: t.Tags, Status: "skipped", Messages: []string{"dependency filtered: " + dep}})
 						}
 						delete(kept, name)
 						skipped[name] = "dep-filtered"
@@ -320,7 +320,8 @@ func RunSuite(ctx context.Context, s *models.Suite, opts Options) (Summary, erro
 				}
 				if opts.OnStart != nil {
 					nm := interpolate(t.Name, testVars)
-					opts.OnStart(TestResult{Name: nm, Stage: layer, Tags: t.Tags, Status: "running"})
+					// DAG scheduling: flatten to a single visual stage (0)
+					opts.OnStart(TestResult{Name: nm, Stage: 0, Tags: t.Tags, Status: "running"})
 				}
 				go func(tc models.TestCase, vv map[string]string) {
 					defer func() { <-sem }()
@@ -330,7 +331,8 @@ func RunSuite(ctx context.Context, s *models.Suite, opts Options) (Summary, erro
 					}
 					r := runOne(ctx, s, tc, vv, opts)
 					r.name = tc.Name
-					r.stage = layer
+					// DAG scheduling: flatten to stage 0 for reporting/UI progress
+					r.stage = 0
 					r.tags = tc.Tags
 					// post hooks (only run if test passed)
 					if r.passed && len(tc.Post) > 0 {
@@ -356,7 +358,8 @@ func RunSuite(ctx context.Context, s *models.Suite, opts Options) (Summary, erro
 					if r.passed {
 						status = "passed"
 					}
-					opts.OnResult(TestResult{Name: r.name, Stage: layer, Tags: r.tags, Status: status, DurationMs: r.durationMs, Messages: r.messages})
+					// For DAG, r.stage is flattened to 0 for consistent UI stage progress
+					opts.OnResult(TestResult{Name: r.name, Stage: r.stage, Tags: r.tags, Status: status, DurationMs: r.durationMs, Messages: r.messages})
 				}
 				// on failure, mark descendants as blocked
 				if r.failed {
@@ -393,7 +396,7 @@ func RunSuite(ctx context.Context, s *models.Suite, opts Options) (Summary, erro
 					sum.Skipped++
 					ui.Skipf("%s (%s)", name, reason)
 					if opts.OnResult != nil {
-						opts.OnResult(TestResult{Name: name, Stage: layer, Status: "skipped", Messages: []string{reason}})
+						opts.OnResult(TestResult{Name: name, Stage: 0, Status: "skipped", Messages: []string{reason}})
 					}
 				}
 			}
@@ -406,7 +409,7 @@ func RunSuite(ctx context.Context, s *models.Suite, opts Options) (Summary, erro
 				sum.Skipped++
 				ui.Skipf("%s (cyclic or unresolved deps)", name)
 				if opts.OnResult != nil {
-					opts.OnResult(TestResult{Name: name, Status: "skipped", Messages: []string{"cyclic or unresolved deps"}})
+					opts.OnResult(TestResult{Name: name, Stage: 0, Status: "skipped", Messages: []string{"cyclic or unresolved deps"}})
 				}
 			}
 		}

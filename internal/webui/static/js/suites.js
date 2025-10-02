@@ -78,7 +78,7 @@ function renderSuites(list){
               row.style.display='flex';
               row.style.justifyContent='space-between';
               row.style.padding='4px 6px';
-              const nm = document.createElement('span'); nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent;
+              const nm = document.createElement('span'); nm.textContent = t.name || t.Name || '(unnamed)'; nm.title = nm.textContent; nm.dataset.name = nm.textContent;
               try{
                 const tt = t.tags || t.Tags || [];
                 if (Array.isArray(tt) && tt.length){ 
@@ -94,7 +94,8 @@ function renderSuites(list){
               }catch(e){}
               const badge = document.createElement('span'); badge.className='pill';
               const pathMap = lastStatus.get(pathKey);
-              const st = pathMap ? (pathMap.get(nm.textContent)||'') : '';
+              const keyName = (nm && nm.dataset && nm.dataset.name) ? nm.dataset.name : nm.textContent;
+              const st = pathMap ? (pathMap.get(keyName)||'') : '';
               if (st==='passed'){ badge.textContent='✓'; badge.style.background='rgba(16,185,129,0.12)'; }
               else if (st==='failed'){ badge.textContent='✗'; badge.style.background='rgba(239,68,68,0.08)'; }
               else if (st==='skipped'){ badge.textContent='-'; badge.style.background='rgba(245,158,11,0.06)'; }
@@ -325,6 +326,11 @@ function listen(id){
   batch = { done:0, total:0 }; suite = { done:0, total:0 };
   // Reset aggregation for a fresh run
   agg.passed=0; agg.failed=0; agg.skipped=0; agg.total=0; agg.suites=0; agg.durationMs=0;
+  // Track which tests actually started for the current suite
+  const started = new Set(); // keys: path::Name
+  // Track stage keys provided at suiteStart to differentiate DAG-dynamic stages
+  let suiteStagesFromStart = new Set();
+  let dynamicStages = new Set();
   try{ window.__E2E_LISTENED = id; }catch(e){}
   const results = document.getElementById('results');
   const stages = document.getElementById('stages');
@@ -333,6 +339,41 @@ function listen(id){
   const suiteBar = document.getElementById('suiteBar');
   const suiteText = document.getElementById('suiteText');
   const currentSuiteEl = document.getElementById('currentSuite');
+  // Prepare header pills for tags and env
+  function renderHeaderTags(){
+    try{
+      const selTags = (window.getSelectedTags && window.getSelectedTags()) || [];
+      const wrap = document.getElementById('activeTagsTopWrap');
+      const cont = document.getElementById('activeTagsTop');
+      if (!wrap || !cont) return;
+      cont.innerHTML = '';
+      if (Array.isArray(selTags) && selTags.length){
+        wrap.classList.remove('invisible');
+        selTags.forEach(t=>{ const b=document.createElement('span'); b.className='pill tag-chip'; b.textContent='#'+t; b.style.fontSize='10px'; cont.appendChild(b); });
+      } else {
+        wrap.classList.add('invisible');
+      }
+    }catch(e){}
+  }
+  function renderHeaderEnv(){
+    try{
+      const env = (typeof parseEnv==='function') ? parseEnv() : {};
+      const wrap = document.getElementById('activeEnvTopWrap');
+      const cont = document.getElementById('activeEnvTop');
+      if (!wrap || !cont) return;
+      cont.innerHTML = '';
+      const keys = Object.keys(env);
+      if (keys.length){
+        wrap.classList.remove('invisible');
+        keys.slice(0, 12).forEach(k=>{ const b=document.createElement('span'); b.className='pill'; b.textContent=k; b.style.fontSize='10px'; cont.appendChild(b); });
+      } else {
+        wrap.classList.add('invisible');
+      }
+    }catch(e){}
+  }
+  // initial header render
+  renderHeaderTags();
+  renderHeaderEnv();
   if (results) results.textContent=''; 
   if (stages) stages.innerHTML=''; 
   if (batchBar) setBar(batchBar,0,1); 
@@ -394,14 +435,38 @@ function listen(id){
       }catch(e){}
     }
     if (type === 'testStart'){
-      const {Name} = payload;
+      const {Name, Stage, path: evPath} = payload;
+      // Ignore stray testStart from previous suites if any
+      if (evPath && currentSuitePath && evPath !== currentSuitePath) {
+        return;
+      }
       const wrap = document.createElement('div');
       const line = document.createElement('div'); line.className='run'; line.textContent = '… ' + Name;
       wrap.appendChild(line);
       if (results) results.appendChild(wrap);
       try{ window.__E2E_TESTSTART = true; }catch(e){}
       const key = (currentSuitePath||'') + '::' + Name;
+      started.add(key);
       testRows.set(key, {container: wrap, line});
+      // Ensure stage row exists; for DAG (dependsOn) new layers may appear
+      try{
+        const stId = 'stage_'+Stage;
+        let st = document.getElementById(stId);
+        let stt = document.getElementById('stage_txt_'+Stage);
+        if (!st || !stt){
+          const d=document.createElement('div'); d.className='row';
+          d.innerHTML='<div class="w-120px">stage '+Stage+'</div><div class="progress flex-1"><div id="'+stId+'" style="width:0%"></div></div><div class="pill" id="stage_txt_'+Stage+'">0/0</div>';
+          if (stages) stages.appendChild(d);
+          st = document.getElementById(stId); stt = document.getElementById('stage_txt_'+Stage);
+          dynamicStages.add(String(Stage));
+        }
+        // If this stage wasn't provided by suiteStart, grow its total on testStart
+        if (!suiteStagesFromStart.has(String(Stage))){
+          const parts = (stt.textContent||'0/0').split('/');
+          const done = parseInt(parts[0],10)||0; const total = (parseInt(parts[1],10)||0) + 1;
+          stt.textContent = done + '/' + total; st.style.width = pct(done,total)+'%';
+        }
+      }catch(e){}
       scrollBottom();
     }
     if (type === 'batchStart'){
@@ -411,6 +476,13 @@ function listen(id){
       suite.total = payload.total; suite.done = 0; if (suiteBar) setBar(suiteBar,0,suite.total); if (suiteText) suiteText.textContent = '0/' + suite.total; if (stages) stages.innerHTML='';
       if (currentSuiteEl) currentSuiteEl.textContent = (payload.name || payload.path || '');
       currentSuitePath = payload.path || payload.name || null;
+      // Reset started markers per suite
+      try{ started.clear(); }catch(e){}
+      // Track stage keys from payload to distinguish dynamic stages introduced by DAG layers
+      try{ suiteStagesFromStart = new Set(Object.keys(payload.stages||{}).map(k=> String(k))); dynamicStages = new Set(); }catch(e){ suiteStagesFromStart = new Set(); dynamicStages = new Set(); }
+      // Reinforce header pills at the start of each suite
+      renderHeaderTags();
+      renderHeaderEnv();
       // Clear per-suite last statuses for the new run of this suite
       try{ if (currentSuitePath) lastStatus.set(currentSuitePath, new Map()); }catch(e){}
   const nm = (payload.name || payload.path || '');
@@ -418,7 +490,32 @@ function listen(id){
   const base = pth ? pth.split('/').pop() : '';
   const ln = document.createElement('div'); ln.textContent = base && nm ? `=== running: ${nm} (${base}) ===` : `=== running: ${nm} ===`; if (results) results.appendChild(ln);
       scrollBottom();
-      const stageMap = payload.stages || {};
+      let stageMap = payload.stages || {};
+      // Reconcile stage counts with current tag filters to avoid mismatch (mirror runner filtering logic roughly)
+      try{
+        const li = document.querySelector('#suites li[data-path="'+(payload.path||'')+'"]');
+        if (li) {
+          const testsDiv = li.querySelector('.suite-tests');
+          if (testsDiv && testsDiv.children.length) {
+            const selectedTags = (window.getSelectedTags && window.getSelectedTags()) || [];
+            if (Array.isArray(selectedTags) && selectedTags.length) {
+              const counts = {};
+              Array.from(testsDiv.children).forEach(r=>{
+                const nmEl = r.children && r.children[0];
+                if (!nmEl) return;
+                const tagChips = nmEl.querySelectorAll('.tag-chip');
+                const tags = Array.from(tagChips).map(ch=> ch.dataset.tag).filter(Boolean);
+                const ok = tags.length ? tags.some(t=> selectedTags.includes(t)) : false;
+                const stLbl = (r.querySelector('.pill')||{}).textContent || '';
+                // Derive stage number from DOM is not available; skip recalculation if missing
+                // We only zero out stages where everything would be filtered by tags, which we can't do reliably here
+                // So just keep backend-sent stageMap
+              });
+              // Keep stageMap as-is; backend already accounts for tags
+            }
+          }
+        }
+      }catch(e){}
       for(const k in stageMap){
         const d=document.createElement('div'); d.className='row';
         d.innerHTML='<div class="w-120px">stage '+k+'</div><div class="progress flex-1"><div id="stage_'+k+'" style="width:0%"></div></div><div class="pill" id="stage_txt_'+k+'">0/'+stageMap[k]+'</div>';
@@ -427,7 +524,11 @@ function listen(id){
       try{ const target = payload.path || payload.name || ''; if (target) { try{ await expandSuiteByPath(target); }catch(e){} } }catch(e){}
     }
     if (type === 'test'){
-      const {Name, Status, DurationMs, Stage, Messages, Tags} = payload;
+      const {Name, Status, DurationMs, Stage, Messages, Tags, path: evPath} = payload;
+      if (evPath && currentSuitePath && evPath !== currentSuitePath) {
+        // This test event belongs to a different suite; ignore for per-suite counters
+        return;
+      }
       // Do not mutate batch-level aggregator here; rely on suiteEnd summaries to avoid double counting
       const key = (currentSuitePath||'') + '::' + Name;
       let row = testRows.get(key);
@@ -450,9 +551,36 @@ function listen(id){
           pre.textContent = Messages.join('\n');
         }
       }
-      suite.done++; if (suiteBar) setBar(suiteBar, suite.done, suite.total); if (suiteText) suiteText.textContent = suite.done + '/' + suite.total;
-      const st = document.getElementById('stage_'+Stage); const stt = document.getElementById('stage_txt_'+Stage);
-      if(st && stt){ const txt = stt.textContent.split('/'); const done = (parseInt(txt[0],10)||0)+1; const total = parseInt(txt[1],10)||0; st.style.width = pct(done,total)+'%'; stt.textContent = done+'/'+total; }
+      // Increment per-suite and per-stage progress with resilience when a testStart might be missing
+      const skey = (currentSuitePath||'') + '::' + Name;
+      const hadStarted = started.has(skey);
+      // Ensure stage row exists (covers DAG dynamic layers); may also backfill totals for dynamic stages
+      let st = document.getElementById('stage_'+Stage); let stt = document.getElementById('stage_txt_'+Stage);
+      if (!st || !stt){
+        const d=document.createElement('div'); d.className='row';
+        d.innerHTML='<div class="w-120px">stage '+Stage+'</div><div class="progress flex-1"><div id="stage_'+Stage+'" style="width:0%"></div></div><div class="pill" id="stage_txt_'+Stage+'">0/0</div>';
+        if (stages) stages.appendChild(d);
+        st = document.getElementById('stage_'+Stage); stt = document.getElementById('stage_txt_'+Stage);
+      }
+      const isDynamic = !(suiteStagesFromStart && suiteStagesFromStart.has(String(Stage)));
+      if (hadStarted){
+        // Normal path: testStart seen previously
+        if(st && stt){ const txt = stt.textContent.split('/'); const done = (parseInt(txt[0],10)||0)+1; const total = parseInt(txt[1],10)||0; st.style.width = pct(done,total)+'%'; stt.textContent = done+'/'+total; }
+        suite.done++;
+        if (suiteBar) setBar(suiteBar, suite.done, suite.total); if (suiteText) suiteText.textContent = suite.done + '/' + suite.total;
+        started.delete(skey);
+      } else {
+        // Fallback: no testStart received (rare). Advance stage counters and suite done.
+        if(st && stt){
+          const txt = stt.textContent.split('/');
+          let done = parseInt(txt[0],10)||0; let total = parseInt(txt[1],10)||0;
+          if (isDynamic) { total += 1; }
+          done += 1;
+          st.style.width = pct(done,total)+'%'; stt.textContent = done+'/'+total;
+        }
+        suite.done++;
+        if (suiteBar) setBar(suiteBar, suite.done, suite.total); if (suiteText) suiteText.textContent = suite.done + '/' + suite.total;
+      }
       try {
         if (!document.getElementById('editorModal')) {
           try {
@@ -497,7 +625,8 @@ function listen(id){
                       try{ 
                         const nmEl=r.children[0], badgeEl=r.children[1]; 
                         if (!nmEl||!badgeEl) return; 
-                        if (nmEl.textContent===Name){ 
+                        const rowName = (nmEl.dataset && nmEl.dataset.name) ? nmEl.dataset.name : nmEl.textContent;
+                        if (rowName===Name){ 
                           if (Status==='passed'){ 
                             badgeEl.textContent='✓'; 
                             badgeEl.style.background='rgba(16,185,129,0.12)'; 
@@ -514,13 +643,8 @@ function listen(id){
                         } 
                       }catch(e){} 
                     });
-                    const found = Array.from(testsDiv.children).some(r=> r.children && r.children[0] && r.children[0].textContent === Name);
-                    if (!found && sBadge) {
-                      sBadge.textContent = '·';
-                      sBadge.style.opacity = '.6';
-                      sBadge.style.background = '';
-                      sBadge.dataset.status = 'unknown';
-                    }
+                    // Don't reset suite badge to unknown when a single test row isn't found (e.g., filtered by tags)
+                    // We rely on suiteEnd to set the final suite badge
                   }
                 }
               }catch(e){}
@@ -536,18 +660,8 @@ function listen(id){
                 if (li.getAttribute('data-path') === currentSuitePath) return; 
                 const testsDiv = li.querySelector('.suite-tests'); 
                 if (!testsDiv) return; 
-                const found = Array.from(testsDiv.children).some(r=> r.children && r.children[0] && r.children[0].textContent === Name); 
-                if (found) { 
-                  updateBadgeForLi(li); 
-                } else { 
-                  const sBadge = li.querySelector('.suite-badge'); 
-                  if (sBadge) { 
-                    sBadge.textContent = '·'; 
-                    sBadge.style.opacity = '.6'; 
-                    sBadge.style.background = ''; 
-                    sBadge.dataset.status = 'unknown'; 
-                  } 
-                } 
+                const found = Array.from(testsDiv.children).some(r=> { const el=r.children && r.children[0]; if(!el) return false; const rn=(el.dataset&&el.dataset.name)?el.dataset.name:el.textContent; return rn===Name; });
+                if (found) { updateBadgeForLi(li); }
               } catch(e) {} 
             });
           } catch(e) {}
@@ -579,7 +693,12 @@ function listen(id){
         }
       }catch(e){}
       try{
-        const li = document.querySelector('#suites li[data-path="'+(payload.path||payload.name||'')+'"]'); 
+        let li = null;
+        if (payload.path){ li = document.querySelector('#suites li[data-path="'+payload.path+'"]'); }
+        if (!li && payload.name){
+          // Fallback: locate by suite title text if path is absent or element not found
+          li = Array.from(document.querySelectorAll('#suites li .spec-title')).map(n=> n.closest('li')).find(li0 => (li0.querySelector('.spec-title')||{}).textContent === payload.name) || null;
+        }
         if (li){ 
           const sb = li.querySelector('.suite-badge'); 
           if (sb){ 

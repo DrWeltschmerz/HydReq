@@ -116,8 +116,26 @@ function initApp(){
     try{ document.dispatchEvent(new CustomEvent('hydreq:tags-changed')); }catch{}
   }
   window.getSelectedTags = function(){ return readTagState().selected; };
-  window.setSelectedTags = function(arr){ const st = readTagState(); const uniq = Array.from(new Set((arr||[]).filter(Boolean))); writeTagState(st.list, uniq); renderActiveTags(); syncTagRowsFromState(); };
-  window.toggleSelectedTag = function(tag){ if (!tag) return; const st = readTagState(); const s = new Set(st.selected); if (s.has(tag)) s.delete(tag); else s.add(tag); writeTagState(st.list.includes(tag)? st.list : st.list.concat([tag]), Array.from(s)); renderActiveTags(); syncTagRowsFromState(); };
+  window.setSelectedTags = function(arr){
+    const st = readTagState();
+    const uniq = Array.from(new Set((arr||[]).filter(Boolean)));
+    writeTagState(st.list, uniq);
+    // Re-render chips
+    try{ __hydreq_renderActiveTags && __hydreq_renderActiveTags(); }catch{}
+    // Rebuild rows/checkboxes if the helper is available
+    try{ typeof __hydreq_syncTagRows === 'function' ? __hydreq_syncTagRows() : (window.__hydreq_syncTagRows && window.__hydreq_syncTagRows()); }catch{}
+  };
+  window.toggleSelectedTag = function(tag){
+    if (!tag) return;
+    const st = readTagState();
+    const s = new Set(st.selected);
+    if (s.has(tag)) s.delete(tag); else s.add(tag);
+    writeTagState(st.list.includes(tag)? st.list : st.list.concat([tag]), Array.from(s));
+    // Re-render chips
+    try{ __hydreq_renderActiveTags && __hydreq_renderActiveTags(); }catch{}
+    // Rebuild rows/checkboxes if helper exists
+    try{ typeof __hydreq_syncTagRows === 'function' ? __hydreq_syncTagRows() : (window.__hydreq_syncTagRows && window.__hydreq_syncTagRows()); }catch{}
+  };
 
   // Build Tags selector UI (rows with [x] checkbox + tag input + delete)
   (function initTagsUI(){

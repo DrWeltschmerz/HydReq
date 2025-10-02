@@ -810,12 +810,12 @@ func (s *server) handleEditorEnvCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 type testRunReq struct {
-	Parsed      interface{}       `json:"parsed"`
-	TestIdx     int               `json:"testIndex"`
-	Env         map[string]string `json:"env"`
-	RunAll      bool              `json:"runAll,omitempty"`
-	IncludeDeps bool              `json:"includeDeps,omitempty"`
-	IncludePrevStages bool        `json:"includePrevStages,omitempty"`
+	Parsed            interface{}       `json:"parsed"`
+	TestIdx           int               `json:"testIndex"`
+	Env               map[string]string `json:"env"`
+	RunAll            bool              `json:"runAll,omitempty"`
+	IncludeDeps       bool              `json:"includeDeps,omitempty"`
+	IncludePrevStages bool              `json:"includePrevStages,omitempty"`
 }
 type testRunResp struct {
 	Name       string              `json:"name"`
@@ -1051,14 +1051,18 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 		if tr.IncludeDeps {
 			includeAny = true
 			byName := map[string]models.TestCase{}
-			for _, t := range suite.Tests { byName[t.Name] = t }
+			for _, t := range suite.Tests {
+				byName[t.Name] = t
+			}
 			stack := []string{target.Name}
 			needNames[target.Name] = struct{}{}
 			for len(stack) > 0 {
 				n := stack[len(stack)-1]
 				stack = stack[:len(stack)-1]
 				t, ok := byName[n]
-				if !ok { continue }
+				if !ok {
+					continue
+				}
 				for _, dep := range t.DependsOn {
 					if _, ok := needNames[dep]; !ok {
 						needNames[dep] = struct{}{}
@@ -1072,7 +1076,9 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 			ts := target.Stage
 			for i := 0; i < len(suite.Tests); i++ {
 				t := suite.Tests[i]
-				if t.Stage < ts { needNames[t.Name] = struct{}{} }
+				if t.Stage < ts {
+					needNames[t.Name] = struct{}{}
+				}
 			}
 			// also ensure target included
 			needNames[target.Name] = struct{}{}
@@ -1081,7 +1087,11 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 		if includeAny {
 			// preserve original order but filter to only needed tests
 			filtered := make([]models.TestCase, 0, len(needNames))
-			for _, t := range suite.Tests { if _, ok := needNames[t.Name]; ok { filtered = append(filtered, t) } }
+			for _, t := range suite.Tests {
+				if _, ok := needNames[t.Name]; ok {
+					filtered = append(filtered, t)
+				}
+			}
 			singleCopy.Tests = filtered
 		} else {
 			singleCopy.Tests = []models.TestCase{target}
@@ -1141,9 +1151,9 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 		}
 		resp = testRunResp{Name: name, Status: status, DurationMs: sum.Duration.Milliseconds(), Messages: msgs, Cases: allResults}
 	} else {
-	// Single test run request (may include deps and/or previous stages)
+		// Single test run request (may include deps and/or previous stages)
 		// If multiple tests executed, return per-case results too so UI can show all outputs
-	multi := (tr.IncludeDeps || tr.IncludePrevStages) && len(allResults) > 1
+		multi := (tr.IncludeDeps || tr.IncludePrevStages) && len(allResults) > 1
 		// Derive overall status from summary if multiple, otherwise from captured
 		status := captured.Status
 		if status == "" || multi {
@@ -1703,6 +1713,14 @@ func (s *server) runOneWithCtx(runId string, ctx context.Context, path string, w
 	// compute totals and stage counts from loaded suite
 	stageCounts := map[int]int{}
 	total := 0
+	// detect dependsOn DAG usage
+	hasDeps := false
+	for _, tc := range suite.Tests {
+		if len(tc.DependsOn) > 0 {
+			hasDeps = true
+			break
+		}
+	}
 	// determine if any test has Only=true
 	only := false
 	for _, tc := range suite.Tests {
@@ -1729,17 +1747,41 @@ func (s *server) runOneWithCtx(runId string, ctx context.Context, path string, w
 			}
 		}
 		total += combos
-		stageCounts[tc.Stage] = stageCounts[tc.Stage] + combos
+		if !hasDeps {
+			stageCounts[tc.Stage] = stageCounts[tc.Stage] + combos
+		}
+	}
+	if hasDeps {
+		// For dependsOn chains, we render a single stage (0) with total equal to all runnable tests
+		stageCounts = map[int]int{0: total}
 	}
 	out(evt{Type: "suiteStart", Payload: map[string]any{"path": path, "name": suite.Name, "total": total, "stages": stageCounts}})
 	var allResults []runner.TestResult
 	runWithSuite := func() (runner.Summary, error) {
 		return runner.RunSuite(ctx, suite, runner.Options{Workers: workers, Tags: tags, DefaultTimeoutMs: defaultTimeout, OnStart: func(tr runner.TestResult) {
-			out(evt{Type: "testStart", Payload: tr})
+			// include suite path to disambiguate FE counters
+			out(evt{Type: "testStart", Payload: map[string]any{
+				"path":       path,
+				"Name":       tr.Name,
+				"Stage":      tr.Stage,
+				"Tags":       tr.Tags,
+				"Status":     tr.Status,
+				"DurationMs": tr.DurationMs,
+				"Messages":   tr.Messages,
+			}})
 		}, OnResult: func(tr runner.TestResult) {
 			// collect results for detailed report and stream events
 			allResults = append(allResults, tr)
-			out(evt{Type: "test", Payload: tr})
+			// include suite path to disambiguate FE counters
+			out(evt{Type: "test", Payload: map[string]any{
+				"path":       path,
+				"Name":       tr.Name,
+				"Stage":      tr.Stage,
+				"Tags":       tr.Tags,
+				"Status":     tr.Status,
+				"DurationMs": tr.DurationMs,
+				"Messages":   tr.Messages,
+			}})
 		}})
 	}
 	var sum runner.Summary

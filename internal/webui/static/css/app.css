@@ -205,6 +205,7 @@ a { color: var(--link); }
 .ed-disabled { opacity: .6; pointer-events: none; }
 .text-xs { font-size: 12px; }
 .tags-caption { opacity: 0.55; letter-spacing: .2px; }
+.env-caption { opacity: 0.55; letter-spacing: .2px; }
 
 /* Toolbar utilities */
 .toolbar.row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
@@ -217,9 +218,19 @@ a { color: var(--link); }
 /* Keep Batch progress header height stable when tags appear/disappear */
 #batchHeader { min-height: 52px; align-items: center; }
 #activeTagsTopWrap { min-height: 26px; margin-top: 0; }
-#activeTagsCaption { line-height: 1.1; margin-bottom: 2px; font-size: 12.5px; }
 #activeTagsTop { display:flex; flex-wrap: wrap; gap: 4px; }
 #activeTagsTop .pill { line-height: 1.2; margin-top: 2px; }
+#activeEnvTopWrap { min-height: 26px; margin-top: 0; }
+
+
+/* Force identical caption sizing for tags/env (override framework variance) */
+#activeTagsCaption, #activeEnvCaption { font-size: 12.5px !important; line-height: 1.1 !important; margin-bottom: 2px !important; font-weight: 400 !important; }
+#activeEnvTop { display:flex; flex-wrap: wrap; gap: 4px; }
+#activeEnvTop .pill { line-height: 1.2; margin-top: 2px; border: 1px solid rgba(125,125,125,0.25); background: var(--pill); opacity: 0.96; }
+.ed-ai-center #activeTagsTopWrap,
+.ed-ai-center #activeEnvTopWrap {
+  align-self: flex-start;
+}
 .bp-title { padding: 6px 0; }
 
 /* Keep suite-level download button at top */
