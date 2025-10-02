@@ -1,0 +1,8 @@
+/* Synthwave (dark, DaisyUI-inspired) */
+body.synthwave {
+  --hdr-bg:#2d1b69; --hdr-fg:#f5f1ff; --bd:#3d2a7a; --li-hov:#332366; --li-sel:#3c2b78; --pill:#2f205f; --pg-bg:#2f205f; --txt:#f8f8ff; --bg:#231638;
+  --btn-bg:#2a1f57; --btn-bd:#4a3a8f; --btn-hov:#33276b; --link:#58c7f3;
+  --input-bg:#1f163f; --input-bd:#4a3a8f; --input-fg:#f5f1ff; --input-focus:#58c7f3;
+  --success:#36d399; --error:#f87272; --warning:#fbbd23; --info:#58c7f3;
+  --grad1:#f472b6; --grad2:#60a5fa;
+}

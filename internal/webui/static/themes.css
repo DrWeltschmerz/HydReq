@@ -1,175 +1,23 @@
-/* Theme tokens */
-:root {
-  --hdr-bg:#0b1020; --hdr-fg:#c6e2ff; --bd:#e5e7eb; --li-hov:#f5f7fb; --li-sel:#e6f2ff; --pill:#eef2ff; --pg-bg:#eee; --txt:#111827; --bg:#ffffff;
-  --btn-bg:#ffffff; --btn-bd:#d1d5db; --btn-hov:#f6f9ff; --link:#2563eb;
-  --input-bg:#ffffff; --input-bd:#d1d5db; --input-fg:#111827; --input-focus:#7aa2ff;
-  --success:#10b981; --error:#ef4444; --warning:#f59e0b; --info:#3b82f6;
-  --grad1:#00d4ff; --grad2:#5bff5b;
-}
-body.dark {
-  --hdr-bg:#0b0e17; --hdr-fg:#d6e0ff; --bd:#222; --li-hov:#1a2230; --li-sel:#10213a; --pill:#1f2937; --pg-bg:#1f2937; --txt:#e5e7eb; --bg:#0b0e17;
-  --btn-bg:#111827; --btn-bd:#374151; --btn-hov:#1f2937; --link:#60a5fa;
-  --input-bg:#0f172a; --input-bd:#374151; --input-fg:#e5e7eb; --input-focus:#7aa2ff;
-  --success:#10b981; --error:#ef4444; --warning:#f59e0b; --info:#60a5fa;
-  --grad1:#22d3ee; --grad2:#4ade80;
-}
-/* Hack theme: neon terminal vibe */
-body.hack {
-  --hdr-bg:#061108; --hdr-fg:#a6ffb0; --bd:#15331b; --li-hov:#0b1f10; --li-sel:#0f2a16; --pill:#092010; --pg-bg:#0f2a16; --txt:#c8ffd2; --bg:#050d07;
-  --btn-bg:#0a1a0f; --btn-bd:#1a3b24; --btn-hov:#0e2315; --link:#8affb5;
-  --input-bg:#0b1f10; --input-bd:#1a3b24; --input-fg:#c8ffd2; --input-focus:#30ff7f;
-  --success:#30ff7f; --error:#ff5f5f; --warning:#ffd166; --info:#7dd3fc;
-  --grad1:#19ff93; --grad2:#5bff5b;
-}
-/* Catppuccin Mocha (dark) */
-body.catppuccin-mocha {
-  --hdr-bg:#11111b; --hdr-fg:#cdd6f4; --bd:#313244; --li-hov:#1e1e2e; --li-sel:#181825; --pill:#181825; --pg-bg:#181825; --txt:#cdd6f4; --bg:#0b0b13;
-  --btn-bg:#11111b; --btn-bd:#313244; --btn-hov:#1e1e2e; --link:#89b4fa;
-  --input-bg:#1e1e2e; --input-bd:#313244; --input-fg:#cdd6f4; --input-focus:#89b4fa;
-  --success:#a6e3a1; --error:#f38ba8; --warning:#f9e2af; --info:#89b4fa;
-  --grad1:#89b4fa; --grad2:#a6e3a1;
-}
-/* Catppuccin Latte (light) */
-body.catppuccin-latte {
-  --hdr-bg:#eff1f5; --hdr-fg:#4c4f69; --bd:#bcc0cc; --li-hov:#e6e9ef; --li-sel:#dce0e8; --pill:#e6e9ef; --pg-bg:#e6e9ef; --txt:#4c4f69; --bg:#fafafa;
-  --btn-bg:#ffffff; --btn-bd:#ccd0da; --btn-hov:#e6e9ef; --link:#1e66f5;
-  --input-bg:#ffffff; --input-bd:#ccd0da; --input-fg:#4c4f69; --input-focus:#1e66f5;
-  --success:#40a02b; --error:#d20f39; --warning:#df8e1d; --info:#1e66f5;
-  --grad1:#1e66f5; --grad2:#40a02b;
-}
-/* Synthwave (dark, DaisyUI-inspired) */
-body.synthwave {
-  --hdr-bg:#2d1b69; --hdr-fg:#f5f1ff; --bd:#3d2a7a; --li-hov:#332366; --li-sel:#3c2b78; --pill:#2f205f; --pg-bg:#2f205f; --txt:#f8f8ff; --bg:#231638;
-  --btn-bg:#2a1f57; --btn-bd:#4a3a8f; --btn-hov:#33276b; --link:#58c7f3;
-  --input-bg:#1f163f; --input-bd:#4a3a8f; --input-fg:#f5f1ff; --input-focus:#58c7f3;
-  --success:#36d399; --error:#f87272; --warning:#fbbd23; --info:#58c7f3;
-  --grad1:#f472b6; --grad2:#60a5fa;
-}
-/* Catppuccin Frappé (dark) */
-body.catppuccin-frappe {
-  --hdr-bg:#303446; --hdr-fg:#c6d0f5; --bd:#414559; --li-hov:#292c3c; --li-sel:#232634; --pill:#232634; --pg-bg:#232634; --txt:#c6d0f5; --bg:#292c3c;
-  --btn-bg:#303446; --btn-bd:#414559; --btn-hov:#292c3c; --link:#8caaee;
-  --input-bg:#292c3c; --input-bd:#414559; --input-fg:#c6d0f5; --input-focus:#8caaee;
-  --success:#a6d189; --error:#e78284; --warning:#e5c890; --info:#8caaee;
-  --grad1:#8caaee; --grad2:#a6d189;
-}
-/* Catppuccin Macchiato (dark) */
-body.catppuccin-macchiato {
-  --hdr-bg:#24273a; --hdr-fg:#cad3f5; --bd:#363a4f; --li-hov:#1e2030; --li-sel:#181926; --pill:#181926; --pg-bg:#181926; --txt:#cad3f5; --bg:#1e2030;
-  --btn-bg:#24273a; --btn-bd:#363a4f; --btn-hov:#1e2030; --link:#8aadf4;
-  --input-bg:#1e2030; --input-bd:#363a4f; --input-fg:#cad3f5; --input-focus:#8aadf4;
-  --success:#a6da95; --error:#ed8796; --warning:#eed49f; --info:#8aadf4;
-  --grad1:#8aadf4; --grad2:#a6da95;
-}
-/* Nord (dark) */
-body.nord {
-  --hdr-bg:#2e3440; --hdr-fg:#d8dee9; --bd:#434c5e; --li-hov:#3b4252; --li-sel:#4c566a; --pill:#4c566a; --pg-bg:#4c566a; --txt:#d8dee9; --bg:#2e3440;
-  --btn-bg:#3b4252; --btn-bd:#434c5e; --btn-hov:#4c566a; --link:#88c0d0;
-  --input-bg:#3b4252; --input-bd:#434c5e; --input-fg:#d8dee9; --input-focus:#88c0d0;
-  --success:#a3be8c; --error:#bf616a; --warning:#ebcb8b; --info:#88c0d0;
-  --grad1:#88c0d0; --grad2:#a3be8c;
-}
-/* Dracula (dark) */
-body.dracula {
-  --hdr-bg:#282a36; --hdr-fg:#f8f8f2; --bd:#44475a; --li-hov:#44475a; --li-sel:#6272a4; --pill:#6272a4; --pg-bg:#6272a4; --txt:#f8f8f2; --bg:#282a36;
-  --btn-bg:#44475a; --btn-bd:#6272a4; --btn-hov:#6272a4; --link:#8be9fd;
-  --input-bg:#44475a; --input-bd:#6272a4; --input-fg:#f8f8f2; --input-focus:#8be9fd;
-  --success:#50fa7b; --error:#ff5555; --warning:#f1fa8c; --info:#8be9fd;
-  --grad1:#bd93f9; --grad2:#50fa7b;
-}
-/* Monokai (dark) */
-body.monokai {
-  --hdr-bg:#272822; --hdr-fg:#f8f8f2; --bd:#49483e; --li-hov:#49483e; --li-sel:#75715e; --pill:#75715e; --pg-bg:#75715e; --txt:#f8f8f2; --bg:#272822;
-  --btn-bg:#49483e; --btn-bd:#75715e; --btn-hov:#75715e; --link:#66d9ef;
-  --input-bg:#49483e; --input-bd:#75715e; --input-fg:#f8f8f2; --input-focus:#66d9ef;
-  --success:#a6e22e; --error:#f92672; --warning:#fd971f; --info:#66d9ef;
-  --grad1:#ae81ff; --grad2:#a6e22e;
-}
-/* Gruvbox Dark (dark) */
-body.gruvbox-dark {
-  --hdr-bg:#282828; --hdr-fg:#ebdbb2; --bd:#504945; --li-hov:#3c3836; --li-sel:#665c54; --pill:#665c54; --pg-bg:#665c54; --txt:#ebdbb2; --bg:#1d2021;
-  --btn-bg:#3c3836; --btn-bd:#504945; --btn-hov:#665c54; --link:#83a598;
-  --input-bg:#3c3836; --input-bd:#504945; --input-fg:#ebdbb2; --input-focus:#83a598;
-  --success:#b8bb26; --error:#fb4934; --warning:#fabd2f; --info:#83a598;
-  --grad1:#83a598; --grad2:#b8bb26;
-}
-/* Gruvbox Light (light) */
-body.gruvbox-light {
-  --hdr-bg:#fbf1c7; --hdr-fg:#3c3836; --bd:#a89984; --li-hov:#ebdbb2; --li-sel:#d5c4a1; --pill:#d5c4a1; --pg-bg:#d5c4a1; --txt:#3c3836; --bg:#f9f5d7;
-  --btn-bg:#ebdbb2; --btn-bd:#a89984; --btn-hov:#d5c4a1; --link:#458588;
-  --input-bg:#ebdbb2; --input-bd:#a89984; --input-fg:#3c3836; --input-focus:#458588;
-  --success:#98971a; --error:#cc241d; --warning:#d79921; --info:#458588;
-  --grad1:#458588; --grad2:#98971a;
-}
-/* Solarized Dark (dark) */
-body.solarized-dark {
-  --hdr-bg:#002b36; --hdr-fg:#93a1a1; --bd:#586e75; --li-hov:#073642; --li-sel:#094c5a; --pill:#094c5a; --pg-bg:#094c5a; --txt:#93a1a1; --bg:#002b36;
-  --btn-bg:#073642; --btn-bd:#586e75; --btn-hov:#094c5a; --link:#268bd2;
-  --input-bg:#073642; --input-bd:#586e75; --input-fg:#93a1a1; --input-focus:#268bd2;
-  --success:#859900; --error:#dc322f; --warning:#b58900; --info:#268bd2;
-  --grad1:#268bd2; --grad2:#859900;
-}
-/* Solarized Light (light) */
-body.solarized-light {
-  --hdr-bg:#fdf6e3; --hdr-fg:#586e75; --bd:#93a1a1; --li-hov:#eee8d5; --li-sel:#dcd4c4; --pill:#dcd4c4; --pg-bg:#dcd4c4; --txt:#586e75; --bg:#fdf6e3;
-  --btn-bg:#eee8d5; --btn-bd:#93a1a1; --btn-hov:#dcd4c4; --link:#2aa198;
-  --input-bg:#eee8d5; --input-bd:#93a1a1; --input-fg:#586e75; --input-focus:#2aa198;
-  --success:#859900; --error:#dc322f; --warning:#b58900; --info:#2aa198;
-  --grad1:#2aa198; --grad2:#859900;
-}
-/* Tokyo Night (dark) */
-body.tokyo-night {
-  --hdr-bg:#1a1b26; --hdr-fg:#c0caf5; --bd:#414868; --li-hov:#24283b; --li-sel:#2f3449; --pill:#2f3449; --pg-bg:#2f3449; --txt:#c0caf5; --bg:#1a1b26;
-  --btn-bg:#24283b; --btn-bd:#414868; --btn-hov:#2f3449; --link:#7dcfff;
-  --input-bg:#24283b; --input-bd:#414868; --input-fg:#c0caf5; --input-focus:#7dcfff;
-  --success:#9ece6a; --error:#f7768e; --warning:#e0af68; --info:#7dcfff;
-  --grad1:#7dcfff; --grad2:#9ece6a;
-}
-/* One Dark Pro (dark) */
-body.one-dark-pro {
-  --hdr-bg:#282c34; --hdr-fg:#abb2bf; --bd:#3e4451; --li-hov:#21252b; --li-sel:#2c313a; --pill:#2c313a; --pg-bg:#2c313a; --txt:#abb2bf; --bg:#21252b;
-  --btn-bg:#21252b; --btn-bd:#3e4451; --btn-hov:#2c313a; --link:#61afef;
-  --input-bg:#21252b; --input-bd:#3e4451; --input-fg:#abb2bf; --input-focus:#61afef;
-  --success:#98c379; --error:#e06c75; --warning:#e5c07b; --info:#61afef;
-  --grad1:#61afef; --grad2:#98c379;
-}
-/* Palenight (dark) */
-body.palenight {
-  --hdr-bg:#292d3e; --hdr-fg:#a6accd; --bd:#3e4b59; --li-hov:#2f3440; --li-sel:#3a4150; --pill:#3a4150; --pg-bg:#3a4150; --txt:#a6accd; --bg:#292d3e;
-  --btn-bg:#2f3440; --btn-bd:#3e4b59; --btn-hov:#3a4150; --link:#c792ea;
-  --input-bg:#2f3440; --input-bd:#3e4b59; --input-fg:#a6accd; --input-focus:#c792ea;
-  --success:#c3e88d; --error:#f07178; --warning:#ffcb6b; --info:#82aaff;
-  --grad1:#82aaff; --grad2:#c3e88d;
-}
-/* Rose Pine (dark) */
-body.rose-pine {
-  --hdr-bg:#191724; --hdr-fg:#e0def4; --bd:#26233a; --li-hov:#1f1d2e; --li-sel:#2a2839; --pill:#2a2839; --pg-bg:#2a2839; --txt:#e0def4; --bg:#191724;
-  --btn-bg:#1f1d2e; --btn-bd:#26233a; --btn-hov:#2a2839; --link:#c4a7e7;
-  --input-bg:#1f1d2e; --input-bd:#26233a; --input-fg:#e0def4; --input-focus:#c4a7e7;
-  --success:#9ccfd8; --error:#eb6f92; --warning:#f6c177; --info:#c4a7e7;
-  --grad1:#c4a7e7; --grad2:#9ccfd8;
-}
-/* Everforest Dark (dark) */
-body.everforest-dark {
-  --hdr-bg:#2d353b; --hdr-fg:#d3c6aa; --bd:#475258; --li-hov:#374145; --li-sel:#4f5b58; --pill:#4f5b58; --pg-bg:#4f5b58; --txt:#d3c6aa; --bg:#2b3339;
-  --btn-bg:#374145; --btn-bd:#475258; --btn-hov:#4f5b58; --link:#7fbbb3;
-  --input-bg:#374145; --input-bd:#475258; --input-fg:#d3c6aa; --input-focus:#7fbbb3;
-  --success:#a7c080; --error:#e67e80; --warning:#dbbc7f; --info:#7fbbb3;
-  --grad1:#7fbbb3; --grad2:#a7c080;
-}
-/* Everforest Light (light) */
-body.everforest-light {
-  --hdr-bg:#fdf6e3; --hdr-fg:#5c6a72; --bd:#a6b0a0; --li-hov:#f2efdf; --li-sel:#e9e8d2; --pill:#e9e8d2; --pg-bg:#e9e8d2; --txt:#5c6a72; --bg:#fffbef;
-  --btn-bg:#f2efdf; --btn-bd:#a6b0a0; --btn-hov:#e9e8d2; --link:#83c092;
-  --input-bg:#f2efdf; --input-bd:#a6b0a0; --input-fg:#5c6a72; --input-focus:#83c092;
-  --success:#a7c080; --error:#e67e80; --warning:#dbbc7f; --info:#83c092;
-  --grad1:#83c092; --grad2:#a7c080;
-}
-/* Ayu Dark (dark) */
-body.ayu-dark {
-  --hdr-bg:#0a0e14; --hdr-fg:#b3b1ad; --bd:#1a2332; --li-hov:#0f1419; --li-sel:#131925; --pill:#131925; --pg-bg:#131925; --txt:#b3b1ad; --bg:#0a0e14;
-  --btn-bg:#0f1419; --btn-bd:#1a2332; --btn-hov:#131925; --link:#39bae6;
-  --input-bg:#0f1419; --input-bd:#1a2332; --input-fg:#b3b1ad; --input-focus:#39bae6;
-  --success:#aad94c; --error:#f51818; --warning:#ff8f40; --info:#39bae6;
-  --grad1:#39bae6; --grad2:#aad94c;
-}
+/* Aggregated theme imports (readable, one per line) */
+@import url('themes/base.css');
+@import url('themes/dark.css');
+@import url('themes/hack.css');
+@import url('themes/catppuccin-mocha.css');
+@import url('themes/catppuccin-latte.css');
+@import url('themes/catppuccin-frappe.css');
+@import url('themes/catppuccin-macchiato.css');
+@import url('themes/synthwave.css');
+@import url('themes/nord.css');
+@import url('themes/dracula.css');
+@import url('themes/monokai.css');
+@import url('themes/gruvbox-dark.css');
+@import url('themes/gruvbox-light.css');
+@import url('themes/solarized-dark.css');
+@import url('themes/solarized-light.css');
+@import url('themes/tokyo-night.css');
+@import url('themes/one-dark-pro.css');
+@import url('themes/palenight.css');
+@import url('themes/rose-pine.css');
+@import url('themes/everforest-dark.css');
+@import url('themes/everforest-light.css');
+@import url('themes/ayu-dark.css');

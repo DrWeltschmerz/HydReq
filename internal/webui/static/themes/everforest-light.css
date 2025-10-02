@@ -1,0 +1,26 @@
+/* Everforest Light (light) */
+body.everforest-light {
+  --hdr-bg: #fdf6e3;
+  --hdr-fg: #5c6a72;
+  --bd: #a6b0a0;
+  --li-hov: #f2efdf;
+  --li-sel: #e9e8d2;
+  --pill: #e9e8d2;
+  --pg-bg: #e9e8d2;
+  --txt: #5c6a72;
+  --bg: #fffbef;
+  --btn-bg: #f2efdf;
+  --btn-bd: #a6b0a0;
+  --btn-hov: #e9e8d2;
+  --link: #83c092;
+  --input-bg: #f2efdf;
+  --input-bd: #a6b0a0;
+  --input-fg: #5c6a72;
+  --input-focus: #83c092;
+  --success: #a7c080;
+  --error: #e67e80;
+  --warning: #dbbc7f;
+  --info: #83c092;
+  --grad1: #83c092;
+  --grad2: #a7c080;
+}

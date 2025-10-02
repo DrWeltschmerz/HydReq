@@ -108,19 +108,41 @@ function downloadRun(format) {
 // Theme helpers
 function themeToDaisy(name){
   switch(name){
+    case 'light': return 'light';
     case 'dark': return 'dark';
     case 'synthwave': return 'synthwave';
     case 'hack': return 'forest';
     case 'catppuccin-mocha': return 'dracula';
     case 'catppuccin-latte': return 'cupcake';
+    case 'catppuccin-frappe': return 'nord';
+    case 'catppuccin-macchiato': return 'dracula';
+    case 'nord': return 'nord';
+    case 'dracula': return 'dracula';
+    case 'monokai': return 'night';
+    case 'gruvbox-dark': return 'coffee';
+    case 'gruvbox-light': return 'autumn';
+    case 'solarized-dark': return 'night';
+    case 'solarized-light': return 'winter';
+    case 'tokyo-night': return 'night';
+    case 'one-dark-pro': return 'dim';
+    case 'palenight': return 'night';
+    case 'rose-pine': return 'sunset';
+    case 'everforest-dark': return 'forest';
+    case 'everforest-light': return 'garden';
+    case 'ayu-dark': return 'black';
     default: return 'light';
   }
 }
 
 function isDocDark(){
-  return document.body.classList.contains('dark') ||
-         document.body.classList.contains('hack') ||
-         document.body.classList.contains('catppuccin-mocha');
+  const b = document.body.classList;
+  if (b.contains('dark')) return true;
+  const darkClasses = [
+    'hack', 'synthwave', 'catppuccin-mocha', 'catppuccin-frappe', 'catppuccin-macchiato',
+    'nord', 'dracula', 'monokai', 'gruvbox-dark', 'solarized-dark', 'tokyo-night',
+    'one-dark-pro', 'palenight', 'rose-pine', 'everforest-dark', 'ayu-dark'
+  ];
+  return darkClasses.some(c => b.contains(c));
 }
 
 function applyTheme(name){
@@ -142,24 +164,29 @@ function applyTheme(name){
   }
 
   // Remove all theme classes first
-  document.body.classList.remove('dark', 'synthwave', 'hack', 'catppuccin-mocha', 'catppuccin-latte');
-  
-  // Add the appropriate theme class
-  if (name === 'dark' || name === 'synthwave') {
-    document.body.classList.add('dark');
-  }
-  if (name === 'synthwave') {
-    document.body.classList.add('synthwave');
-  }
-  if (name === 'hack') {
-    document.body.classList.add('hack');
-  }
-  if (name === 'catppuccin-mocha') {
-    document.body.classList.add('catppuccin-mocha');
-  }
-  if (name === 'catppuccin-latte') {
-    document.body.classList.add('catppuccin-latte');
-  }
+  document.body.classList.remove(
+    'dark', 'synthwave', 'hack', 'catppuccin-mocha', 'catppuccin-latte',
+    'catppuccin-frappe', 'catppuccin-macchiato', 'nord', 'dracula', 'monokai',
+    'gruvbox-dark', 'gruvbox-light', 'solarized-dark', 'solarized-light',
+    'tokyo-night', 'one-dark-pro', 'palenight', 'rose-pine', 'everforest-dark',
+    'everforest-light', 'ayu-dark'
+  );
+
+  // Add the appropriate theme class + ensure dark base for dark themes
+  const darkSet = new Set([
+    'dark', 'synthwave', 'hack', 'catppuccin-mocha', 'catppuccin-frappe', 'catppuccin-macchiato',
+    'nord', 'dracula', 'monokai', 'gruvbox-dark', 'solarized-dark', 'tokyo-night',
+    'one-dark-pro', 'palenight', 'rose-pine', 'everforest-dark', 'ayu-dark'
+  ]);
+  if (darkSet.has(name)) document.body.classList.add('dark');
+
+  // Add specific class if not plain light/dark
+  const specificClasses = new Set([
+    'synthwave','hack','catppuccin-mocha','catppuccin-latte','catppuccin-frappe','catppuccin-macchiato',
+    'nord','dracula','monokai','gruvbox-dark','gruvbox-light','solarized-dark','solarized-light',
+    'tokyo-night','one-dark-pro','palenight','rose-pine','everforest-dark','everforest-light','ayu-dark'
+  ]);
+  if (specificClasses.has(name)) document.body.classList.add(name);
   
   try { localStorage.setItem('hydreq.theme', name); } catch{}
   // Sync CodeMirror theme if available

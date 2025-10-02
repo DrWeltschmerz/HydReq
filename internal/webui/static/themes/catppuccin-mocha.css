@@ -1,0 +1,8 @@
+/* Catppuccin Mocha (dark) */
+body.catppuccin-mocha {
+  --hdr-bg:#11111b; --hdr-fg:#cdd6f4; --bd:#313244; --li-hov:#1e1e2e; --li-sel:#181825; --pill:#181825; --pg-bg:#181825; --txt:#cdd6f4; --bg:#0b0b13;
+  --btn-bg:#11111b; --btn-bd:#313244; --btn-hov:#1e1e2e; --link:#89b4fa;
+  --input-bg:#1e1e2e; --input-bd:#313244; --input-fg:#cdd6f4; --input-focus:#89b4fa;
+  --success:#a6e3a1; --error:#f38ba8; --warning:#f9e2af; --info:#89b4fa;
+  --grad1:#89b4fa; --grad2:#a6e3a1;
+}

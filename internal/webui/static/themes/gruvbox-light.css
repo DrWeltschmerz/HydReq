@@ -1,0 +1,26 @@
+/* Gruvbox Light (light) */
+body.gruvbox-light {
+  --hdr-bg: #fbf1c7;
+  --hdr-fg: #3c3836;
+  --bd: #a89984;
+  --li-hov: #ebdbb2;
+  --li-sel: #d5c4a1;
+  --pill: #d5c4a1;
+  --pg-bg: #d5c4a1;
+  --txt: #3c3836;
+  --bg: #f9f5d7;
+  --btn-bg: #ebdbb2;
+  --btn-bd: #a89984;
+  --btn-hov: #d5c4a1;
+  --link: #458588;
+  --input-bg: #ebdbb2;
+  --input-bd: #a89984;
+  --input-fg: #3c3836;
+  --input-focus: #458588;
+  --success: #98971a;
+  --error: #cc241d;
+  --warning: #d79921;
+  --info: #458588;
+  --grad1: #458588;
+  --grad2: #98971a;
+}

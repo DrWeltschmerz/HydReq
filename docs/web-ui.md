@@ -18,3 +18,9 @@
 - Active environment overrides and tag filters appear as small pills near the Batch progress header and in the sidebar.
 - Tag chips shown on suite/test rows are clickable; they stay in sync with the sidebar tag checkboxes.
 - For dependsOn-based suites, stage progress is shown as a single stage (0); totals and progress are still accurate.
+
+## Theme system
+
+- Theme variables are modularized: each theme (dark, hack, catppuccin, synthwave, etc.) lives in its own CSS file under `static/themes/` and is aggregated via `themes.css`.
+- The theme selector in the header allows switching between all available themes; changes are instant and persistent.
+- To add a new theme, create a CSS file in `static/themes/` and add an `@import` in `themes.css`.

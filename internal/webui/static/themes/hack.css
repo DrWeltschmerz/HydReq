@@ -1,0 +1,8 @@
+/* Hack theme: neon terminal vibe */
+body.hack {
+  --hdr-bg:#061108; --hdr-fg:#a6ffb0; --bd:#15331b; --li-hov:#0b1f10; --li-sel:#0f2a16; --pill:#092010; --pg-bg:#0f2a16; --txt:#c8ffd2; --bg:#050d07;
+  --btn-bg:#0a1a0f; --btn-bd:#1a3b24; --btn-hov:#0e2315; --link:#8affb5;
+  --input-bg:#0b1f10; --input-bd:#1a3b24; --input-fg:#c8ffd2; --input-focus:#30ff7f;
+  --success:#30ff7f; --error:#ff5f5f; --warning:#ffd166; --info:#7dd3fc;
+  --grad1:#19ff93; --grad2:#5bff5b;
+}

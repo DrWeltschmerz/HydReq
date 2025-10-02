@@ -1,0 +1,26 @@
+/* Gruvbox Dark (dark) */
+body.gruvbox-dark {
+  --hdr-bg: #282828;
+  --hdr-fg: #ebdbb2;
+  --bd: #504945;
+  --li-hov: #3c3836;
+  --li-sel: #665c54;
+  --pill: #665c54;
+  --pg-bg: #665c54;
+  --txt: #ebdbb2;
+  --bg: #1d2021;
+  --btn-bg: #3c3836;
+  --btn-bd: #504945;
+  --btn-hov: #665c54;
+  --link: #83a598;
+  --input-bg: #3c3836;
+  --input-bd: #504945;
+  --input-fg: #ebdbb2;
+  --input-focus: #83a598;
+  --success: #b8bb26;
+  --error: #fb4934;
+  --warning: #fabd2f;
+  --info: #83a598;
+  --grad1: #83a598;
+  --grad2: #b8bb26;
+}

@@ -1,0 +1,26 @@
+/* Palenight (dark) */
+body.palenight {
+  --hdr-bg: #292d3e;
+  --hdr-fg: #a6accd;
+  --bd: #3e4b59;
+  --li-hov: #2f3440;
+  --li-sel: #3a4150;
+  --pill: #3a4150;
+  --pg-bg: #3a4150;
+  --txt: #a6accd;
+  --bg: #292d3e;
+  --btn-bg: #2f3440;
+  --btn-bd: #3e4b59;
+  --btn-hov: #3a4150;
+  --link: #c792ea;
+  --input-bg: #2f3440;
+  --input-bd: #3e4b59;
+  --input-fg: #a6accd;
+  --input-focus: #c792ea;
+  --success: #c3e88d;
+  --error: #f07178;
+  --warning: #ffcb6b;
+  --info: #82aaff;
+  --grad1: #82aaff;
+  --grad2: #c3e88d;
+}

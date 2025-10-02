@@ -71,9 +71,9 @@ function initApp(){
     root.appendChild(head);
     const list = document.createElement('div'); list.className='col'; root.appendChild(list);
     function addRow(k='', v=''){
-      const row = document.createElement('div'); row.className='env-row row'; row.style.gap='6px';
-      const ki = document.createElement('input'); ki.className='env-k'; ki.placeholder='KEY'; ki.value=k; ki.style.width='40%';
-      const vi = document.createElement('input'); vi.className='env-v'; vi.placeholder='value'; vi.value=v; vi.style.flex='1';
+  const row = document.createElement('div'); row.className='env-row row gap-6';
+  const ki = document.createElement('input'); ki.className='env-k w-40p'; ki.placeholder='KEY'; ki.value=k;
+  const vi = document.createElement('input'); vi.className='env-v flex-1'; vi.placeholder='value'; vi.value=v;
       const del = document.createElement('button'); del.className='btn btn-xs'; del.textContent='×'; del.title='Remove'; del.onclick = ()=>{ row.remove(); renderActiveEnv(parseEnv()); };
       [ki,vi].forEach(el=> el.addEventListener('input', ()=> renderActiveEnv(parseEnv())));
       row.appendChild(ki); row.appendChild(vi); row.appendChild(del); list.appendChild(row);
@@ -146,9 +146,9 @@ function initApp(){
     root.appendChild(head);
     const list = document.createElement('div'); list.className='col'; root.appendChild(list);
     function addRow(tag='', checked=false){
-      const row = document.createElement('div'); row.className='row'; row.style.gap='6px'; row.style.marginBottom='6px';
+  const row = document.createElement('div'); row.className='row gap-6 mb-6';
       const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = !!checked; cb.title='Include this tag in filter';
-      const ti = document.createElement('input'); ti.type='text'; ti.placeholder='tag'; ti.value=tag; ti.style.flex='1';
+  const ti = document.createElement('input'); ti.type='text'; ti.placeholder='tag'; ti.value=tag; ti.className='flex-1';
       const del = document.createElement('button'); del.className='btn btn-xs'; del.textContent='×'; del.title='Remove';
       del.onclick = ()=>{ row.remove(); persistTags(); renderActiveTags(); };
       [cb, ti].forEach(el=> el.addEventListener('input', ()=>{ persistTags(); renderActiveTags(); }));

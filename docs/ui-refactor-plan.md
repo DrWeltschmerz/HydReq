@@ -1,3 +1,32 @@
+# UI Refactor Plan: Theme Modularization (2025-10-02)
+
+## Theme Split Summary
+- All theme variable blocks moved from `themes.css` into individual files under `static/themes/`:
+  - `base.css` (`:root`)
+  - `dark.css` (`body.dark`)
+  - `hack.css` (`body.hack`)
+  - `catppuccin-mocha.css`, `catppuccin-latte.css`, `synthwave.css`, etc.
+- `themes.css` now aggregates via `@import`.
+- `app.css` only contains rules, not theme variables.
+- Theme selector in `index.html` matches available themes.
+
+## Conventions
+- Add new themes by creating a file in `static/themes/` and adding an `@import` in `themes.css`.
+- Theme variables must be scoped to either `:root` or `body.<theme>`.
+- No duplication of theme variables in other CSS files.
+- Theme selector options must match available theme files.
+- Use class-based switching via `applyTheme()` in JS.
+
+## Next Steps
+- Expand theme support as needed (add more theme files).
+- Optionally document theme tokens in `docs/web-ui.md`.
+- Continue JS refactor: split large files, add tests for store and theme switching.
+
+---
+
+## Gaps and cleanup plan (Phase 0/1 follow-up)
+
+Observations
 # Web UI refactor plan
 
 This plan proposes a pragmatic refactor of HydReq's Web UI to improve maintainability, reduce duplication, and keep current functionality intact.
@@ -27,7 +56,16 @@ Recommendation: Option 2 (Preact + htm + Vite + TS) for the editor and suites co
 
 ## Phased migration
 
+  - Keep CSS/JS human-readable: prefer multiple short lines over single long lines.
+  - Avoid excessive inline styles in JS. Prefer semantic classes and tokens.
+  - Preserve indentation and spacing for diffs; wrap text where sensible.
+
 Phase 0: Housekeeping (no behavior changes)
+Central store usage
+- hydreqStore is the single source of truth for suite/test state across views (suites list, runner log, editor quick-run).
+- UI subscribes to store updates and patches in-place; hydration occurs on expand to avoid stale views.
+- Badge/status classes are derived in a single place; components do not compute divergent logic.
+- TODO: Add JS unit tests to cover store semantics (setTest, setSummary, derived badge) and subscription delivery.
 - Remove dead/legacy files after verification: `internal/webui/static/suites.js`, `internal/webui/static/js/helpers.js`. (done)
 - Move index.html inline `<style>` to `css/app.css`. (done)
 - Consolidate theme tokens into `themes.css` and reference from `app.css`. (done — theme tokens have been moved to `themes.css` and `app.css` now references `themes.css` as the primary source for variables.)
@@ -39,12 +77,17 @@ Phase 1: Module boundaries
   - `run.js`: start/cancel run, SSE subscribe, event shapes. (done)
 - Extract SSE listener from `js/suites.js` into `js/run-listener.js` with callbacks. (done — run-listener.subscribe now parses SSE and awaits async handlers; suites.js delegates to it and retains a fallback EventSource for compatibility.)
 - Extract suites rendering into `js/suites-view.js`; keep the DOM IDs stable. (done)
+- Extract user actions from `suites.js` to `js/suites-actions.js` (expand/collapse, new suite, import). (done)
 - Add server helper `POST /api/editor/checkpath` to validate client-proposed paths and report existence/safety. (done — supports the improved "New Suite" UX.)
 - New Suite UX: promptNewSuite now uses server-side check and opens the editor in "create" mode when the target file does not exist; the editor now shows a clear "New suite" banner, uses "Create" button labels, re-validates and asks to confirm on overwrite/validation warnings. (done)
 - Suite list details: Display test failure details below the test name, in a collapsed-by-default details/summary element with a scrollable, copy-friendly message block. (done)
 - Editor details styling: Unified scrollable message block across quick-run and per-test details. (done)
 
 Acceptance: suites list renders; SSE updates badges/progress as before; editor opens; quick-run works; New Suite flow presents a safer, validated create path; test details display clearly underneath the test name; suite list failure details are collapsed by default and expand on demand; message blocks are scrollable and easy to copy.
+
+Note on componentization path (user-preferred)
+- Consider Svelte + Vite + Tailwind (+ DaisyUI) + CodeMirror for component-based architecture. Keep current zero-build path running in parallel during migration.
+- Hosting remains via Go static file server; Vite build outputs to `internal/webui/static/dist/` and index.html can conditionally load built assets.
 
 Phase 2: Editor split
 - Split `js/editor.js` into submodules:
@@ -114,11 +157,18 @@ Observations
 - Styles are largely centralized, but we still set ad-hoc style props (e.g., badge background colors) that should be expressed as classes/tokens.
 
 Plan
+0) Whitespace and readability policy
+  - Keep CSS/JS human-readable: prefer multiple short lines over single long lines.
+  - Avoid excessive inline styles in JS. Prefer semantic classes and tokens.
+  - Preserve indentation and spacing for diffs; wrap text where sensible.
+  - Theme variables formatted one per line; JS DOM builders avoid long chained statements.
 1) Inline styles → CSS classes
   - Create utility classes in `app.css` for row spacing, padding, hover, and badge states.
   - Replace remaining `el.style.*` in `suites-view.js` and `suites.js` with class names.
+  - Acceptance: grep shows zero remaining marginLeft/fontSize/position hot spots in UI JS (excluding tests).
 2) Split large JS files
   - `suites.js`: extract `sse-handlers.js` (listen/handlers), `suite-state.js` (selection, lastStatus, buffering), `suite-dom.js` (DOM builders), keeping a thin orchestrator.
+  - In progress: Extracted `suites-actions.js`. Next: move header renderers (renderHeaderTags/env) and store wiring to `suite-state.js`.
   - `editor.js`: continue Phase 2 split (modal, state, yaml, forms/*, run).
 3) Status/badge CSS tokens (done)
   - Added unified classes: `.status-badge`, `.status-ok`, `.status-fail`, `.status-skip`, `.status-unknown`.
