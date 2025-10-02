@@ -3,6 +3,8 @@
 Welcome! This is the full documentation for HydReq. Start here and jump to the topics you need.
 
   - ./getting-started.md
+- Docker deployment
+  - ./docker.md
 - Web UI guide
   - ./web-ui.md
  - Visual editor

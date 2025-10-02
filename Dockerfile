@@ -7,7 +7,7 @@ WORKDIR /build
 COPY . .
 
 # Build static binary with optimizations
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+RUN CGO_ENABLED=0 go build \
     -ldflags="-s -w -X main.version=${VERSION:-dev}" \
     -o hydreq \
     ./cmd/hydreq
