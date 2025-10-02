@@ -44,7 +44,13 @@
     try{
       const text = cm ? cm.getValue() : '';
       const parsed = tryParseYaml(text);
-      if (parsed){ window.hydreqEditorState && window.hydreqEditorState.setWorking(parsed); window.hydreqEditorState && window.hydreqEditorState.setDirty(true); }
+      if (parsed){
+        if (window.hydreqEditorState && window.hydreqEditorState.setWorking) window.hydreqEditorState.setWorking(parsed);
+        if (window.hydreqEditorState && window.hydreqEditorState.setDirty) window.hydreqEditorState.setDirty(true);
+      } else {
+        // Even if YAML is temporarily invalid, mark as dirty to reflect user edits
+        if (window.hydreqEditorState && window.hydreqEditorState.setDirty) window.hydreqEditorState.setDirty(true);
+      }
     }catch(e){}
   }
 

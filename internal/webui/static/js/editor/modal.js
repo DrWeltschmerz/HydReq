@@ -58,7 +58,7 @@
                 <button id="ed_del_test" class="btn btn-xs" title="Delete selected">−</button>
               </div>
             </div>
-            <div class="ed-col-content">
+            <div class="ed-col-content ed-tests-panel">
               <div id="ed_tests" class="ed-tests-list"></div>
             </div>
           </div>
@@ -111,14 +111,52 @@
                   <label>Depends on</label>
                   <input id="ed_test_depends" type="text" placeholder="comma-separated test names"/>
                 </div>
+                <div class="ed-body ed-grid-2-140" id="ed_flow_form">
+                  <label>Skip</label>
+                  <input id="ed_skip" type="checkbox"/>
+                  <label>Only</label>
+                  <input id="ed_only" type="checkbox"/>
+                  <label>Stage</label>
+                  <input id="ed_stage" type="number" min="0" max="999" step="1"/>
+                </div>
               </details>
               <details open class="ed-panel">
                 <summary class="ed-summary">🌐 Request</summary>
-                <div class="ed-body" id="ed_request"></div>
+                <div class="ed-body" id="ed_request">
+                  <div id="ed_req_form" class="ed-grid-2-140">
+                    <label>Method</label>
+                    <select id="ed_method">
+                      <option>GET</option>
+                      <option>POST</option>
+                      <option>PUT</option>
+                      <option>PATCH</option>
+                      <option>DELETE</option>
+                      <option>HEAD</option>
+                      <option>OPTIONS</option>
+                    </select>
+                    <label>URL</label>
+                    <input id="ed_url" type="text" placeholder="/path"/>
+                    <label>Timeout (ms)</label>
+                    <input id="ed_timeout" type="number" min="0" step="1"/>
+                    <label>Headers</label>
+                    <div id="ed_headers"></div>
+                    <label>Query</label>
+                    <div id="ed_query"></div>
+                    <label>Body</label>
+                    <textarea id="ed_body" style="min-height: 90px"></textarea>
+                  </div>
+                </div>
               </details>
               <details open class="ed-panel">
                 <summary class="ed-summary">✅ Assert</summary>
-                <div class="ed-body" id="ed_assert"></div>
+                <div class="ed-body" id="ed_assert">
+                  <div id="ed_assert_form" class="ed-grid-2-140">
+                    <label>Status</label>
+                    <input id="ed_assert_status" type="number" min="100" max="599" step="1"/>
+                    <label>Max duration (ms)</label>
+                    <input id="ed_assert_maxDuration" type="number" min="0" step="1"/>
+                  </div>
+                </div>
               </details>
               <details class="ed-panel">
                 <summary class="ed-summary">📦 Extract</summary>

@@ -15,6 +15,7 @@
       <a href="https://goreportcard.com/report/github.com/DrWeltschmerz/HydReq"><img src="https://goreportcard.com/badge/github.com/DrWeltschmerz/HydReq" alt="Go Report Card" height="20"></a>
     </td>
     <td width="20%" valign="middle" align="right">
+    <a href="https://deepwiki.com/DrWeltschmerz/HydReq" alt="Ask DeepWiki"><img src="https://deepwiki.com/badge.svg"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License" height="20"></a>
     <a href="https://github.com/DrWeltschmerz/HydReq/stargazers"><img src="https://img.shields.io/github/stars/DrWeltschmerz/HydReq?style=social" alt="Stars" height="20"></a>
     </td>

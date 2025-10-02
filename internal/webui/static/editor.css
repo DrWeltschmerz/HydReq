@@ -108,17 +108,17 @@ a { color: var(--link); }
 .ed-actions { display: flex; gap: 8px; align-items: center; }
 .ed-main { display: flex; gap: 8px; flex: 1; overflow: hidden; min-height: 0; }
 .ed-pane { display: flex; flex-direction: row; flex: 1 1 auto; gap: 8px; overflow: auto; padding: 8px; min-width: 0; min-height: 0; }
-.ed-tests-panel { 
-  flex: 0 0 280px; 
-  border: 1px solid var(--bd); 
-  border-radius: 6px; 
-  display: flex; 
-  flex-direction: column; 
-  overflow: hidden; 
-  min-height: 0; 
+.ed-tests-panel {
+  flex: 0 0 280px;
+  border: 1px solid var(--bd);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
   background: var(--bg);
-  height: fit-content;
-  max-height: 100%;
+  /* fill the available vertical space */
+  height: 100%;
   transition: flex-basis 0.3s ease, min-width 0.3s ease;
 }
 .ed-tests-header { 
@@ -133,12 +133,11 @@ a { color: var(--link); }
   top: 0; 
   z-index: 1; 
 }
-.ed-tests-list { 
-  flex: 1; 
-  overflow-y: auto; 
-  overflow-x: hidden; 
-  min-height: 0; 
-  max-height: 400px;
+.ed-tests-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
 }
 .ed-center { 
   flex: 1 1 auto; 
@@ -188,8 +187,9 @@ a { color: var(--link); }
   background: var(--pill);
 }
 .ed-test-item.selected {
-  background: var(--primary);
-  color: var(--primary-content);
+  background: var(--li-sel);
+  color: var(--txt);
+  border: 1px solid var(--bd);
 }
 .ed-test-name {
   flex: 1;

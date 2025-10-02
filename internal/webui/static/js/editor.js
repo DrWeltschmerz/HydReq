@@ -43,6 +43,8 @@ let selIndex = 0;
 let testRunCache = new Map();
 let modal = null;
 let working = { tests: [] };
+// Getters for form sub-editors (populated in renderForm)
+let suiteVarsGet = null, headersGet = null, queryGet = null, extractGet = null, matrixGet = null;
 const LS_VER = 'v1';
 const LS_ENC = (s) => { try { return btoa(unescape(encodeURIComponent(s||''))); } catch { return (s||''); } };
 const LS_KEY = (p) => `hydreq.${LS_VER}.runCache:` + LS_ENC(p||'');
@@ -57,23 +59,39 @@ function renderForm() {
   const baseUrlEl = modal.querySelector('#ed_suite_baseurl');
   const authBearerEl = modal.querySelector('#ed_auth_bearer');
   const authBasicEl = modal.querySelector('#ed_auth_basic');
+  const suiteVarsEl = modal.querySelector('#ed_suite_vars');
   
   if (suiteNameEl) suiteNameEl.value = working.name || '';
   if (baseUrlEl) baseUrlEl.value = working.baseUrl || working.baseURL || '';
   // Use bearerEnv/basicEnv keys consistently with Suite model
   if (authBearerEl) authBearerEl.value = (working.auth && (working.auth.bearerEnv || working.auth.bearer)) || '';
   if (authBasicEl) authBasicEl.value = (working.auth && (working.auth.basicEnv || working.auth.basic)) || '';
+  // Suite variables table
+  if (suiteVarsEl) {
+    try {
+      suiteVarsGet = kvTable(suiteVarsEl, working.vars || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+    } catch (e) { /* no-op */ }
+  }
   
   // Update test-specific fields if a test is selected
   if (working.tests && Array.isArray(working.tests) && selIndex >= 0 && selIndex < working.tests.length) {
     const test = working.tests[selIndex];
-    const testNameEl = modal.querySelector('#ed_test_name');
+  const testNameEl = modal.querySelector('#ed_test_name');
+    const dependsEl = modal.querySelector('#ed_test_depends');
+  const stageFieldAlt = modal.querySelector('#ed_test_stage');
     const methodEl = modal.querySelector('#ed_method');
     const urlEl = modal.querySelector('#ed_url');
     const timeoutEl = modal.querySelector('#ed_timeout');
     const bodyEl = modal.querySelector('#ed_body');
+    const headersEl = modal.querySelector('#ed_headers');
+    const queryEl = modal.querySelector('#ed_query');
+    const extractEl = modal.querySelector('#ed_extract');
+    const tagsEl = modal.querySelector('#ed_tags');
+    const matrixEl = modal.querySelector('#ed_matrix');
+    const oapiEl = modal.querySelector('#ed_oapi_enabled');
     
     if (testNameEl) testNameEl.value = test.name || '';
+    if (dependsEl) dependsEl.value = Array.isArray(test.dependsOn) ? test.dependsOn.join(', ') : '';
     if (methodEl && test.request) methodEl.value = test.request.method || 'GET';
     if (urlEl && test.request) urlEl.value = test.request.url || '';
     if (timeoutEl && test.request) timeoutEl.value = test.request.timeout || '';
@@ -89,6 +107,43 @@ function renderForm() {
         bodyEl.value = test.request.body || '';
       }
     }
+    // Headers and Query kv tables
+    if (headersEl) {
+      try { headersGet = kvTable(headersEl, (test.request && test.request.headers) || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} }); } catch{}
+    }
+    if (queryEl) {
+      try { queryGet = kvTable(queryEl, (test.request && test.request.query) || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} }); } catch{}
+    }
+    // Extract mapping (key -> jsonPath)
+    if (extractEl) {
+      try { extractGet = extractTable(extractEl, test.extract || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} }); } catch{}
+    }
+    // Tags input
+    if (tagsEl) {
+      tagsEl.value = Array.isArray(test.tags) ? test.tags.join(', ') : '';
+      if (!tagsEl.dataset.bound){
+        tagsEl.addEventListener('input', ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+        tagsEl.dataset.bound = '1';
+      }
+    }
+    // Matrix editor
+    if (matrixEl) {
+      try { matrixGet = renderMatrix(matrixEl, test.matrix || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} }); } catch{}
+    }
+    // OpenAPI override
+    if (oapiEl) {
+      const enabled = (test.openApi && typeof test.openApi.enabled !== 'undefined') ? String(!!test.openApi.enabled) : 'inherit';
+      oapiEl.value = enabled === 'true' ? 'true' : (enabled === 'false' ? 'false' : 'inherit');
+      if (!oapiEl.dataset.bound){ oapiEl.addEventListener('change', ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} }); oapiEl.dataset.bound='1'; }
+    }
+    
+    // Sync stage in both locations if present
+    try{
+      const stageVal = (typeof test.stage === 'number') ? String(test.stage) : '';
+      if (stageFieldAlt) stageFieldAlt.value = stageVal;
+      const stageElPrimary = modal.querySelector('#ed_stage');
+      if (stageElPrimary) stageElPrimary.value = stageVal;
+    }catch{}
     
     // Update assertions
     if (test.assert) {
@@ -100,7 +155,7 @@ function renderForm() {
     }
     
     // Update flow settings: don't prefill 0; clear when unset
-    const stageEl = modal.querySelector('#ed_stage');
+  const stageEl = modal.querySelector('#ed_stage') || modal.querySelector('#ed_test_stage');
     if (stageEl) stageEl.value = test.stage || 0;
     
     const skipEl = modal.querySelector('#ed_skip');
@@ -124,9 +179,12 @@ function collectFormData() {
   const baseUrlEl = modal.querySelector('#ed_suite_baseurl');
   const authBearerEl = modal.querySelector('#ed_auth_bearer');
   const authBasicEl = modal.querySelector('#ed_auth_basic');
+  const suiteVarsEl = modal.querySelector('#ed_suite_vars');
   
   if (suiteNameEl) working.name = suiteNameEl.value;
   if (baseUrlEl) working.baseUrl = baseUrlEl.value;
+  // Suite vars from table
+  try { if (suiteVarsEl && typeof suiteVarsGet === 'function') { const v = suiteVarsGet(); if (v && Object.keys(v).length) working.vars = v; else delete working.vars; } } catch{}
   
   // Only include auth if any value is provided
   const bearerVal = authBearerEl ? (authBearerEl.value||'').trim() : '';
@@ -157,6 +215,9 @@ function collectFormData() {
     const stageEl = modal.querySelector('#ed_stage');
     const statusEl = modal.querySelector('#ed_assert_status');
     const maxDurationEl = modal.querySelector('#ed_assert_maxDuration');
+    const dependsEl = modal.querySelector('#ed_test_depends');
+    const tagsEl = modal.querySelector('#ed_tags');
+    const oapiEl = modal.querySelector('#ed_oapi_enabled');
     
   if (testNameEl && testNameEl.value) test.name = testNameEl.value;
     
@@ -175,6 +236,9 @@ function collectFormData() {
         if ((bodyEl.value||'').trim()) test.request.body = bodyEl.value; else delete test.request.body;
       }
     }
+    // Headers and Query from kv tables
+    try{ if (typeof headersGet === 'function'){ const hv = headersGet(); if (hv && Object.keys(hv).length) test.request.headers = hv; else delete test.request.headers; } }catch{}
+    try{ if (typeof queryGet === 'function'){ const qv = queryGet(); if (qv && Object.keys(qv).length) test.request.query = qv; else delete test.request.query; } }catch{}
     // Assertions: include only when provided
     if (statusEl || maxDurationEl) { if (!test.assert) test.assert = {}; }
     if (statusEl) {
@@ -193,6 +257,16 @@ function collectFormData() {
       const stg = stageEl.value ? parseInt(stageEl.value,10) : NaN;
       if (!isNaN(stg)) test.stage = stg; else delete test.stage;
     }
+    // dependsOn (comma-separated)
+    if (dependsEl){ const arr = (dependsEl.value||'').split(',').map(s=>s.trim()).filter(Boolean); if (arr.length) test.dependsOn = arr; else delete test.dependsOn; }
+    // tags
+    if (tagsEl){ const tg = (tagsEl.value||'').split(',').map(s=>s.trim()).filter(Boolean); if (tg.length) test.tags = tg; else delete test.tags; }
+    // extract
+    try{ if (typeof extractGet === 'function'){ const ex = extractGet(); if (ex && Object.keys(ex).length) test.extract = ex; else delete test.extract; } }catch{}
+    // matrix
+    try{ if (typeof matrixGet === 'function'){ const mx = matrixGet(); if (mx && Object.keys(mx).length) test.matrix = mx; else delete test.matrix; } }catch{}
+    // openapi override
+    if (oapiEl){ const v = (oapiEl.value||'inherit'); if (v==='inherit'){ delete test.openApi; } else { test.openApi = { enabled: (v==='true') }; } }
   }
 }
 
@@ -602,6 +676,21 @@ function mapTable(container, obj, valuePlaceholder='value', onChange){
   return kvTable(container, obj||{}, onChange);
 }
 
+// Extract editor: key => jsonPath mapping, stored as { key: { jsonPath: value } }
+function extractTable(container, obj, onChange){
+  const flat = {};
+  try{
+    Object.keys(obj||{}).forEach(k=>{ const v = obj[k]||{}; flat[k] = v.jsonPath || v.JSONPath || ''; });
+  }catch{}
+  const getFlat = kvTable(container, flat, onChange);
+  return ()=>{
+    const out = {};
+    const m = getFlat() || {};
+    Object.keys(m).forEach(k=>{ const jp = m[k]; if (String(jp||'').trim()!==''){ out[k] = { jsonPath: jp }; } });
+    return out;
+  };
+}
+
 // Create a matrix editor for data-driven test expansion
 function renderMatrix(container, matrix, onChange) {
   const c = (typeof container === 'string') ? modal.querySelector(container) : container;
@@ -944,7 +1033,7 @@ function openEditor(path, data){
       };
     }
   } catch(e){}
-  modal.querySelector('#ed_path').textContent = path;
+  try{ const pEl = modal.querySelector('#ed_path'); if (pEl) pEl.textContent = path; }catch{}
   const rawEl = modal.querySelector('#ed_raw');
   try {
     const nameFieldEarly = modal.querySelector && modal.querySelector('#ed_suite_name');
@@ -1260,6 +1349,8 @@ function openEditor(path, data){
       baselineYaml = curYaml || '';
       dirty = false;
       const di = modal.querySelector('#ed_dirty_indicator'); if (di) di.style.display = 'none';
+      // Also update shared editor state to not-dirty on initial mount
+      try{ if (window.hydreqEditorState && window.hydreqEditorState.setDirty) window.hydreqEditorState.setDirty(false); }catch{}
     }catch{}
   }, 100);
 
@@ -1276,6 +1367,17 @@ function openEditor(path, data){
         const wk = (e && e.detail && e.detail.working) || {};
         working = normalizeParsed(wk);
         renderForm();
+      }catch{}
+    });
+    // Reflect dirty flag changes emitted by YAML editor/state so raw edits mark UI as dirty
+    document.addEventListener('hydreq:editor:dirty:changed', (e)=>{
+      try{
+        const isDirty = !!(e && e.detail && e.detail.dirty);
+        dirty = isDirty;
+        const di = modal && modal.querySelector && modal.querySelector('#ed_dirty_indicator');
+        if (di) di.style.display = isDirty ? '' : 'none';
+        // Also recompute against baseline to keep local comparison accurate
+        try{ markDirty(); }catch{}
       }catch{}
     });
   }catch{}
@@ -1502,7 +1604,7 @@ function openEditor(path, data){
         localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); 
       }catch{} 
       // Push details to suites sidebar so both views are in sync
-      try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (typeof window.setSuiteTestDetails==='function' && (status||'').toLowerCase()==='failed') window.setSuiteTestDetails(pth, t.name||'', messages||[]); }catch{}
+      try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (typeof window.setSuiteTestDetails==='function'){ const st=(status||'').toLowerCase(); if (st==='failed' || (st==='skipped' && Array.isArray(messages) && messages.length)) window.setSuiteTestDetails(pth, t.name||'', messages||[]); } }catch{}
       renderTests(); 
     }catch(e){} 
   }
@@ -1619,7 +1721,7 @@ function openEditor(path, data){
             } 
           }catch{}
           // propagate to suites list
-          try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, name, s); if (typeof window.setSuiteTestDetails==='function' && s==='failed') window.setSuiteTestDetails(pth, name, Array.isArray(payload.Messages)?payload.Messages:[]); }catch{}
+          try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, name, s); if (typeof window.setSuiteTestDetails==='function'){ const msgs = Array.isArray(payload.Messages)?payload.Messages:[]; if (s==='failed' || (s==='skipped' && msgs.length)) window.setSuiteTestDetails(pth, name, msgs); } }catch{}
           if (Array.isArray(payload.Messages) && payload.Messages.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = payload.Messages.join('\n'); det.appendChild(pre); quickRunBox.appendChild(det); }
         } else if (type === 'suiteEnd'){
           const s = payload.summary || {};
