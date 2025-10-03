@@ -1,6 +1,7 @@
 // editor/yaml.js — CodeMirror setup, parse/serialize, theme sync
 (function(){
   let cm = null;
+  let hydrated = false;
 
   function mount(el){
     if (!el) return null;
@@ -36,16 +37,21 @@
       }catch{}
       if (cm.getWrapperElement) { try{ cm.getWrapperElement().style.height = '100%'; }catch{} }
       cm.on('change', debounce(handleChange, 200));
+      // Defer handling changes until after initial hydration
+      hydrated = false;
+      setTimeout(()=>{ hydrated = true; }, 120);
       return cm;
     }catch(e){ return null; }
   }
 
   function handleChange(){
     try{
+      if (!hydrated){ return; }
+      if (window.__ed_yamlSuppress || window.__ed_initializing){ return; }
       const text = cm ? cm.getValue() : '';
       const parsed = tryParseYaml(text);
       if (parsed){
-        if (window.hydreqEditorState && window.hydreqEditorState.setWorking) window.hydreqEditorState.setWorking(parsed);
+        if (!window.__ed_initializing && window.hydreqEditorState && window.hydreqEditorState.setWorking) window.hydreqEditorState.setWorking(parsed);
         if (window.hydreqEditorState && window.hydreqEditorState.setDirty) window.hydreqEditorState.setDirty(true);
       } else {
         // Even if YAML is temporarily invalid, mark as dirty to reflect user edits

@@ -58,38 +58,25 @@ const RUNREC_KEY = (p) => `hydreq.${LS_VER}.editorRun:` + LS_ENC(p||'');
 function renderForm() {
   if (!modal || !working) return;
   
-  // Update suite-level fields
-  const suiteNameEl = modal.querySelector('#ed_suite_name');
-  const baseUrlEl = modal.querySelector('#ed_suite_baseurl');
-  const authBearerEl = modal.querySelector('#ed_auth_bearer');
-  const authBasicEl = modal.querySelector('#ed_auth_basic');
-  const suiteVarsEl = modal.querySelector('#ed_suite_vars');
-  
-  if (suiteNameEl) suiteNameEl.value = working.name || '';
-  if (baseUrlEl) baseUrlEl.value = working.baseUrl || working.baseURL || '';
-  // Use bearerEnv/basicEnv keys consistently with Suite model
-  if (authBearerEl) authBearerEl.value = (working.auth && (working.auth.bearerEnv || working.auth.bearer)) || '';
-  if (authBasicEl) authBasicEl.value = (working.auth && (working.auth.basicEnv || working.auth.basic)) || '';
-  // Suite variables table
-  if (suiteVarsEl) {
-    try {
-      suiteVarsGet = kvTable(suiteVarsEl, working.vars || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-    } catch (e) { /* no-op */ }
-  }
-  // Suite hooks (pre/post)
-  try {
-    const preC = modal.querySelector('#ed_suite_presuite');
-    const postC = modal.querySelector('#ed_suite_postsuite');
-    if (preC) suitePreGet = hookList(preC, Array.isArray(working.preSuite)? working.preSuite: [], { scope: 'suitePre' }, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-    if (postC) suitePostGet = hookList(postC, Array.isArray(working.postSuite)? working.postSuite: [], { scope: 'suitePost' }, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-  } catch {}
+  // Delegate suite-level fields and hooks
+  try{
+    if (window.hydreqEditorForms && window.hydreqEditorForms.suite && typeof window.hydreqEditorForms.suite.wire === 'function'){
+      const suiteFns = window.hydreqEditorForms.suite.wire(modal, working, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+      suiteVarsGet = suiteFns.suiteVarsGet || suiteVarsGet;
+      suitePreGet = suiteFns.suitePreGet || suitePreGet;
+      suitePostGet = suiteFns.suitePostGet || suitePostGet;
+    }
+  }catch{}
   
   // Update test-specific fields if a test is selected
   if (working.tests && Array.isArray(working.tests) && selIndex >= 0 && selIndex < working.tests.length) {
     const test = working.tests[selIndex];
-  const testNameEl = modal.querySelector('#ed_test_name');
-    const dependsEl = modal.querySelector('#ed_test_depends');
-  const stageFieldAlt = modal.querySelector('#ed_test_stage');
+    // Delegate to test meta form module (name, depends, stage, skip/only, tags)
+    try {
+      if (window.hydreqEditorForms && window.hydreqEditorForms.testmeta && typeof window.hydreqEditorForms.testmeta.wire === 'function') {
+        window.hydreqEditorForms.testmeta.wire(modal, test, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+      }
+    } catch {}
     const methodEl = modal.querySelector('#ed_method');
     const urlEl = modal.querySelector('#ed_url');
     const timeoutEl = modal.querySelector('#ed_timeout');
@@ -101,91 +88,47 @@ function renderForm() {
     const matrixEl = modal.querySelector('#ed_matrix');
     const oapiEl = modal.querySelector('#ed_oapi_enabled');
     
-    if (testNameEl) testNameEl.value = test.name || '';
-    if (dependsEl) dependsEl.value = Array.isArray(test.dependsOn) ? test.dependsOn.join(', ') : '';
-    if (methodEl && test.request) methodEl.value = test.request.method || 'GET';
-    if (urlEl && test.request) urlEl.value = test.request.url || '';
-    if (timeoutEl && test.request) timeoutEl.value = test.request.timeout || '';
-    if (bodyEl && test.request) {
-      try {
-        const body = test.request.body;
-        if (body && typeof body === 'object') {
-          bodyEl.value = JSON.stringify(body, null, 2);
-        } else {
-          bodyEl.value = body || '';
-        }
-      } catch (e) {
-        bodyEl.value = test.request.body || '';
+    
+    // Delegate to request form module
+    try {
+      if (window.hydreqEditorForms && window.hydreqEditorForms.request && typeof window.hydreqEditorForms.request.wire === 'function') {
+        const reqFns = window.hydreqEditorForms.request.wire(modal, test, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+        headersGet = reqFns.headersGet || headersGet;
+        queryGet = reqFns.queryGet || queryGet;
       }
-    }
-    // Headers and Query kv tables
-    if (headersEl) {
-      try { headersGet = kvTable(headersEl, (test.request && test.request.headers) || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} }); } catch{}
-    }
-    if (queryEl) {
-      try { queryGet = kvTable(queryEl, (test.request && test.request.query) || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} }); } catch{}
-    }
-    // Extract mapping (key -> jsonPath)
+    } catch {}
+  // Extract mapping (key -> jsonPath)
     if (extractEl) {
       try { extractGet = extractTable(extractEl, test.extract || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} }); } catch{}
     }
-    // Tags input
-    if (tagsEl) {
-      tagsEl.value = Array.isArray(test.tags) ? test.tags.join(', ') : '';
-      if (!tagsEl.dataset.bound){
-        tagsEl.addEventListener('input', ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-        tagsEl.dataset.bound = '1';
-      }
-    }
-    // Matrix editor
+    // Tags handled by testmeta module
+    // Matrix editor (delegated)
     if (matrixEl) {
-      try { matrixGet = renderMatrix(matrixEl, test.matrix || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} }); } catch{}
+      try {
+        if (window.hydreqEditorForms && window.hydreqEditorForms.matrix && typeof window.hydreqEditorForms.matrix.render === 'function') {
+          matrixGet = window.hydreqEditorForms.matrix.render(modal, matrixEl, test.matrix || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+        } else {
+          matrixGet = renderMatrix(matrixEl, test.matrix || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+        }
+      } catch{}
     }
-    // OpenAPI override
-    if (oapiEl) {
-      const enabled = (test.openApi && typeof test.openApi.enabled !== 'undefined') ? String(!!test.openApi.enabled) : 'inherit';
-      oapiEl.value = enabled === 'true' ? 'true' : (enabled === 'false' ? 'false' : 'inherit');
-      if (!oapiEl.dataset.bound){ oapiEl.addEventListener('change', ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} }); oapiEl.dataset.bound='1'; }
-    }
-    
-    // Sync stage in both locations if present
-    try{
-      const stageVal = (typeof test.stage === 'number') ? String(test.stage) : '';
-      if (stageFieldAlt) stageFieldAlt.value = stageVal;
-      const stageElPrimary = modal.querySelector('#ed_stage');
-      if (stageElPrimary) stageElPrimary.value = stageVal;
-    }catch{}
-    
-    // Update assertions and editors
-    const statusEl = modal.querySelector('#ed_assert_status');
-    const maxDurationEl = modal.querySelector('#ed_assert_maxDuration');
-    if (statusEl) statusEl.value = (test.assert && (test.assert.status||'')) || '';
-    if (maxDurationEl) maxDurationEl.value = (test.assert && (test.assert.maxDurationMs || test.assert.maxDuration)) || '';
-    // Assertions maps: headerEquals/jsonEquals/jsonContains; list: bodyContains
+    // OpenAPI override (delegated)
     try {
-      const headerC = modal.querySelector('#ed_assert_headerEquals');
-      const jsonEqC = modal.querySelector('#ed_assert_jsonEquals');
-      const jsonCtC = modal.querySelector('#ed_assert_jsonContains');
-      const bodyCtC = modal.querySelector('#ed_assert_bodyContains');
-      if (headerC) {
-        assertHeaderGet = kvTable(headerC, (test.assert && test.assert.headerEquals) || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+      if (window.hydreqEditorForms && window.hydreqEditorForms.openapi && typeof window.hydreqEditorForms.openapi.wire === 'function') {
+        window.hydreqEditorForms.openapi.wire(modal, test, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
       }
-      if (jsonEqC) {
-        // Render as key -> value (string). If value is object/array/number, stringify for display.
-        const src = (test.assert && test.assert.jsonEquals) || {};
-        const flat = {};
-        Object.keys(src||{}).forEach(k=>{ const v = src[k]; flat[k] = (typeof v === 'object') ? JSON.stringify(v) : String(v); });
-        assertJsonEqGet = kvTable(jsonEqC, flat, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-      }
-      if (jsonCtC) {
-        const src = (test.assert && test.assert.jsonContains) || {};
-        const flat = {};
-        Object.keys(src||{}).forEach(k=>{ const v = src[k]; flat[k] = (typeof v === 'object') ? JSON.stringify(v) : String(v); });
-        assertJsonContainsGet = kvTable(jsonCtC, flat, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-      }
-      if (bodyCtC) {
-        const arr = (test.assert && Array.isArray(test.assert.bodyContains)) ? test.assert.bodyContains : (test.assert && typeof test.assert.bodyContains==='string' ? [test.assert.bodyContains] : []);
-        assertBodyContainsGet = listTable(bodyCtC, arr, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+    } catch {}
+    
+    // Stage handled by testmeta module
+    
+    // Delegate to assertions form module
+    try {
+      if (window.hydreqEditorForms && window.hydreqEditorForms.assert && typeof window.hydreqEditorForms.assert.wire === 'function') {
+        const asFns = window.hydreqEditorForms.assert.wire(modal, test, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+        assertHeaderGet = asFns.assertHeaderGet || assertHeaderGet;
+        assertJsonEqGet = asFns.assertJsonEqGet || assertJsonEqGet;
+        assertJsonContainsGet = asFns.assertJsonContainsGet || assertJsonContainsGet;
+        assertBodyContainsGet = asFns.assertBodyContainsGet || assertBodyContainsGet;
       }
     } catch {}
 
@@ -197,32 +140,23 @@ function renderForm() {
       if (postC) testPostGet = hookList(postC, Array.isArray(test.post)? test.post: [], { scope: 'testPost' }, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
     } catch {}
 
-    // Retry policy
+    // Retry policy (delegated)
     try{
-      const en = modal.querySelector('#ed_retry_enable');
-      const mx = modal.querySelector('#ed_retry_max');
-      const bo = modal.querySelector('#ed_retry_backoff');
-      const ji = modal.querySelector('#ed_retry_jitter');
-      const rt = test.retry || {};
-      if (en) en.checked = !!(rt && (rt.max!=null || rt.backoffMs!=null || rt.jitterPct!=null));
-      if (mx) mx.value = (rt.max != null) ? String(rt.max) : '';
-      if (bo) bo.value = (rt.backoffMs != null) ? String(rt.backoffMs) : '';
-      if (ji) ji.value = (rt.jitterPct != null) ? String(rt.jitterPct) : '';
+      if (window.hydreqEditorForms && window.hydreqEditorForms.retry && typeof window.hydreqEditorForms.retry.wire === 'function') {
+        window.hydreqEditorForms.retry.wire(modal, test, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+      }
     }catch{}
     
-    // Update flow settings: don't prefill 0; clear when unset
-  const stageEl = modal.querySelector('#ed_stage') || modal.querySelector('#ed_test_stage');
-    if (stageEl) stageEl.value = test.stage || 0;
-    
-    const skipEl = modal.querySelector('#ed_skip');
-    const onlyEl = modal.querySelector('#ed_only');
-    if (skipEl) skipEl.checked = test.skip || false;
-    if (onlyEl) onlyEl.checked = test.only || false;
+    // Skip/Only handled by testmeta module
   }
   
   // Add validation event listeners after a short delay to ensure DOM is ready
   setTimeout(() => {
-    addValidationListeners();
+    try {
+      if (window.hydreqEditorValidation && typeof window.hydreqEditorValidation.wire === 'function') {
+        window.hydreqEditorValidation.wire(modal);
+      }
+    } catch {}
   }, 100);
 }
 
@@ -373,192 +307,17 @@ function collectFormData() {
   }catch{}
 }
 
-function addValidationListeners() {
-  if (!modal) return;
-  
-  // Set up fields for real-time YAML mirroring
-  const formFields = [
-    '#ed_suite_name', '#ed_suite_baseurl', '#ed_auth_bearer', '#ed_auth_basic',
-    '#ed_test_name', '#ed_url', '#ed_method', '#ed_timeout', '#ed_body',
-    '#ed_assert_status', '#ed_assert_maxDuration', '#ed_stage'
-  ];
-  
-  formFields.forEach(selector => {
-    const el = modal.querySelector(selector);
-    if (el) {
-      el.addEventListener('input', () => {
-        try {
-          collectFormData();
-          mirrorYamlFromVisual();
-        } catch (e) {
-          console.warn('Error mirroring YAML on input:', e);
-        }
-      });
-    }
-  });
-  
-  // Add listeners for checkboxes and select elements
-  const toggleFields = ['#ed_skip', '#ed_only'];
-  toggleFields.forEach(selector => {
-    const el = modal.querySelector(selector);
-    if (el) {
-      el.addEventListener('change', () => {
-        try {
-          collectFormData();
-          mirrorYamlFromVisual();
-        } catch (e) {
-          console.warn('Error mirroring YAML on change:', e);
-        }
-      });
-    }
-  });
-}
+// validation listener wiring handled in validation.js
 
-// Schema validation for real-time feedback
-function validateField(fieldName, value, parentType = 'suite') {
-  const errors = [];
-  
-  // Required fields validation based on schema
-  if (parentType === 'suite') {
-    if (fieldName === 'name' && (!value || value.trim() === '')) {
-      errors.push('Suite name is required');
-    }
-    if (fieldName === 'baseUrl' && (!value || value.trim() === '')) {
-      errors.push('Base URL is required');
-    }
-  }
-  
-  if (parentType === 'test') {
-    if (fieldName === 'name' && (!value || value.trim() === '')) {
-      errors.push('Test name is required');
-    }
-  }
-  
-  if (parentType === 'request') {
-    if (fieldName === 'method' && (!value || value.trim() === '')) {
-      errors.push('HTTP method is required');
-    }
-    if (fieldName === 'url' && (!value || value.trim() === '')) {
-      errors.push('URL path is required');
-    }
-  }
-  
-  if (parentType === 'assert') {
-    if (fieldName === 'status' && (!value || isNaN(parseInt(value)))) {
-      errors.push('Status code must be a valid number');
-    }
-    if (fieldName === 'status' && value && (parseInt(value) < 100 || parseInt(value) > 599)) {
-      errors.push('Status code must be between 100-599');
-    }
-  }
-  
-  // URL validation
-  if (fieldName === 'baseUrl' && value && value.trim()) {
-    try {
-      new URL(value.trim());
-    } catch {
-      errors.push('Base URL must be a valid URL');
-    }
-  }
-  
-  // Numeric validation
-  if (['timeout', 'maxDurationMs', 'stage', 'repeat'].includes(fieldName) && value && value.trim()) {
-    if (isNaN(parseInt(value)) || parseInt(value) < 0) {
-      errors.push(`${fieldName} must be a positive number`);
-    }
-  }
-  
-  return errors;
-}
-
-// Show validation feedback on a field
-function showFieldValidation(element, errors) {
-  // Remove existing validation styling
-  element.classList.remove('border-red-500', 'border-green-500');
-  
-  // Remove existing error messages
-  const existingError = element.parentNode.querySelector('.validation-error');
-  if (existingError) existingError.remove();
-  
-  if (errors.length > 0) {
-    // Add error styling
-    element.style.borderColor = '#ef4444';
-    element.style.borderWidth = '2px';
-    
-    // Add error message
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'validation-error';
-    errorDiv.style.color = '#ef4444';
-    errorDiv.style.fontSize = '12px';
-    errorDiv.style.marginTop = '2px';
-    errorDiv.textContent = errors[0]; // Show first error
-    element.parentNode.insertBefore(errorDiv, element.nextSibling);
-  } else {
-    // Add success styling for required fields
-    element.style.borderColor = '#10b981';
-    element.style.borderWidth = '1px';
-  }
-}
+// Validation wiring delegated
 
   // Render the test list in the editor modal
 function renderTests() {
-  const testsEl = modal.querySelector('#ed_tests');
-  if (!testsEl) return;
-
-  testsEl.innerHTML = '';
-
-  if (!working.tests || !Array.isArray(working.tests)) return;
-
-  working.tests.forEach((test, index) => {
-    // Create a container for the test item and its details
-    const testContainer = document.createElement('div');
-    testContainer.className = 'ed-test-container';
-    
-    // Create the main test item row
-    const testDiv = document.createElement('div');
-    testDiv.className = 'ed-test-item';
-    testDiv.dataset.index = String(index);
-    if (index === selIndex) {
-      testDiv.classList.add('selected');
-    }
-
-    // Test name
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'ed-test-name';
-    nameSpan.textContent = test.name || `test ${index + 1}`;
-    testDiv.appendChild(nameSpan);
-
-    // Run status badge
-    const key = index + ':' + (test.name || ('test ' + (index + 1)));
-    const result = testRunCache.get(key);
-    let statusBadge = null;
-    if (result && result.status) {
-      statusBadge = document.createElement('span');
-      statusBadge.className = 'status-badge ed-test-status';
-      if (result.status === 'passed') {
-        statusBadge.classList.add('status-ok');
-        statusBadge.textContent = '✓';
-      } else if (result.status === 'failed') {
-        statusBadge.classList.add('status-fail');
-        statusBadge.textContent = '✗';
-      } else if (result.status === 'skipped') {
-        statusBadge.classList.add('status-skip');
-        statusBadge.textContent = '○';
-      } else {
-        statusBadge.classList.add('status-unknown');
-        statusBadge.textContent = '·';
-      }
-      statusBadge.title = result.status;
-    }
-
-    // Inline delete (trashcan)
-    const del = document.createElement('button');
-    del.className = 'btn btn-ghost btn-xs';
-    del.title = 'Delete test';
-    del.setAttribute('aria-label', 'Delete test');
-    del.textContent = '🗑';
-    del.onclick = async (e)=>{
-      e.preventDefault(); e.stopPropagation();
+  if (!(window.hydreqEditorTestsList && typeof window.hydreqEditorTestsList.render==='function')) return;
+  window.hydreqEditorTestsList.render(modal, working.tests || [], selIndex, {
+    onSelect(index){ try{ if (typeof window.selectTestByIndex==='function') window.selectTestByIndex(index); }catch{} },
+    async onDelete(index){
+      const test = (working.tests||[])[index] || {};
       const nm = test.name || ('test '+(index+1));
       if (!confirm('Delete test "'+nm+'"?')) return;
       try{ working.tests.splice(index, 1); }catch{}
@@ -572,35 +331,13 @@ function renderTests() {
           await window.__ed_mirrorYamlFromVisual(true);
         }
       } catch {}
-    };
-
-    // Click handler to select test
-    testDiv.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      try{ if (typeof window.selectTestByIndex==='function') window.selectTestByIndex(index); }catch{}
-    };
-
-    // Right side controls container
-    const right = document.createElement('span'); right.className = 'ed-row-6 ed-ai-center';
-    if (statusBadge) right.appendChild(statusBadge);
-    right.appendChild(del);
-    testDiv.appendChild(right);
-    
-    // Add the main row to the container
-    testContainer.appendChild(testDiv);
-    
-    // Check if we need to add collapsible details row
-    if (result && result.status && (result.status === 'failed' || result.status === 'skipped')) {
-      const details = document.createElement('details');
-      details.className = 'ed-test-details';
-      const sum = document.createElement('summary'); sum.textContent = 'details'; details.appendChild(sum);
-      const pre = document.createElement('pre'); pre.className = 'message-block ' + (result.status==='failed'?'fail':'skip'); pre.textContent = (Array.isArray(result.messages) && result.messages.length) ? result.messages.join('\n') : 'skipped';
-      details.appendChild(pre);
-      testContainer.appendChild(details);
+    },
+    getResult(index, test){
+      try {
+        const key = index + ':' + (test && test.name ? test.name : ('test ' + (index + 1)));
+        return testRunCache.get(key);
+      } catch { return null; }
     }
-
-    testsEl.appendChild(testContainer);
   });
 }
 
@@ -721,78 +458,8 @@ function unquoteNumericKeys(yamlText){
   }).join('\n');
 }
 
-// Create a key-value table for editing
-function kvTable(container, obj, onChange){
-  const c = (typeof container === 'string') ? modal.querySelector(container) : container;
-  c.innerHTML = '';
-  const table = document.createElement('div');
-  const addRow = (k='', v='')=>{
-    const row = document.createElement('div'); row.className = 'ed-grid-1-1-auto'; row.style.marginBottom='2px';
-    const ki = document.createElement('input'); ki.type='text'; ki.value=k; const vi=document.createElement('input'); vi.type='text'; vi.value=v;
-    if (onChange){ ['input','change','blur'].forEach(ev=>{ ki.addEventListener(ev, onChange); vi.addEventListener(ev, onChange); }); }
-    const del = document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick = ()=>{ row.remove(); if (onChange) onChange(); };
-    row.appendChild(ki); row.appendChild(vi); row.appendChild(del);
-    table.appendChild(row);
-  };
-  // populate
-  if (obj){ Object.keys(obj).forEach(k=> addRow(k, obj[k])); }
-  const add = document.createElement('button'); add.textContent='Add'; add.onclick = ()=> { addRow(); if (onChange) onChange(); };
-  c.appendChild(table); c.appendChild(add);
-  return ()=>{
-    const rows = Array.from(table.children);
-    const out = {};
-    rows.forEach(row=>{
-      const inputs = row.querySelectorAll('input');
-      if (inputs.length>=2){ const k=inputs[0].value.trim(); const v=inputs[1].value; if (k) out[k]=v; }
-    });
-    return out;
-  };
-}
-
-// Create a list table for editing arrays
-function listTable(container, arr, onChange){
-  const c = (typeof container === 'string') ? modal.querySelector(container) : container;
-  c.innerHTML = '';
-  const table = document.createElement('div');
-  const addRow = (v='')=>{
-    const row = document.createElement('div'); row.className = 'ed-grid-1-auto'; row.style.marginBottom='2px';
-    const vi=document.createElement('input'); vi.type='text'; vi.value=v;
-    if (onChange){ ['input','change','blur'].forEach(ev=> vi.addEventListener(ev, onChange)); }
-    const del = document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick = ()=>{ row.remove(); if (onChange) onChange(); };
-    row.appendChild(vi); row.appendChild(del);
-    table.appendChild(row);
-  };
-  if (Array.isArray(arr)) arr.forEach(v=> addRow(v));
-  const add = document.createElement('button'); add.textContent='Add'; add.onclick = ()=> { addRow(); if (onChange) onChange(); };
-  c.appendChild(table); c.appendChild(add);
-  return ()=>{
-    const rows = Array.from(table.children);
-    const out = [];
-    rows.forEach(row=>{ const inp = row.querySelector('input'); if (inp){ const v = inp.value; if (v!=='' && v!=null) out.push(v); }});
-    return out;
-  };
-}
-
-// Create a map table (similar to kvTable)
-function mapTable(container, obj, valuePlaceholder='value', onChange){
-  // Like kvTable, but for arbitrary value types (free text) and returns map[string]string-like
-  return kvTable(container, obj||{}, onChange);
-}
-
-// Extract editor: key => jsonPath mapping, stored as { key: { jsonPath: value } }
-function extractTable(container, obj, onChange){
-  const flat = {};
-  try{
-    Object.keys(obj||{}).forEach(k=>{ const v = obj[k]||{}; flat[k] = v.jsonPath || v.JSONPath || ''; });
-  }catch{}
-  const getFlat = kvTable(container, flat, onChange);
-  return ()=>{
-    const out = {};
-    const m = getFlat() || {};
-    Object.keys(m).forEach(k=>{ const jp = m[k]; if (String(jp||'').trim()!==''){ out[k] = { jsonPath: jp }; } });
-    return out;
-  };
-}
+// Initialize tables module with modal reference
+try{ if (window.hydreqEditorTables && window.hydreqEditorTables.init) window.hydreqEditorTables.init(modal); }catch{}
 
 // Create a matrix editor for data-driven test expansion
 function renderMatrix(container, matrix, onChange) {
@@ -803,13 +470,8 @@ function renderMatrix(container, matrix, onChange) {
   table.className = 'ed-matrix-table';
   
   function addRow(key = '', values = []) {
-    const row = document.createElement('div');
-    row.className = 'ed-matrix-row';
-    row.style.display = 'grid';
-    row.style.gridTemplateColumns = '120px 1fr 40px';
-    row.style.gap = '8px';
-    row.style.marginBottom = '8px';
-    row.style.alignItems = 'start';
+  const row = document.createElement('div');
+  row.className = 'ed-matrix-row';
     
     // Variable name input
     const keyInput = document.createElement('input');
@@ -822,20 +484,18 @@ function renderMatrix(container, matrix, onChange) {
     }
     
     // Values container (list of strings)
-    const valuesContainer = document.createElement('div');
-    valuesContainer.className = 'ed-matrix-values';
+  const valuesContainer = document.createElement('div');
+  valuesContainer.className = 'ed-matrix-values';
     
     function addValueInput(value = '') {
-      const valueDiv = document.createElement('div');
-      valueDiv.style.display = 'flex';
-      valueDiv.style.gap = '4px';
-      valueDiv.style.marginBottom = '4px';
+  const valueDiv = document.createElement('div');
+  valueDiv.className = 'ed-matrix-value';
       
       const valueInput = document.createElement('input');
       valueInput.type = 'text';
       valueInput.placeholder = 'Value';
       valueInput.value = value;
-      valueInput.style.flex = '1';
+  valueInput.className = 'w-full';
       if (onChange) {
         ['input', 'change', 'blur'].forEach(ev => valueInput.addEventListener(ev, onChange));
       }
@@ -864,8 +524,8 @@ function renderMatrix(container, matrix, onChange) {
     // Add value button
     const addValueBtn = document.createElement('button');
     addValueBtn.textContent = '+ Value';
-    addValueBtn.className = 'btn btn-xs btn-secondary';
-    addValueBtn.onclick = () => {
+  addValueBtn.className = 'btn btn-xs btn-secondary mt-8';
+  addValueBtn.onclick = () => {
       addValueInput();
       if (onChange) onChange();
     };
@@ -938,158 +598,25 @@ function renderMatrix(container, matrix, onChange) {
   };
 }
 
-// Create a hook list editor
+// Create a hook list editor (delegates to extracted module; no inline fallback per Phase 2)
 function hookList(container, hooks, options, onChange){
-  const c = (typeof container==='string') ? modal.querySelector(container) : container;
-  c.innerHTML = '';
-  const list = document.createElement('div'); c.appendChild(list);
-  const empty = document.createElement('div'); empty.className='dim'; empty.style.margin='6px 0'; empty.textContent = 'No hooks yet. Pick a mode, then Add.'; c.appendChild(empty);
-  const actions = document.createElement('div'); actions.className='ed-row-6'; actions.style.marginTop='6px';
-  const sel = document.createElement('select'); sel.className='select select-xs'; sel.innerHTML = '<option value="http">HTTP</option><option value="sql">SQL</option><option value="js">JS</option><option value="empty">Empty</option>';
-  const add = document.createElement('button'); add.textContent='Add'; add.className='btn btn-xs'; add.title='Add hook';
-  add.onclick = ()=>{
-    const v = sel.value;
-    if (v==='http') addRow({ __mode:'http', request: { method:'GET', url:'', headers:{}, query:{}, body:'' } });
-    else if (v==='sql') addRow({ __mode:'sql', sql: { driver:'', dsn:'', query:'', extract:{} } });
-    else if (v==='js') addRow({ __mode:'js', js: { code:'' } });
-    else addRow({ __mode:'empty' });
-    try{ if (onChange) onChange(); }catch{}
-  };
-  actions.appendChild(sel); actions.appendChild(add); c.appendChild(actions);
-
-  function addRow(h){
-    const row = document.createElement('div'); row.style.border='1px solid var(--bd)'; row.style.borderRadius='6px'; row.style.marginBottom='8px';
-    // mode
-    const mode = h && h.__mode ? h.__mode : (h && h.sql ? 'sql' : (h && h.request ? 'http' : (h && h.js ? 'js' : 'empty')));
-    row._mode = mode;
-    // header
-    const header = document.createElement('div'); header.className='ed-row-6 ed-ai-center'; header.style.padding='6px 8px'; header.style.background='var(--pill)'; header.style.borderBottom='1px solid var(--bd)';
-    const toggle = document.createElement('button'); toggle.textContent='▾'; toggle.className='btn btn-ghost btn-xs'; toggle.style.width='24px';
-    const nameI = document.createElement('input'); nameI.className='hk_name'; nameI.type='text'; nameI.placeholder='hook name'; nameI.value=h?.name||''; nameI.style.flex='1';
-    const badge = document.createElement('span'); badge.className='badge hk_type'; badge.textContent = (mode==='http'?'HTTP':(mode==='sql'?'SQL':(mode==='js'?'JS':'·')));
-    const runBtn = document.createElement('button'); runBtn.className='btn btn-xs hk_run'; runBtn.textContent='Run';
-    const convertBtn = document.createElement('button'); convertBtn.className='btn btn-xs'; convertBtn.textContent='Convert…'; convertBtn.title='Switch mode';
-    const delBtn = document.createElement('button'); delBtn.className='btn btn-xs hk_del'; delBtn.textContent='×'; delBtn.title='Remove';
-    header.appendChild(toggle); header.appendChild(nameI); header.appendChild(badge); header.appendChild(runBtn); header.appendChild(convertBtn); header.appendChild(delBtn);
-    row.appendChild(header);
-  const body = document.createElement('div'); body.style.padding='8px'; row.appendChild(body);
-  // container grid: single column to maximize content width
-  const grid = document.createElement('div');
-  grid.style.display='grid';
-  grid.style.gridTemplateColumns='1fr';
-  grid.style.gap='6px';
-  body.appendChild(grid);
-  // Vars
-  const varsHeader = document.createElement('div'); varsHeader.className='ed-subhead'; varsHeader.textContent='Variables'; grid.appendChild(varsHeader);
-  const varsDiv=document.createElement('div'); varsDiv.className='hk_vars'; grid.appendChild(varsDiv);
-    const varsGet = kvTable(varsDiv, h?.vars||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
-  // HTTP section (no outer label to save horizontal space)
-  const httpC = document.createElement('div'); httpC.className='hk_http'; grid.appendChild(httpC);
-  const http = h?.request||{}; const hg = document.createElement('div'); hg.style.display='grid'; hg.style.gridTemplateColumns='110px 1fr'; hg.style.gap='6px';
-    hg.innerHTML = `
-      <label>Method</label>
-      <select class="hk_method select select-xs"></select>
-      <label>URL</label><input class="hk_url" type="text" value="${http.url||''}">
-      <label>Headers</label><div class="hk_headers"></div>
-      <label>Query</label><div class="hk_query"></div>
-      <label>Body</label><textarea class="hk_body" style="height:80px"></textarea>`;
-    httpC.appendChild(hg);
-    // populate method options safely
-    (function(){
-      const sel = hg.querySelector('.hk_method');
-      const cur = String((http.method||'').toUpperCase());
-      ['GET','POST','PUT','PATCH','DELETE','HEAD','OPTIONS'].forEach(m=>{
-        const o=document.createElement('option'); o.value=m; o.textContent=m; if (cur===m) o.selected=true; sel.appendChild(o);
-      });
-    })();
-    const hkHeadGet = kvTable(hg.querySelector('.hk_headers'), http.headers||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
-    const hkQueryGet = kvTable(hg.querySelector('.hk_query'), http.query||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
-    const bodyEl = hg.querySelector('.hk_body'); try { bodyEl.value = (http.body && typeof http.body==='object')? JSON.stringify(http.body,null,2):(http.body||''); } catch { bodyEl.value = http.body||''; }
-  // JS section (no outer label to save horizontal space)
-  const jsC = document.createElement('div'); jsC.className='hk_js'; grid.appendChild(jsC);
-  const js = h?.js||{}; const jsg = document.createElement('div'); jsg.style.display='grid'; jsg.style.gridTemplateColumns='110px 1fr'; jsg.style.gap='6px';
-    jsg.innerHTML = `
-      <label>Code</label><textarea class="hk_js_code" style="height:120px; font-family: 'Courier New', monospace; font-size: 12px;" placeholder="JavaScript code...">${js.code||''}</textarea>`;
-    jsC.appendChild(jsg);
-  // SQL section (no outer label to save horizontal space)
-  const sqlC = document.createElement('div'); sqlC.className='hk_sql'; grid.appendChild(sqlC);
-  const sql = h?.sql||{}; const sg = document.createElement('div'); sg.style.display='grid'; sg.style.gridTemplateColumns='110px 1fr'; sg.style.gap='6px';
-    sg.innerHTML = `
-      <label>Driver</label>
-      <select class="hk_driver select select-xs"><option value="">(select)</option><option value="sqlite" ${sql.driver==='sqlite'?'selected':''}>sqlite</option><option value="pgx" ${sql.driver==='pgx'?'selected':''}>pgx (Postgres)</option><option value="sqlserver" ${sql.driver==='sqlserver'?'selected':''}>sqlserver (SQL Server)</option></select>
-      <label>DSN</label>
-      <div style="display:flex;gap:6px;align-items:center"><input class="hk_dsn" type="password" value="${sql.dsn||''}" style="flex:1" placeholder="file:./qa.sqlite?cache=shared"><button class="hk_toggle_dsn" type="button" title="Show/Hide">👁</button><button class="hk_fill_dsn" type="button" title="Fill template">Use template</button></div>
-      <label>Query</label><textarea class="hk_querytxt" style="height:80px">${sql.query||''}</textarea>
-      <label>Extract</label><div class="hk_sqlextract"></div>`;
-    sqlC.appendChild(sg);
-  const toggleBtn = sg.querySelector('.hk_toggle_dsn'); const dsnInput = sg.querySelector('.hk_dsn'); toggleBtn.onclick = ()=>{ const show = (dsnInput.type==='password'); dsnInput.type = show?'text':'password'; try{ toggleBtn.textContent = show?'🙈':'👁'; toggleBtn.title = show?'Hide':'Show'; }catch{} };
-    const hkSQLExtractGet = kvTable(sg.querySelector('.hk_sqlextract'), sql.extract||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
-    const driverEl = sg.querySelector('.hk_driver'); const dsnEl = sg.querySelector('.hk_dsn'); const dsnPH = { sqlite: 'file:./qa.sqlite?cache=shared', pgx: 'postgres://user:pass@localhost:5432/db?sslmode=disable', sqlserver: 'sqlserver://sa:Your_password123@localhost:1433?database=master' };
-    function refreshDsnPH(){ const v=(driverEl.value||'').trim(); dsnEl.placeholder = dsnPH[v]||''; }
-    driverEl.addEventListener('change', refreshDsnPH); refreshDsnPH();
-    const fillBtn = sg.querySelector('.hk_fill_dsn'); if (fillBtn) fillBtn.onclick = ()=>{ let v=(driverEl.value||'').trim(); let tmpl=dsnPH[v]||''; if(!tmpl){
-        // If driver not selected, default to sqlite template for convenience
-        v='sqlite'; tmpl=dsnPH[v]||'';
-        try{ if (!tmpl) throw new Error(''); }catch{ /* no-op */ }
-        if (!tmpl) { try{ alert('Select a SQL driver first to use a DSN template.'); }catch{} return; }
-        // reflect default selection in UI if empty
-        try{ if (!driverEl.value){ driverEl.value = v; refreshDsnPH(); } }catch{}
-      }
-      if(!dsnEl.value || confirm('Overwrite DSN with template?')) dsnEl.value = tmpl; };
-    // enforce mode visibility
-    function applyMode(){
-      const showHTTP = (row._mode==='http');
-      const showSQL = (row._mode==='sql');
-      const showJS = (row._mode==='js');
-      httpC.style.display = showHTTP?'':'none';
-      sqlC.style.display = showSQL?'':'none';
-      jsC.style.display = showJS?'':'none';
-      badge.textContent = (row._mode==='http'?'HTTP':(row._mode==='sql'?'SQL':(row._mode==='js'?'JS':'·')));
-    }
-    applyMode();
-    // header collapse
-    toggle.onclick = ()=>{ const open = body.style.display !== 'none'; body.style.display = open?'none':'block'; toggle.textContent = open?'▸':'▾'; };
-    // badge color and updates
-    function refreshBadge(){
-      badge.classList.remove('badge-info','badge-secondary','badge-success');
-      if (row._mode==='http') badge.classList.add('badge-info');
-      else if (row._mode==='sql') badge.classList.add('badge-secondary');
-      else if (row._mode==='js') badge.classList.add('badge-success');
-    }
-    refreshBadge();
-    // convert mode
-    convertBtn.onclick = ()=>{ const to = prompt('Convert to mode: http, sql, or js?', row._mode); const v=(to||'').trim().toLowerCase(); if (v!=='http' && v!=='sql' && v!=='js') return; if(!confirm('Switch mode to '+v+'?')) return; row._mode=v; applyMode(); refreshBadge(); };
-    // delete
-    delBtn.onclick = ()=> row.remove();
-    // output area
-    const out = document.createElement('div'); out.className='log'; out.style.marginTop='8px'; body.appendChild(out);
-    // run
-    runBtn.onclick = async ()=>{
-      const req={ method: (hg.querySelector('.hk_method').value||'').toUpperCase(), url: hg.querySelector('.hk_url').value||'', headers: hkHeadGet(), query: hkQueryGet(), body: (function(txt){ try{ return txt?JSON.parse(txt):null }catch{return txt} })(bodyEl.value.trim()) };
-      const sql={ driver: driverEl.value||'', dsn: dsnEl.value||'', query: (sg.querySelector('.hk_querytxt').value||''), extract: hkSQLExtractGet() };
-      const js = { code: (jsg.querySelector('.hk_js_code').value || '') };
-      const name = nameI.value||''; const vars = varsGet(); const payload = { name, vars };
-      if (row._mode==='http') payload.request = req; else if (row._mode==='sql') payload.sql = sql; else if (row._mode==='js') payload.js = js;
-  const env = (typeof parseEnv==='function') ? parseEnv() : {};
-      const scope = (options && options.scope) || 'suitePre';
-      out.innerHTML = 'Running...';
-      let res; try { res = await fetch('/api/editor/hookrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working, scope, testIndex: selIndex, hook: payload, env })}); } catch(e){ out.textContent = 'Network error'; return; }
-      if (!res.ok){ const t=await res.text().catch(()=> ''); out.textContent = 'Run failed: ' + t; return; }
-      const r = await res.json(); const icon = r.status==='passed'?'✓':(r.status==='failed'?'✗':'-'); const hdr = document.createElement('div'); hdr.style.fontWeight='600'; hdr.textContent = `${icon} hook ${r.name||''} (${r.durationMs||0} ms)`; out.innerHTML=''; out.appendChild(hdr);
-  if (Array.isArray(r.messages) && r.messages.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (r.status==='failed'?'fail':(r.status==='skipped'?'skip':'ok')); pre.textContent = r.messages.join('\n'); det.appendChild(pre); out.appendChild(det); }
-      if (r.vars && Object.keys(r.vars).length){ const det=document.createElement('details'); const sum=document.createElement('summary'); sum.textContent='vars'; det.appendChild(sum); const pre=document.createElement('pre'); pre.textContent = JSON.stringify(r.vars,null,2); det.appendChild(pre); out.appendChild(det); }
-    };
-    // getter
-    row._get = ()=>{ const name = nameI.value||''; const vars = varsGet(); const out = { name, vars }; if (row._mode==='http'){ const req={ method: (hg.querySelector('.hk_method').value||'').toUpperCase(), url: hg.querySelector('.hk_url').value||'', headers: hkHeadGet(), query: hkQueryGet(), body: (function(txt){ try{ return txt?JSON.parse(txt):null }catch{return txt} })(bodyEl.value.trim()) }; if (req.method||req.url||Object.keys(req.headers||{}).length||Object.keys(req.query||{}).length||bodyEl.value.trim()) out.request=req; } else if (row._mode==='sql'){ const sql={ driver: driverEl.value||'', dsn: dsnEl.value||'', query: (sg.querySelector('.hk_querytxt').value||''), extract: hkSQLExtractGet() }; if (sql.driver||sql.dsn||sql.query||Object.keys(sql.extract||{}).length) out.sql=sql; } else if (row._mode==='js'){ const js={ code: (jsg.querySelector('.hk_js_code').value || '') }; if (js.code.trim()) out.js=js; } return out; };
-    list.appendChild(row);
+  if (window.hydreqEditorHooks && typeof window.hydreqEditorHooks.hookList === 'function') {
+    return window.hydreqEditorHooks.hookList(container, hooks, options, onChange);
   }
-  // populate
-  if (Array.isArray(hooks)) hooks.forEach(h=> addRow(h));
-  return ()=> Array.from(list.children).map(r=> r._get ? r._get() : null).filter(Boolean);
+  console.warn('hydreqEditorHooks.hookList not loaded; hooks UI unavailable');
+  try {
+    const c = (typeof container==='string') ? modal.querySelector(container) : container;
+    if (c) c.innerHTML = '<div class="dim">Hooks module not loaded.</div>';
+  } catch {}
+  return ()=>[];
 }
 
 // Open the editor modal for a given path and data
 function openEditor(path, data){
+  // Begin initialization (suppresses dirty/UI until baseline is set)
+  try{ if (window.hydreqEditorInit && window.hydreqEditorInit.beginInit) window.hydreqEditorInit.beginInit(); else window.__ed_initializing = true; }catch{}
+  // Also suppress dirty UI during initialization to avoid a brief blink
+  try{ window.__ed_uiSuppressDirty = true; }catch{}
   try {
     if (data && !data.parsed && (data.name || data.Name || Array.isArray(data.tests))) {
       data = { parsed: data };
@@ -1118,6 +645,11 @@ function openEditor(path, data){
     modal.addEventListener('touchmove', (e)=>{ e.stopPropagation(); }, { passive: true });
     modal.addEventListener('click', (e)=>{ if (e.target === modal) attemptClose(); });
   }
+  // Ensure dirty indicator is hidden at start and state is clean
+  try{ const di = modal.querySelector('#ed_dirty_indicator'); if (di) di.style.display = 'none'; }catch{}
+  try{ if (window.hydreqEditorState && window.hydreqEditorState.setDirty) window.hydreqEditorState.setDirty(false); }catch{}
+  // Initialize editor tables with current modal
+  try{ if (window.hydreqEditorTables && window.hydreqEditorTables.init) window.hydreqEditorTables.init(modal); }catch{}
   // Bind add/delete test buttons (ensure after modal exists)
   try {
     const addBtn = modal.querySelector('#ed_add_test');
@@ -1162,51 +694,34 @@ function openEditor(path, data){
   const quickRunBox = modal.querySelector('#ed_quickrun');
   const paneVisual = modal.querySelector('#pane_visual');
   const paneYaml = modal.querySelector('#col-yaml .ed-col-content');
-  let inMemoryYaml = '';
-  let baselineYaml = '';
   const densityToggle = modal.querySelector('#ed_density');
   const editorRoot = modal.querySelector('.editor-root');
   const splitter = modal.querySelector('#ed_splitter');
   const rightPane = splitter ? splitter.nextElementSibling : null;
   const __hadRaw = !!(data.raw && data.raw.trim() !== '');
-  if (__hadRaw) {
-    rawEl.value = data.raw;
-    inMemoryYaml = data.raw;
-  } else if (data.parsed) {
-    try {
-      const dumped = jsyaml.dump(data.parsed || {}, { noRefs: true, quotingType: '"' });
-      inMemoryYaml = unquoteNumericKeys(dumped || '');
-      rawEl.value = inMemoryYaml;
-    } catch (e) {
-      rawEl.value = '';
-      inMemoryYaml = '';
+  try{
+    if (__hadRaw) {
+      if (yamlCtl && yamlCtl.setText) yamlCtl.setText(data.raw);
+      else if (rawEl) rawEl.value = data.raw;
+    } else if (data.parsed) {
+      const dumped = (window.hydreqEditorSerialize && window.hydreqEditorSerialize.toYaml)
+        ? window.hydreqEditorSerialize.toYaml(data.parsed || {})
+        : (jsyaml && jsyaml.dump ? jsyaml.dump(data.parsed || {}, { noRefs: true, quotingType: '"' }) : '');
+      if (yamlCtl && yamlCtl.setText) yamlCtl.setText(dumped || '');
+      else if (rawEl) rawEl.value = dumped || '';
+    } else {
+      if (yamlCtl && yamlCtl.setText) yamlCtl.setText(''); else if (rawEl) rawEl.value = '';
     }
-  } else {
-    rawEl.value = '';
-  }
-  baselineYaml = inMemoryYaml || '';
-  let yamlDirty = false;
-  let yamlEditor = null;
-  let __suppressDirty = false;
-  function ensureYamlEditor(){
-    if (yamlEditor) return yamlEditor;
-    const rawEl = modal.querySelector('#ed_raw');
-    if (!rawEl) { console.error('Raw editor textarea element not found'); return null; }
-    if (window.hydreqEditorYAML && typeof window.hydreqEditorYAML.mount === 'function') {
-      yamlEditor = window.hydreqEditorYAML.mount(rawEl);
-      try { const el = yamlEditor && yamlEditor.getWrapperElement ? yamlEditor.getWrapperElement() : null; if (el) el.style.height = '100%'; } catch {}
-      setTimeout(() => { try{ yamlEditor && yamlEditor.refresh && yamlEditor.refresh(); }catch{} }, 0);
-      return yamlEditor;
-    }
-    // Fallback: no CodeMirror wrapper available
-    yamlEditor = null;
-    return null;
-  }
+  }catch{}
+  // YAML control API (delegated)
+  const yamlCtl = (window.hydreqEditorYAMLControl && typeof window.hydreqEditorYAMLControl.mount==='function') ? window.hydreqEditorYAMLControl.mount(modal) : null;
+  // Fallback: ensure CodeMirror mount if yaml-control is unavailable (test/env safety)
+  try{ if (!yamlCtl && window.hydreqEditorYAML && typeof window.hydreqEditorYAML.mount==='function' && rawEl) window.hydreqEditorYAML.mount(rawEl); }catch{}
   issuesEl.innerHTML = '';
   (function attachVisualDelegates(){
     const root = modal.querySelector('#pane_visual');
     if (!root) return;
-    const handler = async ()=>{ try { sync(); await mirrorYamlFromVisual(); } catch {} };
+    const handler = async ()=>{ try { if (window.__ed_initializing) return; sync(); await mirrorYamlFromVisual(); } catch {} };
     root.addEventListener('input', ()=>{ handler(); }, true);
     root.addEventListener('change', ()=>{ handler(); }, true);
     root.addEventListener('click', (e)=>{ const t = e.target; if (!t) return; if ((t.tagName && t.tagName.toLowerCase()==='button') || t.closest('button')) { handler(); } }, true);
@@ -1215,135 +730,27 @@ function openEditor(path, data){
   const persisted = (function(){ try{ return JSON.parse(localStorage.getItem(LS_KEY(path))||'{}') }catch{ return {} } })();
   testRunCache = new Map(Object.entries(persisted));
   let lastSuiteRun = null;
-  let dirty = false;
-  function markDirty(){
-    try{
-      // Compute dirty by comparing to baseline YAML
-      const cur = yamlEditor
-        ? ((window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
-            ? window.hydreqEditorYAML.getText()
-            : (yamlEditor.getValue ? yamlEditor.getValue() : inMemoryYaml))
-        : inMemoryYaml;
-      const isDirty = (baselineYaml || '') !== (cur || '');
-      dirty = isDirty;
-      const di = modal && modal.querySelector && modal.querySelector('#ed_dirty_indicator');
-      if (di) di.style.display = isDirty ? '' : 'none';
-    }catch{}
-  }
-  // Wrap markDirty to respect suppression flag
-  const __origMarkDirty = markDirty;
-  markDirty = function(){ if (__suppressDirty) return; __origMarkDirty(); };
-  function attemptClose(){ if (dirty && !confirm('Discard unsaved changes?')) return; modal.remove(); document.body.classList.remove('modal-open'); }
+  function markDirty(){ try{ yamlCtl && yamlCtl.markDirty ? yamlCtl.markDirty() : null; }catch{} }
+  function isDirty(){ try{ return (window.hydreqEditorState && typeof window.hydreqEditorState.isDirty==='function') ? !!window.hydreqEditorState.isDirty() : false; }catch{ return false; } }
+  function attemptClose(){ if (isDirty() && !confirm('Discard unsaved changes?')) return; modal.remove(); document.body.classList.remove('modal-open'); }
   async function serializeWorkingToYamlImmediate(){ 
-    if (!working || !working.tests) return '';
-    try { 
-      // Clean up the working object to remove null/undefined/empty values
-      const cleaned = cleanForSerialization(working);
-      const yamlText = jsyaml.dump(cleaned, { noRefs: true, quotingType: '"' });
-      return unquoteNumericKeys(yamlText || '');
-    } catch (e) { 
-      return ''; 
-    }
+    try{ 
+      if (window.hydreqEditorSerialize && window.hydreqEditorSerialize.toYaml) return window.hydreqEditorSerialize.toYaml(working);
+      // Fallback to direct dump when serialize module is unavailable (tests)
+      if (typeof jsyaml !== 'undefined' && jsyaml && typeof jsyaml.dump === 'function') return jsyaml.dump(working || {}, { noRefs: true, quotingType: '"' });
+      return '';
+    }catch(e){ return ''; }
   }
   
-  // Clean up object for serialization - remove null/undefined/empty values
-  function cleanForSerialization(obj) {
-    if (obj === null || obj === undefined) return undefined;
-    if (Array.isArray(obj)) {
-      const cleaned = obj.map(cleanForSerialization).filter(item => item !== undefined);
-      return cleaned.length > 0 ? cleaned : undefined;
-    }
-    if (typeof obj === 'object') {
-      const cleaned = {};
-      for (const [key, value] of Object.entries(obj)) {
-        const cleanedValue = cleanForSerialization(value);
-        if (cleanedValue !== undefined && cleanedValue !== '' && cleanedValue !== null) {
-          // Don't include empty objects or arrays
-          if (typeof cleanedValue === 'object' && !Array.isArray(cleanedValue) && Object.keys(cleanedValue).length === 0) {
-            continue;
-          }
-          if (Array.isArray(cleanedValue) && cleanedValue.length === 0) {
-            continue;
-          }
-          cleaned[key] = cleanedValue;
-        }
-      }
-      return Object.keys(cleaned).length > 0 ? cleaned : undefined;
-    }
-    // For primitive values, return as-is unless empty string
-    return (obj === '') ? undefined : obj;
-  }
-  
-  async function mirrorYamlFromVisual(force=false){ 
-    try {
-      // Before serializing, collect any current form data that might not be saved yet
-      collectFormData();
-      
-      const yamlText = await serializeWorkingToYamlImmediate();
-      if ((yamlEditor || window.hydreqEditorYAML) && (yamlText || force)) {
-        const cur = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
-          ? window.hydreqEditorYAML.getText()
-          : (yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : '');
-        const nonEmpty = (t)=> !!(t && String(t).trim() !== '');
-        const toSet = nonEmpty(yamlText) ? yamlText : cur;
-        if ((force && nonEmpty(toSet) && toSet !== cur) || (!force && nonEmpty(yamlText) && cur !== yamlText)) {
-          __suppressDirty = true;
-          if (window.hydreqEditorYAML && window.hydreqEditorYAML.setText) {
-            window.hydreqEditorYAML.setText(toSet);
-          } else if (yamlEditor && yamlEditor.setValue) {
-            yamlEditor.setValue(toSet);
-          }
-          yamlDirty = false;
-          __suppressDirty = false;
-        }
-        
-        // Ensure the YAML editor is visible if toggle is checked
-        const yamlToggle = modal.querySelector('#toggle_yaml');
-        if (yamlToggle && yamlToggle.checked) {
-          const yamlPane = modal.querySelector('#pane_yaml');
-          if (yamlPane) {
-            yamlPane.style.display = 'block';
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Failed to mirror YAML from visual:', e);
-    }
-    
-    // Only mark dirty on actual user changes (not during programmatic sync)
-    if (!__suppressDirty) markDirty();
-    return true;
-  }
+  async function mirrorYamlFromVisual(force=false){ try{ collectFormData(); yamlCtl && yamlCtl.mirrorFromWorking && yamlCtl.mirrorFromWorking(working, force); }catch(e){ console.error('Failed to mirror YAML from visual:', e); } return true; }
 
   // Expose key helpers so handlers outside this closure (e.g., renderTests) can use them
   try{ window.__ed_mirrorYamlFromVisual = mirrorYamlFromVisual; }catch(e){}
-  try{ window.__ed_ensureYamlEditor = ensureYamlEditor; }catch(e){}
+  try{ window.__ed_ensureYamlEditor = function(){ return yamlCtl && yamlCtl.ensure ? yamlCtl.ensure() : null; }; }catch(e){}
   try{ window.__ed_sync = sync; }catch(e){}
 
   // Write YAML directly from current working model and mark as dirty
-  async function writeYamlFromWorking(force=false){
-    try{
-      const yamlText = await serializeWorkingToYamlImmediate();
-      // Update both CodeMirror and in-memory fallback to keep all paths consistent
-      const rawEl = modal.querySelector('#ed_raw');
-      if (yamlEditor) {
-        __suppressDirty = true;
-        const cur = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
-          ? window.hydreqEditorYAML.getText()
-          : (yamlEditor.getValue ? yamlEditor.getValue() : '');
-        if (force || cur !== yamlText) {
-          if (window.hydreqEditorYAML && window.hydreqEditorYAML.setText) window.hydreqEditorYAML.setText(yamlText); else if (yamlEditor.setValue) yamlEditor.setValue(yamlText);
-        }
-        __suppressDirty = false;
-      } else if (rawEl) {
-        rawEl.value = yamlText;
-      }
-      inMemoryYaml = yamlText;
-      yamlDirty = true;
-      if (!__suppressDirty) markDirty();
-      const di = document.getElementById('ed_dirty_indicator'); if (di) di.style.display='';
-    }catch(e){ console.warn('writeYamlFromWorking failed', e); }
-  }
+  async function writeYamlFromWorking(force=false){ try{ const yamlText = await serializeWorkingToYamlImmediate(); if (yamlCtl && yamlCtl.setText){ const cur = yamlCtl.getText ? yamlCtl.getText() : ''; if (force || cur !== yamlText) yamlCtl.setText(yamlText); } yamlCtl && yamlCtl.markDirty && yamlCtl.markDirty(); }catch(e){ console.warn('writeYamlFromWorking failed', e); } }
   try{ window.__ed_writeYamlFromWorking = writeYamlFromWorking; }catch(e){}
     
     // Note: variable/header/query/matrix collection happens within collectFormData()
@@ -1351,13 +758,9 @@ function openEditor(path, data){
   // Alias for collectFormData - used by event handlers
   const sync = collectFormData;
   
-  const syncYamlPreviewFromVisual = debounce(()=>{ 
-    // Always keep YAML updated since it's now always visible
-    try { 
-      mirrorYamlFromVisual(); 
-    } catch(e){ 
-      console.error('Error syncing YAML:', e); 
-    } 
+  const syncYamlPreviewFromVisual = debounce(()=>{
+    try { mirrorYamlFromVisual(); }
+    catch(e){ console.error('Error syncing YAML:', e); }
   }, 300);
   
   function setVisualEnabled(enabled){ 
@@ -1379,52 +782,14 @@ function openEditor(path, data){
     }; 
   }
   
-  async function validateRawAndApply(){ 
-    if (!yamlEditor && !(window.hydreqEditorYAML && window.hydreqEditorYAML.getText)) return false;
-    try {
-      const rawText = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
-        ? window.hydreqEditorYAML.getText()
-        : (yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : '');
-      const parsed = jsyaml.load(rawText);
-      working = normalizeParsed(parsed);
-      return true;
-    } catch (e) {
-      console.error('YAML validation failed:', e);
-      return false;
-    }
-  }
+  async function validateRawAndApply(){ try{ if (!yamlCtl) return false; const parsed = yamlCtl.parseToWorking ? yamlCtl.parseToWorking() : {}; working = normalizeParsed(parsed); return true; }catch(e){ console.error('YAML validation failed:', e); return false; } }
   
   async function switchTab(which){ 
     if (which === 'visual') {
-      // Switching TO Visual: Parse YAML and update visual forms
-      if (yamlEditor || (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)) {
-        try {
-          const rawText = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
-            ? window.hydreqEditorYAML.getText()
-            : (yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : '');
-          if (rawText.trim()) {
-            const parsed = jsyaml.load(rawText);
-            working = normalizeParsed(parsed);
-            renderForm(); // Re-render the visual form with updated data
-          }
-        } catch (e) {
-          console.warn('Failed to parse YAML when switching to visual:', e);
-        }
-      }
-      
-      // Both panes are always visible in the new layout
-      // Nothing special needed
+      try{ const parsed = yamlCtl && yamlCtl.parseToWorking ? yamlCtl.parseToWorking() : {}; if (parsed && Object.keys(parsed).length){ working = normalizeParsed(parsed); renderForm(); } }catch(e){ console.warn('Failed to parse YAML when switching to visual:', e); }
     } else if (which === 'yaml') {
-      // Switching TO YAML: Serialize visual data to YAML
-      try {
-        await mirrorYamlFromVisual(true); // Force update the YAML editor
-      } catch (e) {
-        console.warn('Failed to serialize visual to YAML:', e);
-      }
-      
-      // Ensure YAML editor is initialized
-      ensureYamlEditor();
-      if (yamlEditor) { setTimeout(() => { try{ yamlEditor.refresh && yamlEditor.refresh(); }catch{} }, 0); }
+      try { await mirrorYamlFromVisual(true); } catch (e) { console.warn('Failed to serialize visual to YAML:', e); }
+      yamlCtl && yamlCtl.ensure && yamlCtl.ensure();
     }
     try { localStorage.setItem('hydreq.editor.tab', which); } catch {}
   }
@@ -1432,14 +797,10 @@ function openEditor(path, data){
   // Function to update visual editor from YAML editor
   function updateVisualFromYaml() {
     try {
-      if (!yamlEditor && !(window.hydreqEditorYAML && window.hydreqEditorYAML.getText)) return false;
-      const rawText = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
-        ? window.hydreqEditorYAML.getText()
-        : (yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : '');
-      if (rawText.trim()) {
-        const parsed = jsyaml.load(rawText);
+      const parsed = yamlCtl && yamlCtl.parseToWorking ? yamlCtl.parseToWorking() : {};
+      if (parsed && Object.keys(parsed).length) {
         working = normalizeParsed(parsed);
-        renderForm(); // Re-render the visual form with updated data
+        renderForm();
         return true;
       }
     } catch (e) {
@@ -1450,50 +811,37 @@ function openEditor(path, data){
 
   // No need for YAML toggle - YAML editor is always visible
   const yamlPane = modal.querySelector('#pane_yaml');
-  
-  // Ensure YAML editor is setup and visible
-  setTimeout(() => {
-    ensureYamlEditor();
+  setTimeout(()=>{
+    yamlCtl && yamlCtl.ensure && yamlCtl.ensure();
     try{ syncEditorTheme(); }catch{}
-    __suppressDirty = true;
-    if (__hadRaw) { try { updateVisualFromYaml(); } catch {} } else { mirrorYamlFromVisual(true); }
-    try{ if (yamlEditor && yamlEditor.refresh) yamlEditor.refresh(); }catch{}
-    __suppressDirty = false;
-    // After async init, reset baseline and clear dirty indicator
-    try{
-      const curYaml = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText) ? window.hydreqEditorYAML.getText() : (yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : inMemoryYaml);
-      baselineYaml = curYaml || '';
-      dirty = false;
-      const di = modal.querySelector('#ed_dirty_indicator'); if (di) di.style.display = 'none';
-      // Also update shared editor state to not-dirty on initial mount
-      try{ if (window.hydreqEditorState && window.hydreqEditorState.setDirty) window.hydreqEditorState.setDirty(false); }catch{}
-    }catch{}
+    if (__hadRaw) {
+      // If we opened from raw YAML, do not immediately mirror/serialize back to avoid formatting deltas (quotes, spacing) marking dirty
+      try { updateVisualFromYaml(); } catch {}
+    } else {
+      try { if (typeof window.__ed_mirrorYamlFromVisual === 'function') window.__ed_mirrorYamlFromVisual(true); } catch {}
+    }
+    // Finalize baseline and end initialization
+    try{ if (window.hydreqEditorInit && window.hydreqEditorInit.finalizeBaseline) window.hydreqEditorInit.finalizeBaseline(yamlCtl, working, __hadRaw); }catch{}
+    try{ if (window.hydreqEditorInit && window.hydreqEditorInit.endInit) window.hydreqEditorInit.endInit(); else window.__ed_initializing = false; }catch{}
+    try{ if (window.hydreqEditorInit && window.hydreqEditorInit.afterSettle) window.hydreqEditorInit.afterSettle(yamlCtl); }catch{}
   }, 100);
 
   // Keep theme synced when document theme changes
-  try{
-    const mo = new MutationObserver(()=>{ try{ syncEditorTheme(); }catch{} });
-    mo.observe(document.documentElement, { attributes:true, attributeFilter:['data-theme','class'] });
-  }catch{}
+  try{ const mo = new MutationObserver(()=>{ try{ syncEditorTheme(); }catch{} }); mo.observe(document.documentElement, { attributes:true, attributeFilter:['data-theme','class'] }); }catch{}
 
   // Keep local working model in sync with YAML editor state updates
   try{
     document.addEventListener('hydreq:editor:state:changed', (e)=>{
-      try{
-        const wk = (e && e.detail && e.detail.working) || {};
-        working = normalizeParsed(wk);
-        renderForm();
-      }catch{}
+      try{ const wk = (e && e.detail && e.detail.working) || {}; working = normalizeParsed(wk); renderForm(); }catch{}
     });
-    // Reflect dirty flag changes emitted by YAML editor/state so raw edits mark UI as dirty
     document.addEventListener('hydreq:editor:dirty:changed', (e)=>{
       try{
-        const isDirty = !!(e && e.detail && e.detail.dirty);
-        dirty = isDirty;
+        const dty = !!(e && e.detail && e.detail.dirty);
         const di = modal && modal.querySelector && modal.querySelector('#ed_dirty_indicator');
-        if (di) di.style.display = isDirty ? '' : 'none';
-        // Also recompute against baseline to keep local comparison accurate
-        try{ markDirty(); }catch{}
+        if (di) {
+          if (window.__ed_uiSuppressDirty) return;
+          di.style.display = dty ? '' : 'none';
+        }
       }catch{}
     });
   }catch{}
@@ -1509,9 +857,9 @@ function openEditor(path, data){
         collapseBtn.textContent = column.classList.contains('collapsed') ? '▶' : '◀';
         collapseBtn.title = column.classList.contains('collapsed') ? 'Expand' : 'Collapse';
         
-        // Refresh YAML editor if it's the YAML column
-        if (columnId === '#col-yaml' && !column.classList.contains('collapsed') && yamlEditor) {
-          setTimeout(() => { try{ yamlEditor.refresh && yamlEditor.refresh(); }catch{} }, 10);
+        // Ensure YAML editor if it's the YAML column
+        if (columnId === '#col-yaml' && !column.classList.contains('collapsed')) {
+          setTimeout(() => { try{ yamlCtl && yamlCtl.ensure && yamlCtl.ensure(); }catch{} }, 10);
         }
       });
     }
@@ -1626,20 +974,7 @@ function openEditor(path, data){
   
   renderTests();
   renderForm();
-  ensureYamlEditor();
-  __suppressDirty = true;
-  try{
-    const txt = (inMemoryYaml || '').replace(/\t/g, '  ');
-    if (window.hydreqEditorYAML && window.hydreqEditorYAML.setText) window.hydreqEditorYAML.setText(txt);
-    else if (yamlEditor && yamlEditor.setValue) yamlEditor.setValue(txt);
-  }catch{}
-  __suppressDirty = false;
-  yamlDirty = false;
-  // Reset baseline to current YAML to avoid false-dirty on open
-  try{
-    const curYaml = (window.hydreqEditorYAML && window.hydreqEditorYAML.getText) ? window.hydreqEditorYAML.getText() : (yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : inMemoryYaml);
-    baselineYaml = curYaml || '';
-  }catch{}
+  yamlCtl && yamlCtl.ensure && yamlCtl.ensure();
   // Seed global editor state working model
   try{ if (window.hydreqEditorState && window.hydreqEditorState.setWorking) window.hydreqEditorState.setWorking(working); }catch{}
   const cacheKey = ()=>{ const t = (working.tests && working.tests[selIndex]) || {}; return selIndex + ':' + (t.name||('test '+(selIndex+1))); };
@@ -1753,20 +1088,7 @@ function openEditor(path, data){
   if (Array.isArray(res.messages) && res.messages.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = res.messages.join('\n'); det.appendChild(pre); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(det); }
   if (Array.isArray(res.cases) && res.cases.length){ res.cases.forEach(c=>{ const cs=(c.Status||'').toLowerCase(); const icon = cs==='passed'?'✓':(cs==='failed'?'✗':(cs==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${c.Name}${c.DurationMs?` (${c.DurationMs}ms)`:''}`, cs==='passed'?'text-success':(cs==='failed'?'text-error':'text-warning')); if (Array.isArray(c.Messages) && c.Messages?.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (cs==='failed'?'fail':(cs==='skipped'?'skip':'ok')); pre.textContent = c.Messages.join('\n'); det.appendChild(pre); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(det); } }); }
   }
-  function renderIssues(issues, yamlPreview){
-    const issuesEl = modal.querySelector('#ed_issues'); if (!issuesEl) return;
-    issuesEl.innerHTML = '';
-    const arr = Array.isArray(issues) ? issues : (Array.isArray(issues?.errors) ? issues.errors : []);
-    if (!arr.length){ const ok=document.createElement('div'); ok.className='text-success'; ok.textContent='No issues'; issuesEl.appendChild(ok); return; }
-    arr.forEach(it=>{
-      const line=document.createElement('div'); line.style.marginBottom='4px';
-      const sev=(it.severity||it.level||'error').toLowerCase(); line.className = (sev==='warning'?'text-warning':(sev==='info'?'':'text-error'));
-      const loc = it.path || it.instancePath || it.field || '';
-      const msg = it.message || it.error || String(it);
-      line.textContent = (loc? (loc+': '):'') + msg;
-      issuesEl.appendChild(line);
-    });
-  }
+  function renderIssues(issues, yamlPreview){ try{ if (window.hydreqEditorIssues && typeof window.hydreqEditorIssues.renderIssues==='function') window.hydreqEditorIssues.renderIssues(modal, issues, yamlPreview); }catch{} }
   function parseEnvFromPage(){ try{ return (typeof parseEnv==='function') ? parseEnv() : {}; }catch{ return {}; } }
   let lastValidated = null;
   modal.querySelector('#ed_run_test').onclick = async ()=>{ 
@@ -1921,8 +1243,8 @@ function openEditor(path, data){
       // Prefer saving raw YAML from editor to preserve formatting; fallback to serialize
       let yamlData = '';
       try{
-        if (window.hydreqEditorYAML && window.hydreqEditorYAML.getText) yamlData = window.hydreqEditorYAML.getText();
-        else if (yamlEditor && yamlEditor.getValue) yamlData = yamlEditor.getValue();
+        if (yamlCtl && yamlCtl.getText) yamlData = yamlCtl.getText();
+        else if (window.hydreqEditorYAML && window.hydreqEditorYAML.getText) yamlData = window.hydreqEditorYAML.getText();
         else yamlData = await serializeWorkingToYamlImmediate();
       }catch{ yamlData = await serializeWorkingToYamlImmediate(); }
       // If still empty, attempt a final serialization; otherwise abort save
@@ -1962,9 +1284,8 @@ function openEditor(path, data){
       
       if (response.ok) {
         alert('✓ Suite saved successfully');
-        // Update baseline to latest YAML and recompute dirty
-        baselineYaml = yamlData || '';
-        markDirty();
+  // Update baseline to latest YAML and recompute dirty
+  try{ yamlCtl && yamlCtl.setText && yamlCtl.setText(yamlData||''); yamlCtl && yamlCtl.resetBaseline && yamlCtl.resetBaseline(); }catch{}
         // If this was a new file, update UI state so subsequent saves are normal
         if (modal.dataset.isNew === '1'){
           modal.dataset.isNew = '0';
@@ -1984,7 +1305,7 @@ function openEditor(path, data){
   modal.querySelector('#ed_save_close').onclick = async ()=>{ 
     try {
       await modal.querySelector('#ed_save').onclick();
-      if (!dirty) {
+      if (!isDirty()) {
         attemptClose();
       }
     } catch (e) {
@@ -1995,7 +1316,7 @@ function openEditor(path, data){
   // Prefer modal close() if available; otherwise fallback
   modal.querySelector('#ed_close').onclick = ()=> {
     try{
-      if (dirty && !confirm('Discard unsaved changes?')) return;
+      if (isDirty() && !confirm('Discard unsaved changes?')) return;
       if (window.hydreqEditorModal && typeof window.hydreqEditorModal.close === 'function') window.hydreqEditorModal.close();
       else attemptClose();
     }catch{}

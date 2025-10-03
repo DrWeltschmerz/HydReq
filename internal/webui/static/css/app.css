@@ -155,6 +155,8 @@ a { color: var(--link); }
 .ed-mono-dim { font-family: monospace; opacity: .85; }
 .ed-grid-1-1-auto { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; }
 .ed-grid-1-auto { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.mb-2 { margin-bottom: 2px; }
+.gap-2 { gap: 2px; }
 .m-0 { margin: 0; }
 .w-64px { width: 64px; }
 .w-120px { width: 120px; }
@@ -337,6 +339,19 @@ a { color: var(--link); }
 /* Tag chip selection state */
 .tag-chip { cursor: pointer; opacity: .8; }
 .tag-chip.selected { outline: 1px solid var(--link); outline-offset: 0; opacity: 1; }
+
+/* Editor hook card utilities (Phase 2 inline-style cleanup) */
+.hk-card { border: 1px solid var(--bd); border-radius: 6px; margin-bottom: 8px; }
+.hk-header { padding: 6px 8px; background: var(--pill); border-bottom: 1px solid var(--bd); }
+.p-8 { padding: 8px; }
+.mt-8 { margin-top: 8px; }
+.w-24px { width: 24px; }
+.ed-grid-1 { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.ed-grid-2-110 { display: grid; grid-template-columns: 110px 1fr; gap: 6px; }
+
+/* Matrix editor layout */
+.ed-matrix-row { display: grid; grid-template-columns: 120px 1fr 40px; gap: 8px; margin-bottom: 8px; align-items: start; }
+.ed-matrix-value { display: flex; gap: 4px; margin-bottom: 4px; }
 
 /* Hook card compaction: smaller paddings and tighter layout */
 #editorModal .hk_name { font-size: 12px; padding: 4px 6px; }

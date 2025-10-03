@@ -44,7 +44,7 @@
             <button id="ed_save" class="btn btn-sm">Save</button>
             <button id="ed_save_close" class="btn btn-sm">Save & Close</button>
             <button id="ed_close" type="button" class="btn btn-sm" title="Close">Close</button>
-            <span id="ed_dirty_indicator" class="pill" title="You have unsaved changes">Unsaved</span>
+            <span id="ed_dirty_indicator" class="pill" title="You have unsaved changes" style="display:none">Unsaved</span>
           </div>
         </div>
         <div class="ed-main">
@@ -272,6 +272,7 @@
 
     const closeBtn = modal.querySelector('#ed_close');
     if (closeBtn) closeBtn.onclick = () => close();
+    
     return modal;
   }
 
