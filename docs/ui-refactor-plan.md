@@ -104,6 +104,10 @@ Phase 2: Editor split (in progress)
     context object from editor.js to keep editor.js lean).
   - `editor/validation.js` (field validation helpers and wiring). [added]
   - `editor/run-ui.js` (quick-run UI preparation and event handlers). [added]
+  - `editor/normalize.js` (pure normalization from parsed suite → working model). [added]
+  - `editor/run-records.js` (quick-run record caching, per-test/suite badges, LS persistence). [added]
+  - `editor/collapse.js` (column collapse wiring for tests/visual/yaml/results). [added]
+  - `editor/utils.js` now owns a shared `debounce()`; removed local duplicates from `editor.js`. [updated]
   - Add minimal unit tests for editor modal open/close and state changes.
    - New tests: `editor-dirty-suppression.spec.js` verifies that programmatic
      `setText+baseline` does not mark the editor dirty after save; also kept
@@ -117,6 +121,8 @@ Notes on whitespace and readability
 - Wrapped long lines across new modules to keep code readable and diffs friendly.
 - Replaced inline style mutations with CSS classes where practical; remaining instances are TODO for Phase 0/1 follow-up.
 - Removed duplicate helpers (local debounce/setVisualEnabled) in `editor.js`; rely on single implementations.
+ - Extracted quick-run records and badge logic out of `editor.js` into `editor/run-records.js`; editor now delegates via a small adapter.
+ - Extracted column collapse logic into `editor/collapse.js` and referenced it from `index.html`.
  - Delegated button handlers to `editor/controls.js`. Editor exposes a
    minimal context (getWorking, getSelIndex, getYamlText, getPath,
    collectFormData, serializeWorkingToYamlImmediate, quick-run helpers,
@@ -128,7 +134,11 @@ Notes on whitespace and readability
  - Provided local fallbacks for validate/save in `editor.js` so tests that
    load only `editor.js` still pass without pulling in `controls.js`.
  - Next: remove test fallbacks from `editor.js` and keep them in test-only
-   helpers to ensure the orchestrator remains lean.
+ - Removed inline fallbacks for matrix and hooks; rely on `forms/matrix.js`
+   and `forms/hooks.js`. Provide minimal no-op getters when modules are not
+   loaded (tests) without bloating the orchestrator.
+ - Extracted `normalizeParsed` into `editor/normalize.js` and wired via
+   `window.hydreqEditorNormalize.normalize`.
  - Fixed left column vertical fill by CSS-only changes (flex/min-height on
    `.ed-col`, `.ed-col-content`, `.ed-tests-panel`, `.ed-tests-list`).
 
@@ -212,3 +222,11 @@ Plan
   - Add E2E for suite expand and details collapse/expand; verify scrollability and copy behavior.
 5) Docs
   - Keep this plan and Summary of findings in sync; link classes and modules as they land.
+
+CSS de-duplication (Phase 2 adjunct)
+- Moved editor-specific rules from `css/app.css` into `editor.css`, including:
+  - Compact field widths, checkbox alignment, form grid gaps, density toggles
+  - Modal layout, CodeMirror skin, splitter hover, hook/matrix styles
+  - message-block shared component (used by editor and suites)
+- Namespaced editor selectors under `#editorModal` to avoid app.css overrides.
+- Kept app.css focused on app-wide layout and suites/runner styles.

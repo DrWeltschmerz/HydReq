@@ -16,10 +16,8 @@
 }
 /* Align checkboxes to the left (no extra offset) */
 #ed_skip, #ed_only, #ed_retry_enable { margin-left: 0; }
-/* Modal scroll containment and compact sizing */
-#editorModal { overscroll-behavior: contain; }
+/* Modal scroll containment handled in editor.css */
 body.modal-open { overflow: hidden; }
-#editorModal .editor-root { font-size: 14px; }
 /* Runner area: slightly smaller fonts for denser output */
 #results, .run { font-size: 12px; }
 #suites li { font-size: 13px; border: 1px solid var(--bd); }
@@ -64,70 +62,13 @@ li.selected { background: var(--li-sel); }
 button { padding: 6px 10px; border: 1px solid var(--btn-bd); background: var(--btn-bg); border-radius: 6px; cursor: pointer; color: inherit; }
 button:hover { background: var(--btn-hov); }
 .run { color:#3b82f6 }
-.CodeMirror { height: 100%; width: 100%; border: 1px solid var(--bd); border-radius: 6px; }
-body.dark .CodeMirror { background: #0f172a; color: #e5e7eb; }
-#editorModal input[type="text"],
-#editorModal input[type="number"],
-#editorModal select,
-#editorModal textarea {
-  background: var(--input-bg);
-  border: 1px solid var(--input-bd);
-  color: var(--input-fg);
-}
-#editorModal input[type="text"]:focus,
-#editorModal input[type="number"]:focus,
-#editorModal select:focus,
-#editorModal textarea:focus {
-  outline: 2px solid var(--input-focus);
-  outline-offset: 1px;
-  border-color: var(--input-focus);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--input-focus) 25%, transparent);
-  background: var(--input-bg);
-}
+/* CodeMirror styling moved to editor.css */
+/* Editor inputs themed in editor.css */
 a { color: var(--link); }
-#ed_splitter:hover { background: #93c5fd !important; }
-#ed_splitter.dragging { background: #60a5fa !important; }
-#editorModal #ed_suite_hooks_block {
-  /* Stack label above content and keep it left; prevent right-side overflow */
-  display: grid;
-  grid-template-columns: 1fr !important;
-  align-items: flex-start;
-}
-#editorModal #ed_suite_hooks_block > label {
-  align-self: start;
-  margin-bottom: 4px;
-}
-#editorModal #ed_suite_hooks_block > div {
-  min-width: 0;
-  width: 100%;
-}
-#editorModal .editor-root.comfortable { font-size: 15px; }
-#editorModal .editor-root.comfortable input[type="text"],
-#editorModal .editor-root.comfortable input[type="number"],
-#editorModal .editor-root.comfortable select,
-#editorModal .editor-root.comfortable textarea { padding: 8px 10px; }
-#editorModal .editor-root.comfortable #pane_visual details > summary { padding: 8px !important; }
-#editorModal .editor-root.comfortable #pane_visual details > div { padding: 8px !important; }
-#editorModal .editor-root.comfortable #ed_suite_form,
-#editorModal .editor-root.comfortable #ed_req_form,
-#editorModal .editor-root.comfortable #ed_assert_form,
-#editorModal .editor-root.comfortable #ed_flow_form,
-#editorModal .editor-root.comfortable #ed_retry_form,
-#editorModal .editor-root.comfortable #ed_oapi_form { gap: 10px !important; }
-#editorModal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; }
-.editor-root { background: var(--bg); color: var(--txt); position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 90vw; height: 88vh; border: 1px solid var(--bd); border-radius: 8px; display: flex; flex-direction: column; min-height: 0; }
-.ed-header { padding: 8px 12px; border-bottom: 1px solid var(--bd); display: flex; gap: 12px; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg); z-index: 2; }
-.ed-header-left { display: flex; align-items: center; gap: 12px; }
-.ed-actions { display: flex; gap: 8px; align-items: center; }
-.ed-main { display: flex; gap: 8px; flex: 1; overflow: hidden; min-height: 0; }
-.ed-pane { display: flex; flex: 1 1 auto; gap: 8px; overflow: auto; padding: 8px; min-width: 0; min-height: 0; }
-.ed-tests-header { padding: 8px; border-bottom: 1px solid var(--bd); font-weight: 600; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--bg); z-index: 1; }
-.ed-tests-list { flex: 1; overflow: auto; min-height: 0; }
-.ed-center { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; overflow: auto; min-height: 0; min-width: 460px; }
-.ed-panel { border: 1px solid var(--bd); border-radius: 6px; overflow: visible; }
-.ed-panel.tight { overflow: hidden; }
-.ed-summary { padding: 8px; border-bottom: 1px solid var(--bd); font-weight: 600; cursor: pointer; }
-.ed-body { padding: 8px; }
+/* Editor splitter styling in editor.css */
+/* Editor suite hooks layout in editor.css */
+/* Editor comfortable density styles in editor.css */
+/* Editor modal, layout, and panel styles are defined in editor.css */
 .ed-grid-2-140 { display: grid; grid-template-columns: 140px 1fr; gap: 8px; }
 .ed-grid-2-130 { display: grid; grid-template-columns: 130px 1fr; gap: 8px; }
 .ed-grid-2-160 { display: grid; grid-template-columns: 160px 1fr; gap: 8px; }
@@ -232,14 +173,7 @@ a { color: var(--link); }
 /* Keep actions inline with title */
 #suites li .suite-actions { margin-left: auto; display: flex; gap: 6px; }
 
-/* Editor tests list item styling and selection highlight */
-.ed-test-container { margin-bottom: 2px; }
-.ed-test-item { display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-radius:6px; cursor:pointer; }
-.ed-test-item:not(.selected):hover { background: var(--li-hov); }
-.ed-test-details { padding: 0 8px 6px 24px; font-size: 0.9em; }
-.ed-test-details > summary, .ed-msg-details > summary { cursor: pointer; opacity: .85; font-size: 12px; margin: 2px 0 4px; }
-.ed-test-messages { margin: 0; padding: 6px; border-radius: 4px; background-color: var(--bg-subtle); white-space: pre-wrap; overflow-wrap: break-word; max-height: 150px; overflow-y: auto; }
-.ed-test-messages.fail { background-color: var(--bg-err); color: var(--err); }
+/* Editor tests list item styling moved to editor.css */
 
 /* Suites list: test rows and details beneath */
 .suite-test-container { margin: 2px 0; }
@@ -251,10 +185,7 @@ a { color: var(--link); }
 .suite-test-details > summary { cursor: pointer; opacity: .9; font-size: 12px; margin: 2px 0 4px; color: var(--error); }
 
 /* Unified message block styling for both editor and suites */
-.message-block { margin: 4px 0 0; padding: 8px; border-radius: 6px; background: var(--bg-subtle); color: inherit; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; border: 1px solid var(--bd); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 1.4; }
-.message-block.fail { background: rgba(239,68,68,0.08); color: var(--error); border-color: rgba(239,68,68,0.28); }
-.message-block.ok { background: rgba(16,185,129,0.08); color: var(--success); border-color: rgba(16,185,129,0.28); }
-.message-block.skip { background: rgba(245,158,11,0.08); color: var(--warning); border-color: rgba(245,158,11,0.28); }
+/* message-block styles moved to editor.css */
 .ed-test-item.selected {
   background: var(--li-sel);
   border: 1px solid var(--bd);
@@ -339,33 +270,4 @@ a { color: var(--link); }
 .tag-chip { cursor: pointer; opacity: .8; }
 .tag-chip.selected { outline: 1px solid var(--link); outline-offset: 0; opacity: 1; }
 
-/* Editor hook card utilities (Phase 2 inline-style cleanup) */
-.hk-card { border: 1px solid var(--bd); border-radius: 6px; margin-bottom: 8px; }
-.hk-header { padding: 6px 8px; background: var(--pill); border-bottom: 1px solid var(--bd); }
-.p-8 { padding: 8px; }
-.mt-8 { margin-top: 8px; }
-.w-24px { width: 24px; }
-.ed-grid-1 { display: grid; grid-template-columns: 1fr; gap: 6px; }
-.ed-grid-2-110 { display: grid; grid-template-columns: 110px 1fr; gap: 6px; }
-
-/* Matrix editor layout */
-.ed-matrix-row { display: grid; grid-template-columns: 120px 1fr 40px; gap: 8px; margin-bottom: 8px; align-items: start; }
-.ed-matrix-value { display: flex; gap: 4px; margin-bottom: 4px; }
-
-/* Hook card compaction: smaller paddings and tighter layout */
-#editorModal .hk_name { font-size: 12px; padding: 4px 6px; }
-#editorModal .hk_type.badge { font-size: 11px; padding: 2px 6px; }
-#editorModal .hk_run, #editorModal .hk_del, #editorModal .hk_toggle_dsn, #editorModal .hk_fill_dsn {
-  padding: 2px 6px;
-}
-#editorModal .hk_js_code,
-#editorModal .hk_querytxt,
-#editorModal .hk_body { font-size: 12px; }
-#editorModal .hk_sql select,
-#editorModal .hk_http select { max-width: 120px; }
-#editorModal .hk_sql textarea,
-#editorModal .hk_http textarea { width: 100%; }
-#editorModal .hk_sql input.hk_dsn { flex: 1 1 auto; min-width: 0; }
-#editorModal .hk_sql .hk_sqlextract,
-#editorModal .hk_http .hk_headers,
-#editorModal .hk_http .hk_query { min-width: 0; }
+/* Editor hook and matrix styles moved to editor.css */

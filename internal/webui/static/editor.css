@@ -1,13 +1,23 @@
 /* Compact fields: narrow numeric inputs */
-#ed_stage, #ed_timeout, #ed_assert_status, #ed_assert_maxDuration,
-#ed_retry_max, #ed_retry_backoff, #ed_retry_jitter { max-width: 160px; }
+#editorModal #ed_stage,
+#editorModal #ed_timeout,
+#editorModal #ed_assert_status,
+#editorModal #ed_assert_maxDuration,
+#editorModal #ed_retry_max,
+#editorModal #ed_retry_backoff,
+#editorModal #ed_retry_jitter { max-width: 160px; }
 /* Align checkboxes toward the left edge of their column */
-#ed_skip, #ed_only, #ed_retry_enable { margin-left: 0; justify-self: start; }
+#editorModal #ed_skip, #editorModal #ed_only, #editorModal #ed_retry_enable { margin-left: 0; justify-self: start; }
 /* Densify grids and sections */
-#ed_suite_form, #ed_req_form, #ed_assert_form, #ed_flow_form, #ed_retry_form, #ed_oapi_form { gap: 6px !important; }
-#pane_visual details > summary { padding: 6px !important; }
-#pane_visual details > div { padding: 6px !important; }
-#ed_preview { gap: 6px !important; }
+#editorModal #ed_suite_form,
+#editorModal #ed_req_form,
+#editorModal #ed_assert_form,
+#editorModal #ed_flow_form,
+#editorModal #ed_retry_form,
+#editorModal #ed_oapi_form { gap: 6px !important; }
+#editorModal #pane_visual details > summary { padding: 6px !important; }
+#editorModal #pane_visual details > div { padding: 6px !important; }
+#editorModal #ed_preview { gap: 6px !important; }
 /* Editor compact sizing for numeric fields */
 #ed_stage, #ed_timeout, #ed_assert_status, #ed_assert_maxDuration,
 #ed_retry_max, #ed_retry_backoff, #ed_retry_jitter {
@@ -108,9 +118,17 @@ a { color: var(--link); }
 .ed-actions { display: flex; gap: 8px; align-items: center; }
 .ed-main { display: flex; gap: 8px; flex: 1; overflow: hidden; min-height: 0; align-items: stretch; }
 .ed-pane { display: flex; flex-direction: row; flex: 1 1 auto; gap: 8px; overflow: auto; padding: 8px; min-width: 0; min-height: 0; }
+.ed-test-container {
+  border-bottom: 1px solid var(--bd);
+}
+
+.ed-test-details {
+  margin-bottom: 5px;
+}
+
 .ed-tests-panel { 
   flex: 1 1 auto; 
-  border: 1px solid var(--bd); 
+  border: 1px solid var(--bd);
   border-radius: 6px; 
   display: flex; 
   flex-direction: column; 
@@ -173,10 +191,15 @@ a { color: var(--link); }
 .ed-row-6 { display: flex; gap: 6px; }
 .ed-row-8 { display: flex; gap: 8px; }
 
+/* Unified message block styling (used in editor and suites) */
+.message-block { margin: 4px 0 0; padding: 8px; border-radius: 6px; background: var(--bg-subtle); color: inherit; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; border: 1px solid var(--bd); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 1.4; }
+.message-block.fail { background: rgba(239,68,68,0.08); color: var(--error); border-color: rgba(239,68,68,0.28); }
+.message-block.ok { background: rgba(16,185,129,0.08); color: var(--success); border-color: rgba(16,185,129,0.28); }
+.message-block.skip { background: rgba(245,158,11,0.08); color: var(--warning); border-color: rgba(245,158,11,0.28); }
+
 /* Test list item styles */
 .ed-test-item {
   padding: 8px;
-  border-bottom: 1px solid var(--bd);
   cursor: pointer;
   display: flex;
   justify-content: space-between;
@@ -199,6 +222,24 @@ a { color: var(--link); }
   margin-left: 8px;
 }
 
+/* Selection emphasis */
+.ed-test-item.selected {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bd) 40%, transparent);
+  position: relative;
+  outline: 1px solid var(--link);
+  outline-offset: -1px;
+}
+.ed-test-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--link);
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+.ed-test-item.selected .ed-test-name { font-weight: 600; }
+
 /* Matrix editor styles */
 .ed-matrix-table {
   margin-bottom: 8px;
@@ -218,6 +259,15 @@ a { color: var(--link); }
 .ed-matrix-key {
   font-weight: 500;
 }
+
+/* Hook card utilities */
+.hk-card { border: 1px solid var(--bd); border-radius: 6px; margin-bottom: 8px; }
+.hk-header { padding: 6px 8px; background: var(--pill); border-bottom: 1px solid var(--bd); }
+.p-8 { padding: 8px; }
+.mt-8 { margin-top: 8px; }
+.w-24px { width: 24px; }
+.ed-grid-1 { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.ed-grid-2-110 { display: grid; grid-template-columns: 110px 1fr; gap: 6px; }
 
 /* (removed debug styles that forced layout overrides) */
 

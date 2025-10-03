@@ -46,13 +46,8 @@
         appendMessageLine(name, status, durationMs);
         const idx = typeof getTestIndexByName==='function' ? getTestIndexByName(name) : -1;
         if (typeof setTestRecord==='function') setTestRecord(name, status, durationMs||0, messages||[]);
-        if (idx>=0 && typeof updateTestBadgeByIndex==='function') updateTestBadgeByIndex(idx, status, messages||[]);
+  if (idx>=0 && typeof updateTestBadgeByIndex==='function') updateTestBadgeByIndex(idx, status, messages||[], name);
         else if (typeof fallbackCache==='function') fallbackCache(name, status, messages||[]);
-        const pth = typeof getPath==='function' ? getPath() : '';
-        try{
-          if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, name, status);
-          if (typeof window.setSuiteTestDetails==='function' && (status==='failed' || (status==='skipped' && (messages||[]).length))) window.setSuiteTestDetails(pth, name, messages||[]);
-        }catch{}
         appendDetails(status, messages||[]);
       }catch{}
     };
@@ -62,7 +57,7 @@
         if (typeof appendQuickRunLine==='function') appendQuickRunLine(`=== ${name || 'suite'} — ${(s.passed||0)} passed, ${(s.failed||0)} failed, ${(s.skipped||0)} skipped, total ${(s.total||0)} in ${(s.durationMs||0)} ms`);
         const st = ((s.failed||0)>0)? 'failed' : (((s.passed||0)>0)? 'passed' : (((s.skipped||0)>0)? 'skipped' : 'unknown'));
         if (typeof setSuiteRecord==='function') setSuiteRecord(st, s.durationMs||0, []);
-        try{ (tests||[]).forEach(t=>{ const idx = typeof getTestIndexByName==='function' ? getTestIndexByName(t.name) : -1; if (idx>=0 && typeof updateTestBadgeByIndex==='function') updateTestBadgeByIndex(idx, t.status, t.messages||[]); }); }catch{}
+  try{ (tests||[]).forEach(t=>{ const nm = t.name; const idx = typeof getTestIndexByName==='function' ? getTestIndexByName(nm) : -1; if (idx>=0 && typeof updateTestBadgeByIndex==='function') updateTestBadgeByIndex(idx, t.status, t.messages||[], nm); }); }catch{}
       }catch{}
     };
     const onError = (msg)=>{ try{ if (typeof appendQuickRunLine==='function') appendQuickRunLine('Error: '+msg, 'text-error'); if (typeof setSuiteRecord==='function') setSuiteRecord('failed', 0, [msg]); }catch{} };

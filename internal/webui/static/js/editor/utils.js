@@ -5,5 +5,6 @@
   function qs(){ try{ return new URLSearchParams(window.location.search||''); }catch{ return new URLSearchParams(); } }
   function hide(el){ try{ if (el) el.style.display='none'; }catch{} }
   function show(el){ try{ if (el) el.style.display=''; }catch{} }
-  window.hydreqEditorUtils = window.hydreqEditorUtils || { isObj, safeJSONParse, textEquals, qs, hide, show };
+  function debounce(fn, wait){ let t=null; return function(){ const args=arguments; clearTimeout(t); t=setTimeout(()=> fn.apply(this,args), wait); } }
+  window.hydreqEditorUtils = window.hydreqEditorUtils || { isObj, safeJSONParse, textEquals, qs, hide, show, debounce };
 })();
