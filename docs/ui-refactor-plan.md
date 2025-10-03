@@ -1,4 +1,170 @@
-# UI Refactor Plan: Theme Modularization (2025-10-02)
+# HydReq Web UI — Full Refactor Plan (2025-10-03)
+
+This is the authoritative snapshot of the Web UI refactor plan. It reflects the full current state across JS/HTML/CSS, codestyle conventions, known pain points, and a step-by-step roadmap. Earlier notes remain below for history.
+
+## Guiding principles
+
+- Store-first state: `hydreqStore` is the source of truth for test/suite results; views subscribe/hydrate from it.
+- One path for propagation: centralize status/badge/detail updates to prevent desync and race conditions.
+- Small modules, clear boundaries: keep orchestrators thin (suites.js, editor.js) and delegate.
+- Human-readable assets: no long lines, minimal inline styles, semantic classes/tokens.
+- Zero-build by default; optional Vite/TypeScript build can coexist later.
+
+## Current inventory (full sweep)
+
+- HTML
+  - `internal/webui/static/index.html` (app shell, loads CSS/JS)
+  - `internal/webui/static/test-run-listener.html` (listener harness)
+- CSS
+  - `internal/webui/static/themes.css`, `layout.css`, `components.css`, `editor.css`, `css/app.css`
+- App JS
+  - `js/app.js`, `js/utils.js`
+  - State: `js/state/store.js`, `js/state/tags.js`, `js/state/env.js`
+  - Runs/SSE: `js/run.js`, `js/run-listener.js`, `js/suites-sse.js`
+  - Suites: `js/suites-view.js`, `js/suites-actions.js`, `js/suites-dom.js`, `js/suites-state.js`, `js/suites-api.js`, `js/suites.js`
+- Editor JS
+  - `js/editor.js` (orchestrator), `js/editor/modal.js`, `js/editor/state.js`
+  - YAML: `js/editor/yaml.js`, `js/editor/yaml-control.js`, `js/editor/serialize.js`
+  - Forms: `js/editor/forms/*` (suite, testmeta, request, assert, retry, hooks, matrix, openapi)
+  - Run: `js/editor/run.js`, `js/editor/run-ui.js`, `js/editor/run-records.js`
+  - Other: `js/editor/normalize.js`, `js/editor/collect.js`, `js/editor/collapse.js`, `js/editor/tests-list.js`, `js/editor/issues.js`, `js/editor/validation.js`, `js/editor/tables.js`, `js/editor/utils.js`, `js/editor/init-helpers.js`
+
+## Conventions and codestyle
+
+- Formatting and readability
+  - Max line length: ~100 columns (soft). Wrap arguments/attributes across lines.
+  - Indentation: 2 spaces; no tabs. Keep trailing whitespace out.
+  - One statement per line; keep functions small (aim <40 lines); extract helpers early.
+  - Prefer early returns over nested conditionals; avoid deep nesting (>3 levels).
+  - Keep import/script/link tags one per line in HTML head.
+
+- Naming
+  - JS variables/functions: `camelCase`. Constants: `SCREAMING_SNAKE_CASE` only when truly constant.
+  - Module exports: namespace under `window.hydreq*` (e.g., `window.hydreqEditorRunRecords`).
+  - CSS classes/tokens: `kebab-case`. CSS custom props (tokens): `--token-name` and grouped by domain (e.g., `--input-bg`).
+  - DOM ids stable, descriptive (e.g., `#ed_quickrun`, `#suiteBar`). Avoid generic names.
+
+- Comments and docs
+  - Each module: brief header comment with purpose and public API contract.
+  - Non-obvious logic: short inline comments. Avoid noisy comments for obvious code.
+
+- CSS and tokens
+  - Themes: tokens live in `themes.css` only; `app.css` has no variables.
+  - Badge tokens/classes: `status-badge` + `status-ok/fail/skip/unknown` with icons ✓ ✗ ○ ·.
+  - No inline styles in JS; use utilities from `components.css`/`layout.css` and semantic classes.
+  - Selector depth: avoid >3 levels; prefer class names over long descendant chains.
+
+- Events and state
+  - Normalize statuses to lowercase; map dependency-caused failures → `skipped` in one place (run-records).
+  - Custom events use `hydreq:*` namespace (e.g., `hydreq:editor:test:update`).
+  - Store-first: write to `hydreqStore` before patching DOM; views hydrate and subscribe.
+
+- Error handling and logging
+  - Guard try/catch to smallest scope; avoid swallowing errors silently—log with context in dev.
+  - Keep debug logging behind a simple flag or use concise messages; remove noisy logs in production paths.
+
+- Accessibility (A11y)
+  - Use `aria-controls`, `aria-expanded`, and descriptive `title`/`aria-label` for interactive elements.
+  - Ensure focus outlines are visible; keyboard navigation works for expand/collapse.
+  - Details/summary used for collapsible sections with clear summary labels.
+
+- Security
+  - Avoid `innerHTML` for untrusted content; use `textContent` or safe templating.
+  - Never interpolate untrusted values into event handlers or URLs without encoding.
+
+- Performance
+  - Batch DOM writes when patching many nodes; avoid layout thrash.
+  - Prefer class toggles over repeated style mutations; debounce expensive handlers.
+
+- Tooling (optional, no-build path preserved)
+  - `.editorconfig` aligned with these rules (2 spaces, LF, UTF-8).
+  - If linting is added later, codify the above via ESLint/Prettier configs without enforcing a build step.
+
+## Recent decisions (2025-10-03)
+
+- Editor clean-slate by default; persistence opt-in via `localStorage['hydreq.editor.persistRuns']='1'`.
+- Preserve prefill from suites view/store on editor open; immediate test-list render of badges.
+- Centralized propagation in `editor/run-records.js` plus `hydreq:editor:test:update` events; removed duplicate paths from handlers.
+
+## Pain points (scan highlights)
+
+- Inline style usage
+  - `suites-dom.js`: setFlexRow/Col, show/hide, menu.style.display toggles.
+  - `suites.js`: testsDiv.style.display in expand handlers.
+  - `app.js`: debug banner sets `style.opacity`, `style.fontSize`.
+  - `editor.js`: dirty-indicator `style.display` writes.
+  - `editor/issues.js`: line spacing via `style.marginBottom`.
+
+- innerHTML usage
+  - Widespread for clearing/rebuilding containers (tests/issues/tables) and injecting small HTML snippets.
+  - Risk: future unsafe content and layout thrash. Prefer `textContent` + element builders.
+
+- Console noise and error handling
+  - Many `console.error/warn` calls in editor and suites paths. Keep minimal/guarded logs and scoped try/catch.
+
+- A11y gaps
+  - Aria present in suites expand/edit/delete, but editor buttons and some details lack explicit aria/labels.
+
+- Orchestrator size / nesting
+  - `suites.js` contains runner log + handlers; `editor.js` still wires `renderForm()` with large sections.
+
+- State layering
+  - Legacy `suites-state` overlaps `hydreqStore`; both updated in places.
+
+- Selector sprawl
+  - Repeated `querySelector` paths; fragile when structure changes.
+
+- Limited unit tests / typings
+  - Few targeted tests for run-records normalization and event-driven refresh; no TS contracts for events.
+
+## Roadmap (step-by-step)
+
+Phase A: Hygiene
+- Replace inline styles with classes/utilities; add helpers to toggle classes (show/hide/flex/menu-open).
+- Replace `innerHTML`-based rebuilds with element builders where feasible; keep safe and incremental updates.
+- Centralize common selectors (new `editor/dom.js`, expand `suites-dom`); reduce deep descendant selectors.
+- Reduce console noise: gate debug logs; ensure errors are actionable and scoped.
+- Add missing aria-labels/titles to editor actions; confirm keyboard nav across details/summary and controls.
+
+Phase B: Editor slimming
+- Extract `editor/render-form.js`; remove test-only fallbacks from orchestrator; add minimal unit tests.
+
+Phase C: Store-first consolidation
+- Ensure all UI updates follow store writes; reduce reliance on legacy `suites-state` to hydration-only.
+- Document event shapes; enforce normalization in one module.
+
+Phase D: CSS consistency and a11y
+- Verify `.status-*` tokens everywhere; remove ad-hoc colors; add aria/labels where missing.
+
+Phase E: Feature toggles
+- Editor checkbox to toggle persistence (sets `hydreq.editor.persistRuns`).
+
+Phase F: Tests
+- Add jsdom tests for:
+  - run-records normalization (dependency → skipped)
+  - editor refresh on `hydreq:editor:test:update`
+  - suites-dom show/hide helpers toggle classes (no inline styles)
+  - element builders produce safe textContent (no unsafe innerHTML paths)
+- E2E: suite expand/hydration, DAG single-stage, batch progress, editor quick-run.
+
+Phase G: Build opt-in and Svelte islands
+- Add Vite build to `static/dist/`; convert store/contracts to TS.
+- Identify Svelte islands (suites list, editor panes) and create adapters to store; migrate incrementally.
+
+## Acceptance criteria
+
+- No inline-style hotspots; utility classes used.
+- Editor orchestrator < ~500 lines; forms wiring fully extracted.
+- Single propagation path with store-first semantics; dependsOn skip normalization covered by tests.
+- Consistent tokens for badges/message blocks across views.
+- Optional build coexists with zero-build path.
+
+## Operational notes
+
+- Enable editor run persistence: `localStorage.setItem('hydreq.editor.persistRuns','1')`
+- Disable: `localStorage.removeItem('hydreq.editor.persistRuns')`
+
+---
 
 ## Theme Split Summary
 - All theme variable blocks moved from `themes.css` into individual files under `static/themes/`:
@@ -230,3 +396,70 @@ CSS de-duplication (Phase 2 adjunct)
   - message-block shared component (used by editor and suites)
 - Namespaced editor selectors under `#editorModal` to avoid app.css overrides.
 - Kept app.css focused on app-wide layout and suites/runner styles.
+
+---
+
+## 2025-10-03 snapshot: Editor state and run propagation stabilization
+
+Decisions and changes
+
+- Clean-slate editor by default
+  - The editor no longer restores run state from browser localStorage on load unless explicitly enabled via a preference.
+  - Preference key: `hydreq.editor.persistRuns`
+    - Default: not set (clean slate)
+    - Opt-in persistence: set to `'1'` to enable run-state persistence between sessions.
+  - Affects:
+    - `editor/run-records.js`: `getRunRecord`, `saveRunRecord`, and LS writes are gated by the preference.
+    - `editor.js`: pre-seed from LS only when the preference is on.
+
+- Preserve prefill from suites view/store
+  - On editor open, we still hydrate from current suites data (store/summary) so badges/details appear immediately even without LS persistence.
+  - `editor.js` now re-renders tests immediately after this hydration to display status badges.
+
+- Centralized propagation and normalization
+  - Status propagation is centralized in `editor/run-records.js` to avoid duplicate and out-of-order DOM updates.
+  - New normalization: dependency-caused failures (messages starting with `"dependency ..."`) are mapped to `skipped`.
+  - Emitted event `hydreq:editor:test:update` keeps the editor view refreshed, avoiding stale badges/details.
+  - Removed duplicate suites view updates from `editor/run-ui.js` and redundant paths in `editor.js`.
+
+- Suites details rules
+  - Suites view only renders details for `failed` and `skipped` (skipped only when messages exist), keeping noise low.
+
+- Quality gates
+  - Build: PASS
+  - Tests: PASS
+
+Current pain points (observed)
+
+- Some inline style mutations remain; continue migrating to CSS classes/tokens.
+- `editor.js` still hosts `renderForm()` orchestration; needs extraction to `editor/render-form.js`.
+- State duplication risk between legacy suites-state and new `hydreqStore`; consolidation or clear layering required.
+- Long DOM queries and scattered selectors; consider centralizing selectors and DOM helpers further.
+- Limited JS unit tests for editor/run-records and event-driven refresh.
+- No TypeScript types for state/contracts; difficult to reason about event shapes at scale.
+
+Next milestones (near-term)
+
+1) Extract `editor/render-form.js` and shrink `editor.js` further.
+2) Add targeted unit tests:
+   - run-records status normalization (dependsOn → skipped)
+   - event-driven editor refresh (tests list re-render on `hydreq:editor:test:update`)
+3) Unify store-first flows and reduce reliance on legacy suites-state (ensure single source of truth).
+4) Optional UI toggle in editor header for "Remember last run state" (tied to `hydreq.editor.persistRuns`).
+5) Continue CSS cleanup: remove remaining inline style usages; ensure class-based tokens are used.
+
+Svelte migration path (future-oriented)
+
+- Identify islands:
+  - Suites list (badge/details rendering, expand/collapse)
+  - Editor columns (tests list, quick-run, YAML pane)
+- Migrate store/contracts to TypeScript; expose a small adapter to Svelte components.
+- Introduce Vite build that outputs to `internal/webui/static/dist/` while retaining zero-build fallback.
+- Incrementally rewrite islands in Svelte; keep DOM IDs/anchors stable to coexist during migration.
+
+How to enable/disable editor run persistence
+
+- Enable (opt-in):
+  - In browser console: `localStorage.setItem('hydreq.editor.persistRuns','1')`
+- Disable (default clean slate):
+  - `localStorage.removeItem('hydreq.editor.persistRuns')`
