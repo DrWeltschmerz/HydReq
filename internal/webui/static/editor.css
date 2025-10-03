@@ -244,3 +244,82 @@ a { color: var(--link); }
   font-weight: 600;
   background: var(--pill);
 }
+
+/* Four-column editor layout (moved from inline JS) */
+.ed-col {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--bd);
+  box-sizing: border-box;
+  min-width: 240px;
+  max-width: none;
+  transition: width 0.2s ease, flex-basis 0.2s ease;
+  overflow: hidden;
+}
+.ed-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  border-bottom: 1px solid var(--bd);
+  background-color: var(--surface);
+  box-sizing: border-box;
+}
+.ed-col-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: auto;
+  box-sizing: border-box;
+}
+.ed-col.collapsed {
+  flex: 0 0 40px !important;
+  min-width: 40px;
+  max-width: 40px;
+}
+.ed-col.collapsed .ed-col-header {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-bottom: none;
+  height: 100%;
+  padding: 6px 4px;
+  cursor: default;
+}
+.ed-col.collapsed .ed-col-header .btn {
+  padding: 2px 4px;
+}
+.ed-col.collapsed .ed-col-header .fw-600 {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  text-align: center;
+}
+.ed-col.collapsed .ed-col-header .ed-row-6 > :not(.ed-collapse-btn) {
+  display: none;
+}
+.ed-col.collapsed .ed-col-header .ed-row-6 .ed-collapse-btn {
+  display: inline-flex;
+}
+.ed-col.collapsed .ed-col-content {
+  display: none;
+}
+
+/* Column sizing: tests fixed; others flex */
+#col-tests { flex: 0 0 280px; min-width: 240px; }
+#col-visual { flex: 2 1 500px; min-width: 0; }
+#col-yaml { flex: 1 1 400px; min-width: 0; }
+#col-results { flex: 1 1 400px; min-width: 0; }
+
+/* When tests column is collapsed, override width */
+#col-tests.collapsed {
+  flex: 0 0 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+}
+
+/* YAML editor sizing */
+#col-yaml .ed-col-content { overflow: hidden; }
+#ed_yaml_editor, #pane_yaml { height: 100%; }
+.CodeMirror { height: 100%; min-height: 180px; }

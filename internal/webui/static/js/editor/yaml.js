@@ -47,6 +47,16 @@
   function handleChange(){
     try{
       if (!hydrated){ return; }
+      // Ignore programmatic updates during suppression window
+      try{
+        if (window.__ed_yamlSuppressUntil && Date.now() < window.__ed_yamlSuppressUntil){
+          return;
+        }
+        if (window.__ed_yamlSuppressUntil && Date.now() >= window.__ed_yamlSuppressUntil){
+          // Clear expired window
+          window.__ed_yamlSuppressUntil = null;
+        }
+      }catch{}
       if (window.__ed_yamlSuppress || window.__ed_initializing){ return; }
       const text = cm ? cm.getValue() : '';
       const parsed = tryParseYaml(text);

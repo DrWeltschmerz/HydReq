@@ -100,6 +100,8 @@ Phase 2: Editor split (in progress)
   - `editor/yaml.js` (CodeMirror setup, serialize/parse, theme sync).
   - `editor/forms/*.js` (suite, test, request, assert, retry, hooks, matrix, openapi).
   - `editor/run.js` (quick-run, SSE, badge propagation).
+  - `editor/controls.js` (delegated run/validate/save; accepts a compact
+    context object from editor.js to keep editor.js lean).
   - `editor/validation.js` (field validation helpers and wiring). [added]
   - `editor/run-ui.js` (quick-run UI preparation and event handlers). [added]
   - Add minimal unit tests for editor modal open/close and state changes.
@@ -111,6 +113,14 @@ Notes on whitespace and readability
 - Wrapped long lines across new modules to keep code readable and diffs friendly.
 - Replaced inline style mutations with CSS classes where practical; remaining instances are TODO for Phase 0/1 follow-up.
 - Removed duplicate helpers (local debounce/setVisualEnabled) in `editor.js`; rely on single implementations.
+ - Delegated button handlers to `editor/controls.js`. Editor exposes a
+   minimal context (getWorking, getSelIndex, getYamlText, getPath,
+   collectFormData, serializeWorkingToYamlImmediate, quick-run helpers,
+   dirty/close accessors). This keeps the orchestrator short.
+ - Fixed post-save dirty flicker by introducing a brief suppression window
+   around programmatic YAML updates (setText/baseline). `yaml.js` ignores
+   change events until the window elapses. `yaml-control.js` sets the window
+   on programmatic writes.
 
 Phase 3: TypeScript & build opt-in
 - Adopt TypeScript gradually for new modules (state/contracts). Configure Vite for dev build that outputs to `internal/webui/static/dist/`.

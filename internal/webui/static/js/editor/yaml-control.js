@@ -30,6 +30,8 @@
     function setText(txt){
       try{
         suppressDirty = true; window.__ed_yamlSuppress = true;
+        // Establish a brief suppression window so CM change handler ignores this programmatic update
+        try{ window.__ed_yamlSuppressUntil = Date.now() + 250; }catch{}
         if (window.hydreqEditorYAML && window.hydreqEditorYAML.setText) window.hydreqEditorYAML.setText(txt||'');
         else if (yamlEditor && yamlEditor.setValue) yamlEditor.setValue(txt||'');
         else { var rawEl = modal.querySelector('#ed_raw'); if (rawEl) rawEl.value = txt||''; inMemoryYaml = txt||''; }
@@ -64,7 +66,7 @@
         var nonEmpty = function(t){ return !!(t && String(t).trim() !== ''); };
         var toSet = nonEmpty(yamlText) ? yamlText : cur;
         if ((force && nonEmpty(toSet) && toSet !== cur) || (!force && nonEmpty(yamlText) && cur !== yamlText)){
-          suppressDirty = true; window.__ed_yamlSuppress = true; setText(toSet); suppressDirty = false; window.__ed_yamlSuppress = false;
+          suppressDirty = true; window.__ed_yamlSuppress = true; try{ window.__ed_yamlSuppressUntil = Date.now() + 250; }catch{}; setText(toSet); suppressDirty = false; window.__ed_yamlSuppress = false;
         }
         markDirty();
         return true;

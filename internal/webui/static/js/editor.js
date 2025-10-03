@@ -1,42 +1,6 @@
 // editor.js - Editor modal functionality
 
-// Add dynamic styles for 4-column layout
-(function() {
-  const style = document.createElement('style');
-  style.textContent = `
-    .ed-main { display: flex; flex-direction: row; height: calc(100vh - 60px); overflow: hidden; }
-    .ed-col { display: flex; flex-direction: column; border-right: 1px solid var(--bd); box-sizing: border-box; min-width: 240px; max-width: none; transition: width 0.2s ease, flex-basis 0.2s ease; overflow: hidden; }
-    .ed-col.collapsed { flex: 0 0 40px !important; min-width: 40px; max-width: 40px; }
-    .ed-col-content { display: flex; flex-direction: column; flex: 1; overflow: auto; box-sizing: border-box; }
-    .ed-col-header { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid var(--bd); background-color: var(--surface); box-sizing: border-box; }
-    .ed-col.collapsed .ed-col-header { flex-direction: column; align-items: center; justify-content: center; gap: 6px; border-bottom: none; height: 100%; padding: 6px 4px; cursor: default; }
-    .ed-col.collapsed .ed-col-header .btn { padding: 2px 4px; }
-    .ed-col.collapsed .ed-col-header .fw-600 { writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg); text-align: center; }
-    .ed-col.collapsed .ed-col-header .ed-row-6 > :not(.ed-collapse-btn) { display: none; }
-    .ed-col.collapsed .ed-col-header .ed-row-6 .ed-collapse-btn { display: inline-flex; }
-    .ed-col.collapsed .ed-col-content { display: none; }
-    /* Column sizing: tests fixed; others flex to fill remaining space */
-    #col-tests { flex: 0 0 280px; min-width: 240px; }
-    #col-visual { flex: 2 1 500px; min-width: 0; }
-    #col-yaml { flex: 1 1 400px; min-width: 0; }
-    #col-results { flex: 1 1 400px; min-width: 0; }
-    /* When tests column is collapsed, override its fixed/min width */
-    #col-tests.collapsed { flex: 0 0 40px !important; min-width: 40px !important; max-width: 40px !important; }
-    .ed-yaml-header { padding: 8px; background-color: var(--surface); border-bottom: 1px solid var(--bd); display: flex; justify-content: space-between; align-items: center; }
-    .ed-yaml-body { flex: 1; overflow: auto; }
-    .CodeMirror { height: 100%; min-height: 180px; }
-    #col-yaml .ed-col-content { overflow: hidden; }
-    #ed_yaml_editor, #pane_yaml { height: 100%; }
-    /* Ensure editable test list selection is visibly highlighted */
-    #col-tests .ed-test-item { display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-radius:6px; cursor:pointer; }
-    #col-tests .ed-test-item:not(.selected):hover { background: var(--li-hov); }
-    #col-tests .ed-test-item.selected { background: var(--li-sel); border: 1px solid var(--bd); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bd) 40%, transparent); position: relative; outline: 1px solid var(--link); outline-offset: -1px; }
-    #col-tests .ed-test-item.selected::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background: var(--link); border-top-left-radius:6px; border-bottom-left-radius:6px; }
-    #col-tests .ed-test-item .ed-test-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    #col-tests .ed-test-item.selected .ed-test-name { font-weight:600; }
-  `;
-  document.head.appendChild(style);
-})();
+// Layout styles are defined in editor.css (no inline CSS injection here)
 
 // Global variables that need to be accessible
 let selIndex = 0;
@@ -1101,116 +1065,74 @@ function openEditor(path, data){
   function renderIssues(issues, yamlPreview){ try{ if (window.hydreqEditorIssues && typeof window.hydreqEditorIssues.renderIssues==='function') window.hydreqEditorIssues.renderIssues(modal, issues, yamlPreview); }catch{} }
   function parseEnvFromPage(){ try{ return (typeof parseEnv==='function') ? parseEnv() : {}; }catch{ return {}; } }
   let lastValidated = null;
-  modal.querySelector('#ed_run_test').onclick = async ()=>{ 
+  // Controls context used by hydreqEditorControls
+  const getPath = ()=>{
+    try{ return (modal.querySelector('#ed_path')||{}).textContent||''; }
+    catch{ return ''; }
+  };
+  const getYamlText = async ()=>{
     try{
-      collectFormData(); if (!working.tests || !working.tests[selIndex]){ appendQuickRunLine('No test selected','text-warning'); return; }
-      const includeDeps = !!(modal.querySelector('#ed_run_with_deps')?.checked);
-      const includePrevStages = !!(modal.querySelector('#ed_run_with_prevstages')?.checked);
-      const env = parseEnvFromPage();
-      clearQuickRun(); appendQuickRunLine('Starting test...', 'dim');
-      // Try modular quick-run path first
-      try { if (window.hydreqEditorState && window.hydreqEditorState.setWorking) window.hydreqEditorState.setWorking(working); } catch {}
-      let started = false;
+      if (yamlCtl && yamlCtl.getText) return yamlCtl.getText();
+      if (window.hydreqEditorYAML && window.hydreqEditorYAML.getText)
+        return window.hydreqEditorYAML.getText();
+      return await serializeWorkingToYamlImmediate();
+    }catch{ return await serializeWorkingToYamlImmediate(); }
+  };
+  const afterSaved = (yamlData)=>{
+    try{
+      try{ window.__ed_yamlSuppressUntil = Date.now() + 300; }catch{}
+      if (yamlCtl && yamlCtl.setText) yamlCtl.setText(yamlData||'');
       try{
-        if (window.hydreqEditorRun && typeof window.hydreqEditorRun.quickRun === 'function'){
-          const runId = await window.hydreqEditorRun.quickRun({ runAll: false, includeDeps, includePrevStages, testIndex: selIndex });
-          if (runId){
-            const label = working.tests[selIndex].name || `test ${selIndex+1}`;
-            if (window.hydreqEditorRunUI &&
-                typeof window.hydreqEditorRunUI.prepare==='function'){
-              window.hydreqEditorRunUI.prepare(modal, label);
-            }
-            window.hydreqEditorRun.listen(runId, makeRunHandlers());
-            started = true;
-          }
+        if (window.hydreqEditorState && window.hydreqEditorState.setDirty)
+          window.hydreqEditorState.setDirty(false);
+      }catch{}
+      setTimeout(()=>{ try{ yamlCtl && yamlCtl.resetBaseline && yamlCtl.resetBaseline(); }catch{} }, 50);
+    }catch{}
+  };
+  const ctx = {
+    getWorking: ()=> working,
+    getSelIndex: ()=> selIndex,
+    collectFormData,
+    appendQuickRunLine,
+    clearQuickRun,
+    prepareQuickRun: (label)=>{
+      try{
+        if (window.hydreqEditorRunUI &&
+            typeof window.hydreqEditorRunUI.prepare==='function'){
+          window.hydreqEditorRunUI.prepare(modal, label);
         }
       }catch{}
-      if (!started){
-        const payload = { parsed: working, testIndex: selIndex, env, runAll: false, includeDeps, includePrevStages };
-        const res = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-        if (!res.ok){ let txt=''; try{ txt=await res.text(); }catch{} throw new Error('HTTP '+res.status+(txt?(': '+txt):'')); }
-        const data = await res.json();
-        if (data && data.runId){ 
-          const label = working.tests[selIndex].name || `test ${selIndex+1}`;
-          if (window.hydreqEditorRunUI &&
-              typeof window.hydreqEditorRunUI.prepare==='function'){
-            window.hydreqEditorRunUI.prepare(modal, label);
-          }
-          window.hydreqEditorRun.listen(data.runId, makeRunHandlers());
-        }
-        else {
-          const label = working.tests[selIndex].name || `test ${selIndex+1}`;
-          window.hydreqEditorRun.dispatchImmediate(
-            data,
-            makeRunHandlers(),
-            label
-          );
-        }
-      }
-    }catch(e){ console.error(e); appendQuickRunLine('Run failed: '+e.message, 'text-error'); }
+    },
+    makeRunHandlers,
+    renderIssues,
+    parseEnvFromPage,
+    serializeWorkingToYamlImmediate,
+    getYamlText,
+    getPath,
+    afterSaved,
+    isDirty,
+    attemptClose
   };
+  // Wire buttons via controls module
+  try{
+    const btnRunTest = modal.querySelector('#ed_run_test');
+    if (btnRunTest){ btnRunTest.onclick = ()=> window.hydreqEditorControls.runTest(modal, ctx); }
+    const btnValidate = modal.querySelector('#ed_validate');
+    if (btnValidate){ btnValidate.onclick = ()=> window.hydreqEditorControls.validate(modal, ctx); }
+    const btnRunSuite = modal.querySelector('#ed_run_suite');
+    if (btnRunSuite){ btnRunSuite.onclick = ()=> window.hydreqEditorControls.runSuite(modal, ctx); }
+    const btnSave = modal.querySelector('#ed_save');
+    if (btnSave){ btnSave.onclick = ()=> window.hydreqEditorControls.save(modal, ctx); }
+    const btnSaveClose = modal.querySelector('#ed_save_close');
+    if (btnSaveClose){ btnSaveClose.onclick = ()=> window.hydreqEditorControls.saveClose(modal, ctx); }
+  }catch{}
   
   // listenToQuickRun moved to hydreqEditorRun.listen
   
-  modal.querySelector('#ed_validate').onclick = async ()=>{ 
-    try{
-      collectFormData();
-      let raw = '';
-      if (window.hydreqEditorYAML && window.hydreqEditorYAML.getText) raw = window.hydreqEditorYAML.getText();
-      else if (yamlEditor && yamlEditor.getValue) raw = yamlEditor.getValue();
-      else raw = await serializeWorkingToYamlImmediate();
-      const response = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ raw }) });
-      if (!response.ok) throw new Error('HTTP '+response.status);
-      const v = await response.json(); renderIssues(v.issues || v.errors || [], v.yaml || raw);
-      const vb = modal.querySelector('#ed_validation_box'); if (vb) vb.open = true;
-    }catch(e){ console.error(e); renderIssues([{ message: e.message }]); }
-  };
+  // Validation now delegated via controls (see wiring above)
 
   // Run suite button
-  const runSuiteBtn = modal.querySelector('#ed_run_suite');
-  if (runSuiteBtn){ runSuiteBtn.onclick = async ()=>{
-    try{
-      collectFormData(); const env = parseEnvFromPage();
-      clearQuickRun(); appendQuickRunLine('Starting suite...', 'dim');
-      // Try modular quick-run first
-      try { if (window.hydreqEditorState && window.hydreqEditorState.setWorking) window.hydreqEditorState.setWorking(working); } catch {}
-      let started = false;
-      try{
-        if (window.hydreqEditorRun && typeof window.hydreqEditorRun.quickRun === 'function'){
-          const runId = await window.hydreqEditorRun.quickRun({ runAll: true, includeDeps: true });
-          if (runId){
-            const label = working.name || 'suite';
-            if (window.hydreqEditorRunUI &&
-                typeof window.hydreqEditorRunUI.prepare==='function'){
-              window.hydreqEditorRunUI.prepare(modal, label);
-            }
-            window.hydreqEditorRun.listen(runId, makeRunHandlers());
-            started = true;
-          }
-        }
-      }catch{}
-      if (!started){
-        const response = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working, env, runAll: true, includeDeps: true }) });
-        if (!response.ok){ let txt=''; try{ txt=await response.text(); }catch{} throw new Error('HTTP '+response.status+(txt?(': '+txt):'')); }
-        const data = await response.json();
-        if (data && data.runId){ 
-          const label = working.name || 'suite';
-          if (window.hydreqEditorRunUI &&
-              typeof window.hydreqEditorRunUI.prepare==='function'){
-            window.hydreqEditorRunUI.prepare(modal, label);
-          }
-          window.hydreqEditorRun.listen(data.runId, makeRunHandlers());
-        } else { 
-          const label = working.name || 'suite';
-          window.hydreqEditorRun.dispatchImmediate(
-            data,
-            makeRunHandlers(),
-            label
-          );
-        }
-      }
-    }catch(e){ console.error(e); appendQuickRunLine('Suite run failed: '+e.message, 'text-error'); }
-  }; }
+  // Run suite now delegated via controls (see wiring above)
 
   // Copy Issues button
   const copyIssuesBtn = modal.querySelector('#ed_copy_issues');
@@ -1221,82 +1143,7 @@ function openEditor(path, data){
   try{ const bannerWrap = modal.querySelector('#ed_new_banner'); if (isNewFile && !bannerWrap){ const b = document.createElement('div'); b.id='ed_new_banner'; b.className='pill'; b.style.background='#eef6ff'; b.style.color='#0369a1'; b.style.marginRight='8px'; b.textContent = 'New suite (will create file at ' + path + ')'; const headerLeft = modal.querySelector('.ed-header-left'); if (headerLeft) headerLeft.insertBefore(b, headerLeft.firstChild); } }catch(e){}
   try{ const saveBtn = modal.querySelector('#ed_save'); const saveCloseBtn = modal.querySelector('#ed_save_close'); if (isNewFile){ if (saveBtn) saveBtn.textContent = 'Create'; if (saveCloseBtn) saveCloseBtn.textContent = 'Create & Close'; modal.dataset.isNew = '1'; } else { modal.dataset.isNew = '0'; } }catch{}
 
-  // Enhanced save handler: validate and re-check existence before saving
-  modal.querySelector('#ed_save').onclick = async ()=>{ 
-    try {
-      collectFormData();
-      // Prefer saving raw YAML from editor to preserve formatting; fallback to serialize
-      let yamlData = '';
-      try{
-        if (yamlCtl && yamlCtl.getText) yamlData = yamlCtl.getText();
-        else if (window.hydreqEditorYAML && window.hydreqEditorYAML.getText) yamlData = window.hydreqEditorYAML.getText();
-        else yamlData = await serializeWorkingToYamlImmediate();
-      }catch{ yamlData = await serializeWorkingToYamlImmediate(); }
-      // If still empty, attempt a final serialization; otherwise abort save
-      if (!yamlData || !yamlData.trim()){
-        try{ yamlData = await serializeWorkingToYamlImmediate(); }catch{}
-      }
-      if (!yamlData || !yamlData.trim()){
-        alert('Nothing to save: YAML is empty.');
-        return;
-      }
-
-      // Re-check path existence to guard against race conditions
-      try{
-        if (modal.dataset.isNew === '1'){
-          const ck = await fetch('/api/editor/checkpath', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ path }) });
-          if (ck.ok){ const info = await ck.json(); if (info.exists){ if (!confirm('File was created on disk since you opened the editor. Overwrite?')) return; } }
-        }
-      }catch(e){ /* ignore checkpath on dev builds */ }
-
-      // Validate before saving; surface warnings/errors
-      try{
-        const valRes = await fetch('/api/editor/validate', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ raw: yamlData }) });
-        if (valRes.ok){ const v = await valRes.json(); const issues = v.issues || v.errors || [];
-          if (Array.isArray(issues) && issues.length){
-            const txt = issues.slice(0,8).map(i=>i.message||JSON.stringify(i)).join('\n');
-            if (!confirm('Validation returned issues:\n' + txt + '\n\nProceed and save anyway?')) return;
-          }
-        }
-      }catch(e){ /* validation failed to run; allow save but warn */ if(!confirm('Validation failed to run. Proceed to save?')) return; }
-
-      // Send to save endpoint (backend expects `raw` to preserve formatting)
-      const response = await fetch('/api/editor/save', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ path: path, raw: yamlData })
-      });
-      
-      if (response.ok) {
-        alert('✓ Suite saved successfully');
-  // Update baseline to latest YAML and recompute dirty
-  try{ yamlCtl && yamlCtl.setText && yamlCtl.setText(yamlData||''); yamlCtl && yamlCtl.resetBaseline && yamlCtl.resetBaseline(); }catch{}
-        // If this was a new file, update UI state so subsequent saves are normal
-        if (modal.dataset.isNew === '1'){
-          modal.dataset.isNew = '0';
-          if (saveBtn) saveBtn.textContent = 'Save'; if (saveCloseBtn) saveCloseBtn.textContent = 'Save & Close';
-        }
-      } else {
-        const error = await response.text();
-        alert('✗ Save failed: ' + error);
-      }
-    } catch (e) {
-      console.error('Save failed:', e);
-      alert('Save error: ' + e.message);
-    }
-  };
-  
-  // Save & Close also respects new-mode
-  modal.querySelector('#ed_save_close').onclick = async ()=>{ 
-    try {
-      await modal.querySelector('#ed_save').onclick();
-      if (!isDirty()) {
-        attemptClose();
-      }
-    } catch (e) {
-      console.error('Save and close failed:', e);
-    }
-  };
+  // Save and Save & Close now delegated via controls (see wiring above)
   
   // Prefer modal close() if available; otherwise fallback
   modal.querySelector('#ed_close').onclick = ()=> {
