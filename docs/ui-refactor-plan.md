@@ -100,10 +100,17 @@ Phase 2: Editor split (in progress)
   - `editor/yaml.js` (CodeMirror setup, serialize/parse, theme sync).
   - `editor/forms/*.js` (suite, test, request, assert, retry, hooks, matrix, openapi).
   - `editor/run.js` (quick-run, SSE, badge propagation).
+  - `editor/validation.js` (field validation helpers and wiring). [added]
+  - `editor/run-ui.js` (quick-run UI preparation and event handlers). [added]
   - Add minimal unit tests for editor modal open/close and state changes.
 - Keep a thin `editor/index.js` that stitches modules and exposes the same `openEditor()` API.
 
 Acceptance: 4-column editor remains functional with real-time YAML sync; quick-run + validate OK; deletes update YAML and suites.
+
+Notes on whitespace and readability
+- Wrapped long lines across new modules to keep code readable and diffs friendly.
+- Replaced inline style mutations with CSS classes where practical; remaining instances are TODO for Phase 0/1 follow-up.
+- Removed duplicate helpers (local debounce/setVisualEnabled) in `editor.js`; rely on single implementations.
 
 Phase 3: TypeScript & build opt-in
 - Adopt TypeScript gradually for new modules (state/contracts). Configure Vite for dev build that outputs to `internal/webui/static/dist/`.

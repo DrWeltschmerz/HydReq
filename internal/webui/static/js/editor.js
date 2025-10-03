@@ -763,24 +763,7 @@ function openEditor(path, data){
     catch(e){ console.error('Error syncing YAML:', e); }
   }, 300);
   
-  function setVisualEnabled(enabled){ 
-    const ctrlSel = '#pane_visual input, #pane_visual select, #pane_visual textarea, #pane_visual button';
-    modal.querySelectorAll(ctrlSel).forEach(el=>{ el.disabled = !enabled; });
-    const testsPanel = modal.querySelector('.ed-tests-panel');
-    if (testsPanel){ 
-      if (!enabled) testsPanel.classList.add('ed-disabled'); 
-      else testsPanel.classList.remove('ed-disabled'); 
-    }
-  }
-  
-  function debounce(fn, wait){ 
-    let t=null; 
-    return function(){ 
-      const args=arguments; 
-      clearTimeout(t); 
-      t=setTimeout(()=> fn.apply(this,args), wait); 
-    }; 
-  }
+  // use top-level setVisualEnabled and debounce; duplicates removed
   
   async function validateRawAndApply(){ try{ if (!yamlCtl) return false; const parsed = yamlCtl.parseToWorking ? yamlCtl.parseToWorking() : {}; working = normalizeParsed(parsed); return true; }catch(e){ console.error('YAML validation failed:', e); return false; } }
   
@@ -1084,10 +1067,37 @@ function openEditor(path, data){
       }
     }catch(e){}
   }
-  function renderImmediateRunResult(res, label){ const details = modal.querySelector('#ed_quickrun_box'); if (details) details.open = true; const s = (res.status||'').toLowerCase(); if (res.name){ const icon = s==='passed'?'✓':(s==='failed'?'✗':(s==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${res.name}${res.durationMs?` (${res.durationMs}ms)`:''}`, s==='passed'?'text-success':(s==='failed'?'text-error':'text-warning')); }
-  if (Array.isArray(res.messages) && res.messages.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = res.messages.join('\n'); det.appendChild(pre); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(det); }
-  if (Array.isArray(res.cases) && res.cases.length){ res.cases.forEach(c=>{ const cs=(c.Status||'').toLowerCase(); const icon = cs==='passed'?'✓':(cs==='failed'?'✗':(cs==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${c.Name}${c.DurationMs?` (${c.DurationMs}ms)`:''}`, cs==='passed'?'text-success':(cs==='failed'?'text-error':'text-warning')); if (Array.isArray(c.Messages) && c.Messages?.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (cs==='failed'?'fail':(cs==='skipped'?'skip':'ok')); pre.textContent = c.Messages.join('\n'); det.appendChild(pre); const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.appendChild(det); } }); }
+  // Build quick-run UI handlers with local cache and badge helpers
+  function makeRunHandlers(){
+    const fallbackCache = (name, status, messages)=>{
+      try{
+        const key = cacheKey();
+        testRunCache.set(key, { status, name, messages: messages||[] });
+        localStorage.setItem(
+          LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''),
+          JSON.stringify(Object.fromEntries(testRunCache))
+        );
+      }catch{}
+    };
+    const getPath = ()=>{
+      try{ return (modal.querySelector('#ed_path')||{}).textContent||''; }
+      catch{ return ''; }
+    };
+    if (window.hydreqEditorRunUI &&
+        typeof window.hydreqEditorRunUI.createHandlers==='function'){
+      return window.hydreqEditorRunUI.createHandlers(modal, {
+        appendQuickRunLine,
+        getTestIndexByName,
+        setTestRecord,
+        updateTestBadgeByIndex,
+        setSuiteRecord,
+        fallbackCache,
+        getPath
+      });
+    }
+    return null;
   }
+  // renderImmediateRunResult moved to hydreqEditorRun.dispatchImmediate
   function renderIssues(issues, yamlPreview){ try{ if (window.hydreqEditorIssues && typeof window.hydreqEditorIssues.renderIssues==='function') window.hydreqEditorIssues.renderIssues(modal, issues, yamlPreview); }catch{} }
   function parseEnvFromPage(){ try{ return (typeof parseEnv==='function') ? parseEnv() : {}; }catch{ return {}; } }
   let lastValidated = null;
@@ -1104,7 +1114,15 @@ function openEditor(path, data){
       try{
         if (window.hydreqEditorRun && typeof window.hydreqEditorRun.quickRun === 'function'){
           const runId = await window.hydreqEditorRun.quickRun({ runAll: false, includeDeps, includePrevStages, testIndex: selIndex });
-          if (runId){ listenToQuickRun(runId, working.tests[selIndex].name || `test ${selIndex+1}`); started = true; }
+          if (runId){
+            const label = working.tests[selIndex].name || `test ${selIndex+1}`;
+            if (window.hydreqEditorRunUI &&
+                typeof window.hydreqEditorRunUI.prepare==='function'){
+              window.hydreqEditorRunUI.prepare(modal, label);
+            }
+            window.hydreqEditorRun.listen(runId, makeRunHandlers());
+            started = true;
+          }
         }
       }catch{}
       if (!started){
@@ -1112,81 +1130,27 @@ function openEditor(path, data){
         const res = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         if (!res.ok){ let txt=''; try{ txt=await res.text(); }catch{} throw new Error('HTTP '+res.status+(txt?(': '+txt):'')); }
         const data = await res.json();
-        if (data && data.runId){ listenToQuickRun(data.runId, working.tests[selIndex].name || `test ${selIndex+1}`); }
+        if (data && data.runId){ 
+          const label = working.tests[selIndex].name || `test ${selIndex+1}`;
+          if (window.hydreqEditorRunUI &&
+              typeof window.hydreqEditorRunUI.prepare==='function'){
+            window.hydreqEditorRunUI.prepare(modal, label);
+          }
+          window.hydreqEditorRun.listen(data.runId, makeRunHandlers());
+        }
         else {
-        // Immediate result mode
-        renderImmediateRunResult(data, working.tests[selIndex].name || `test ${selIndex+1}`);
-        const status = (data.status||'').toLowerCase();
-        const name = data.name || (working.tests[selIndex].name || `test ${selIndex+1}`);
-        setTestRecord(name, status, data.durationMs||0, data.messages||[]);
-        updateTestBadgeByIndex(selIndex, status, data.messages || []);
-        // propagate to suites list and suite badge
-        try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, name, status); }catch{}
-        try{ setSuiteRecord(status, data.durationMs||0, data.messages||[]); }catch{}
+          const label = working.tests[selIndex].name || `test ${selIndex+1}`;
+          window.hydreqEditorRun.dispatchImmediate(
+            data,
+            makeRunHandlers(),
+            label
+          );
         }
       }
     }catch(e){ console.error(e); appendQuickRunLine('Run failed: '+e.message, 'text-error'); }
   };
   
-  // Listen to quick run results
-  function listenToQuickRun(runId, label){
-    const quickRunBox = modal.querySelector('#ed_quickrun'); if (!quickRunBox) return; quickRunBox.innerHTML = `<div>Running ${label}...</div>`;
-    const quickRunDetails = modal.querySelector('#ed_quickrun_box'); if (quickRunDetails) quickRunDetails.open = true;
-    const es = new EventSource('/api/stream?runId=' + encodeURIComponent(runId));
-    es.onmessage = (event)=>{
-      try{
-        const raw = JSON.parse(event.data);
-        const type = raw.type || (raw.Status || raw.status ? 'test' : null);
-        const payload = raw.payload || raw;
-        if (type === 'test'){
-          const name = payload.Name || payload.name || label;
-          const s = (payload.Status || payload.status || '').toLowerCase();
-          const icon = s==='passed'?'✓':(s==='failed'?'✗':(s==='skipped'?'○':'·'));
-          const dur = payload.DurationMs || payload.durationMs;
-          const line = document.createElement('div'); line.textContent = `${icon} ${name}${dur?` (${dur}ms)`:''}`;
-          if (s==='passed') line.className='text-success'; else if (s==='failed') line.className='text-error'; else if (s==='skipped') line.className='text-warning';
-          quickRunBox.appendChild(line); quickRunBox.scrollTop = quickRunBox.scrollHeight;
-          try{ 
-            const idx = getTestIndexByName(name); 
-            const messages = payload.Messages || [];
-            setTestRecord(name, s, dur||0, messages); 
-            if (idx>=0) {
-              updateTestBadgeByIndex(idx, s, messages);
-            } else { 
-              const key = cacheKey(); 
-              testRunCache.set(key, { status: s, name, messages }); 
-              localStorage.setItem(LS_KEY((modal.querySelector('#ed_path')||{}).textContent||''), JSON.stringify(Object.fromEntries(testRunCache))); 
-            } 
-          }catch{}
-          // propagate to suites list
-          try{ const pth = (modal.querySelector('#ed_path')||{}).textContent||''; if (window.setSuiteTestStatus) window.setSuiteTestStatus(pth, name, s); if (typeof window.setSuiteTestDetails==='function'){ const msgs = Array.isArray(payload.Messages)?payload.Messages:[]; if (s==='failed' || (s==='skipped' && msgs.length)) window.setSuiteTestDetails(pth, name, msgs); } }catch{}
-          if (Array.isArray(payload.Messages) && payload.Messages.length){ const det=document.createElement('details'); det.className='ed-msg-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); const pre=document.createElement('pre'); pre.className = 'message-block ' + (s==='failed'?'fail':(s==='skipped'?'skip':'ok')); pre.textContent = payload.Messages.join('\n'); det.appendChild(pre); quickRunBox.appendChild(det); }
-        } else if (type === 'suiteEnd'){
-          const s = payload.summary || {};
-          appendQuickRunLine(`=== ${payload.name || payload.path || 'suite'} — ${(s.passed||0)} passed, ${(s.failed||0)} failed, ${(s.skipped||0)} skipped, total ${(s.total||0)} in ${(s.durationMs||0)} ms`);
-          const st = ((s.failed||0)>0)? 'failed' : (((s.passed||0)>0)? 'passed' : (((s.skipped||0)>0)? 'skipped' : 'unknown'));
-          setSuiteRecord(st, s.durationMs||0, []);
-          // We may not get individual test events; try to update badges from payload if available
-          try{ 
-            if (Array.isArray(payload.tests)){ 
-              payload.tests.forEach(t=>{ 
-                const idx=getTestIndexByName(t.name||t.Name); 
-                const st=(t.status||t.Status||'').toLowerCase(); 
-                const msgs = t.messages || t.Messages || [];
-                if (idx>=0) updateTestBadgeByIndex(idx, st, msgs); 
-              }); 
-            } 
-          }catch{}
-        } else if (type === 'error'){
-          appendQuickRunLine('Error: '+(payload.error||''), 'text-error');
-          setSuiteRecord('failed', 0, [payload.error||'']);
-        } else if (type === 'done'){
-          appendQuickRunLine('Done.'); es.close();
-        }
-      }catch(e){ console.error('stream parse', e); }
-    };
-    es.onerror = ()=>{ es.close(); appendQuickRunLine('Run failed or connection lost', 'text-error'); };
-  }
+  // listenToQuickRun moved to hydreqEditorRun.listen
   
   modal.querySelector('#ed_validate').onclick = async ()=>{ 
     try{
@@ -1214,15 +1178,36 @@ function openEditor(path, data){
       try{
         if (window.hydreqEditorRun && typeof window.hydreqEditorRun.quickRun === 'function'){
           const runId = await window.hydreqEditorRun.quickRun({ runAll: true, includeDeps: true });
-          if (runId){ listenToQuickRun(runId, working.name || 'suite'); started = true; }
+          if (runId){
+            const label = working.name || 'suite';
+            if (window.hydreqEditorRunUI &&
+                typeof window.hydreqEditorRunUI.prepare==='function'){
+              window.hydreqEditorRunUI.prepare(modal, label);
+            }
+            window.hydreqEditorRun.listen(runId, makeRunHandlers());
+            started = true;
+          }
         }
       }catch{}
       if (!started){
         const response = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ parsed: working, env, runAll: true, includeDeps: true }) });
         if (!response.ok){ let txt=''; try{ txt=await response.text(); }catch{} throw new Error('HTTP '+response.status+(txt?(': '+txt):'')); }
         const data = await response.json();
-        if (data && data.runId){ listenToQuickRun(data.runId, working.name || 'suite'); }
-        else { renderImmediateRunResult(data, working.name || 'suite'); updateBadgesFromSuiteResult(data); setSuiteRecord((data.status||'').toLowerCase(), data.durationMs||0, data.messages||[]); }
+        if (data && data.runId){ 
+          const label = working.name || 'suite';
+          if (window.hydreqEditorRunUI &&
+              typeof window.hydreqEditorRunUI.prepare==='function'){
+            window.hydreqEditorRunUI.prepare(modal, label);
+          }
+          window.hydreqEditorRun.listen(data.runId, makeRunHandlers());
+        } else { 
+          const label = working.name || 'suite';
+          window.hydreqEditorRun.dispatchImmediate(
+            data,
+            makeRunHandlers(),
+            label
+          );
+        }
       }
     }catch(e){ console.error(e); appendQuickRunLine('Suite run failed: '+e.message, 'text-error'); }
   }; }
