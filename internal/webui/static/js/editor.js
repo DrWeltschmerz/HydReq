@@ -1116,15 +1116,15 @@ function openEditor(path, data){
   // Wire buttons via controls module
   try{
     const btnRunTest = modal.querySelector('#ed_run_test');
-    if (btnRunTest){ btnRunTest.onclick = ()=> window.hydreqEditorControls.runTest(modal, ctx); }
+    if (btnRunTest && window.hydreqEditorControls && window.hydreqEditorControls.runTest){ btnRunTest.onclick = ()=> window.hydreqEditorControls.runTest(modal, ctx); }
     const btnValidate = modal.querySelector('#ed_validate');
-    if (btnValidate){ btnValidate.onclick = ()=> window.hydreqEditorControls.validate(modal, ctx); }
+    if (btnValidate && window.hydreqEditorControls && window.hydreqEditorControls.validate){ btnValidate.onclick = ()=> window.hydreqEditorControls.validate(modal, ctx); }
     const btnRunSuite = modal.querySelector('#ed_run_suite');
-    if (btnRunSuite){ btnRunSuite.onclick = ()=> window.hydreqEditorControls.runSuite(modal, ctx); }
+    if (btnRunSuite && window.hydreqEditorControls && window.hydreqEditorControls.runSuite){ btnRunSuite.onclick = ()=> window.hydreqEditorControls.runSuite(modal, ctx); }
     const btnSave = modal.querySelector('#ed_save');
-    if (btnSave){ btnSave.onclick = ()=> window.hydreqEditorControls.save(modal, ctx); }
+    if (btnSave && window.hydreqEditorControls && window.hydreqEditorControls.save){ btnSave.onclick = ()=> window.hydreqEditorControls.save(modal, ctx); }
     const btnSaveClose = modal.querySelector('#ed_save_close');
-    if (btnSaveClose){ btnSaveClose.onclick = ()=> window.hydreqEditorControls.saveClose(modal, ctx); }
+    if (btnSaveClose && window.hydreqEditorControls && window.hydreqEditorControls.saveClose){ btnSaveClose.onclick = ()=> window.hydreqEditorControls.saveClose(modal, ctx); }
   }catch{}
   
   // listenToQuickRun moved to hydreqEditorRun.listen

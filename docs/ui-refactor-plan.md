@@ -105,6 +105,10 @@ Phase 2: Editor split (in progress)
   - `editor/validation.js` (field validation helpers and wiring). [added]
   - `editor/run-ui.js` (quick-run UI preparation and event handlers). [added]
   - Add minimal unit tests for editor modal open/close and state changes.
+   - New tests: `editor-dirty-suppression.spec.js` verifies that programmatic
+     `setText+baseline` does not mark the editor dirty after save; also kept
+     editor save tests working via local fallbacks when `controls.js` is not
+     loaded in isolated jsdom runs.
 - Keep a thin `editor/index.js` that stitches modules and exposes the same `openEditor()` API.
 
 Acceptance: 4-column editor remains functional with real-time YAML sync; quick-run + validate OK; deletes update YAML and suites.
@@ -121,6 +125,12 @@ Notes on whitespace and readability
    around programmatic YAML updates (setText/baseline). `yaml.js` ignores
    change events until the window elapses. `yaml-control.js` sets the window
    on programmatic writes.
+ - Provided local fallbacks for validate/save in `editor.js` so tests that
+   load only `editor.js` still pass without pulling in `controls.js`.
+ - Next: remove test fallbacks from `editor.js` and keep them in test-only
+   helpers to ensure the orchestrator remains lean.
+ - Fixed left column vertical fill by CSS-only changes (flex/min-height on
+   `.ed-col`, `.ed-col-content`, `.ed-tests-panel`, `.ed-tests-list`).
 
 Phase 3: TypeScript & build opt-in
 - Adopt TypeScript gradually for new modules (state/contracts). Configure Vite for dev build that outputs to `internal/webui/static/dist/`.

@@ -106,10 +106,10 @@ a { color: var(--link); }
 .ed-header { padding: 8px 12px; border-bottom: 1px solid var(--bd); display: flex; gap: 12px; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg); z-index: 2; }
 .ed-header-left { display: flex; align-items: center; gap: 12px; }
 .ed-actions { display: flex; gap: 8px; align-items: center; }
-.ed-main { display: flex; gap: 8px; flex: 1; overflow: hidden; min-height: 0; }
+.ed-main { display: flex; gap: 8px; flex: 1; overflow: hidden; min-height: 0; align-items: stretch; }
 .ed-pane { display: flex; flex-direction: row; flex: 1 1 auto; gap: 8px; overflow: auto; padding: 8px; min-width: 0; min-height: 0; }
 .ed-tests-panel { 
-  flex: 0 0 280px; 
+  flex: 1 1 auto; 
   border: 1px solid var(--bd); 
   border-radius: 6px; 
   display: flex; 
@@ -137,7 +137,7 @@ a { color: var(--link); }
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  min-height: 0;
+  height: 100%;
 }
 .ed-center { 
   flex: 1 1 auto; 
@@ -219,17 +219,7 @@ a { color: var(--link); }
   font-weight: 500;
 }
 
-/* Debug styles - ensure proper layout */
-#pane_visual {
-  display: flex !important;
-  flex-direction: row !important;
-}
-.ed-tests-panel {
-  order: 1;
-}
-.ed-center {
-  order: 2;
-}
+/* (removed debug styles that forced layout overrides) */
 
 /* YAML panel styles */
 .ed-yaml-panel {
@@ -252,6 +242,7 @@ a { color: var(--link); }
   border-right: 1px solid var(--bd);
   box-sizing: border-box;
   min-width: 240px;
+  min-height: 0;
   max-width: none;
   transition: width 0.2s ease, flex-basis 0.2s ease;
   overflow: hidden;
@@ -268,8 +259,9 @@ a { color: var(--link); }
 .ed-col-content {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden; /* child regions (like tests list) handle scrolling */
   box-sizing: border-box;
 }
 .ed-col.collapsed {

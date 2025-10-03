@@ -121,7 +121,6 @@ a { color: var(--link); }
 .ed-actions { display: flex; gap: 8px; align-items: center; }
 .ed-main { display: flex; gap: 8px; flex: 1; overflow: hidden; min-height: 0; }
 .ed-pane { display: flex; flex: 1 1 auto; gap: 8px; overflow: auto; padding: 8px; min-width: 0; min-height: 0; }
-.ed-tests-panel { flex: 0 0 280px; border: 1px solid var(--bd); border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 .ed-tests-header { padding: 8px; border-bottom: 1px solid var(--bd); font-weight: 600; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--bg); z-index: 1; }
 .ed-tests-list { flex: 1; overflow: auto; min-height: 0; }
 .ed-center { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; overflow: auto; min-height: 0; min-width: 460px; }
