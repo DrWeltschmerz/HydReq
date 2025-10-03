@@ -57,8 +57,7 @@
         ? window.hydreqSuitesDOM.findTestContainer(testsDiv, name)
         : null;
       if (!cont) return;
-      const hasMsgs = Array.isArray(messages) && messages.length>0;
-      if (st === 'skipped' && !hasMsgs) return;
+      // Render details for failed or skipped (even with no messages)
       if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.updateTestDetails)
         window.hydreqSuitesDOM.updateTestDetails(cont, st, messages||[]);
     }catch(e){}
@@ -123,8 +122,23 @@
           if (!cont) return;
           const badgeEl = cont.querySelector('.suite-test-status');
           if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.updateTestBadge) window.hydreqSuitesDOM.updateTestBadge(badgeEl, st);
-          if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.updateTestDetails && (st === 'failed' || (st === 'skipped' && msgs.length)))
-            window.hydreqSuitesDOM.updateTestDetails(cont, st, msgs);
+          if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.updateTestDetails){
+            // Always render for failed; and render for skipped (even if no messages)
+            if (st === 'failed' || st === 'skipped'){
+              let out = msgs;
+              if (st === 'skipped' && (!Array.isArray(out) || out.length===0)){
+                try{
+                  if (window.hydreqStore){
+                    const s = window.hydreqStore.getSuite(pathKey);
+                    const tRec = s && s.tests && s.tests[nm];
+                    const ms = tRec && Array.isArray(tRec.messages) ? tRec.messages : [];
+                    if (ms.length) out = ms;
+                  }
+                }catch(e){}
+              }
+              window.hydreqSuitesDOM.updateTestDetails(cont, st, out||[]);
+            }
+          }
           if (window.hydreqSuitesState && window.hydreqSuitesState.setTestStatus) window.hydreqSuitesState.setTestStatus(pathKey, nm, st);
         }catch(e){}
       });

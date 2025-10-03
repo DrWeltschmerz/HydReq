@@ -23,7 +23,7 @@
           <div class="ed-header-left ed-row-8 ed-ai-center">
             ${createMode ? '<span class="badge badge-info">New suite</span>' : ''}
             <h3 class="m-0" id="ed_title">${title || path}</h3>
-            <div class="fw-600" style="margin-left:12px;">Edit: <span id="ed_path"></span></div>
+            <div class="fw-600 ed-ml-6">Edit: <span id="ed_path"></span></div>
           </div>
           <div class="ed-actions">
             <label class="label cursor-pointer ed-row-6 ed-ai-center">
@@ -44,7 +44,7 @@
             <button id="ed_save" class="btn btn-sm">Save</button>
             <button id="ed_save_close" class="btn btn-sm">Save & Close</button>
             <button id="ed_close" type="button" class="btn btn-sm" title="Close">Close</button>
-            <span id="ed_dirty_indicator" class="pill" title="You have unsaved changes" style="margin-left:8px; display:none; background:#fde2e1; color:#b91c1c">Unsaved</span>
+            <span id="ed_dirty_indicator" class="pill" title="You have unsaved changes">Unsaved</span>
           </div>
         </div>
         <div class="ed-main">
@@ -83,7 +83,7 @@
                   <label class="ed-col-span-full ed-mt-6 fw-600">Variables</label>
                   <div class="ed-col-span-full" id="ed_suite_vars"></div>
                   <label class="ed-col-span-full ed-mt-6 fw-600">Auth</label>
-                  <div class="ed-col-span-full ed-grid-2-160">
+                  <div class="ed-col-span-full ed-grid-2-130">
                     <label>Bearer env</label>
                     <div class="ed-row-8 ed-ai-center">
                       <input id="ed_auth_bearer" type="text" placeholder="DEMO_BEARER"/>
@@ -99,33 +99,43 @@
                     <label>Auth header (preview)</label>
                     <div id="ed_auth_preview" class="ed-mono-dim">(none)</div>
                   </div>
+                  <div class="ed-col-span-full ed-grid-2-160 ed-ai-start" id="ed_suite_hooks_block">
+                    <label>Suite hooks</label>
+                    <div>
+                      <div class="ed-subhead">preSuite</div>
+                      <div id="ed_suite_presuite"></div>
+                      <div class="ed-spacer-8"></div>
+                      <div class="ed-subhead">postSuite</div>
+                      <div id="ed_suite_postsuite"></div>
+                    </div>
+                  </div>
                 </div>
               </details>
+
               <details open class="ed-panel">
-                <summary class="ed-summary">🧪 Test</summary>
-                <div class="ed-body ed-grid-2-140" id="ed_test_form">
-                  <label>Name *</label>
-                  <input id="ed_test_name" type="text" required/>
+                <summary class="ed-summary">🧪 Test Configuration</summary>
+                <div class="ed-body ed-grid-2-130" id="ed_test_form">
+                  <label>Test name *</label>
+                  <input id="ed_test_name" type="text" placeholder="My test name" required/>
                   <label>Stage</label>
-                  <input id="ed_test_stage" type="number" min="0" max="999" step="1"/>
-                  <label>Depends on</label>
-                  <input id="ed_test_depends" type="text" placeholder="comma-separated test names"/>
-                </div>
-                <div class="ed-body ed-grid-2-140" id="ed_flow_form">
+                  <input id="ed_stage" type="number" min="0"/>
                   <label>Skip</label>
                   <input id="ed_skip" type="checkbox"/>
                   <label>Only</label>
                   <input id="ed_only" type="checkbox"/>
-                  <label>Stage</label>
-                  <input id="ed_stage" type="number" min="0" max="999" step="1"/>
+                  <label>Depends on</label>
+                  <input id="ed_test_depends" type="text" placeholder="comma-separated"/>
+                  <label>Tags</label>
+                  <input id="ed_tags" type="text" placeholder="comma-separated"/>
                 </div>
               </details>
+
               <details open class="ed-panel">
-                <summary class="ed-summary">🌐 Request</summary>
+                <summary class="ed-summary">🌐 HTTP Request</summary>
                 <div class="ed-body" id="ed_request">
-                  <div id="ed_req_form" class="ed-grid-2-140">
-                    <label>Method</label>
-                    <select id="ed_method">
+                  <div id="ed_req_form" class="ed-grid-2-130">
+                    <label>Method *</label>
+                    <select id="ed_method" required>
                       <option>GET</option>
                       <option>POST</option>
                       <option>PUT</option>
@@ -134,42 +144,73 @@
                       <option>HEAD</option>
                       <option>OPTIONS</option>
                     </select>
-                    <label>URL</label>
-                    <input id="ed_url" type="text" placeholder="/path"/>
+                    <label>URL path *</label>
+                    <input id="ed_url" type="text" required/>
                     <label>Timeout (ms)</label>
                     <input id="ed_timeout" type="number" min="0" step="1"/>
-                    <label>Headers</label>
-                    <div id="ed_headers"></div>
-                    <label>Query</label>
-                    <div id="ed_query"></div>
-                    <label>Body</label>
-                    <textarea id="ed_body" style="min-height: 90px"></textarea>
+                    <label class="ed-col-span-full ed-mt-6 fw-600">Headers</label>
+                    <div class="ed-col-span-full" id="ed_headers"></div>
+                    <label class="ed-col-span-full ed-mt-6 fw-600">Query</label>
+                    <div class="ed-col-span-full" id="ed_query"></div>
+                    <label class="ed-col-span-full ed-mt-6 fw-600">Body (JSON/YAML)</label>
+                    <textarea id="ed_body" class="ed-col-span-full ed-textarea-md"></textarea>
                   </div>
                 </div>
               </details>
+
               <details open class="ed-panel">
-                <summary class="ed-summary">✅ Assert</summary>
+                <summary class="ed-summary">✅ Response Assertions</summary>
                 <div class="ed-body" id="ed_assert">
-                  <div id="ed_assert_form" class="ed-grid-2-140">
-                    <label>Status</label>
-                    <input id="ed_assert_status" type="number" min="100" max="599" step="1"/>
+                  <div id="ed_assert_form" class="ed-grid-2-160">
+                    <label>Status *</label>
+                    <input id="ed_assert_status" type="number" min="0" required/>
+                    <label>Header equals</label>
+                    <div id="ed_assert_headerEquals" class="ed-grid-col-2"></div>
+                    <label>JSON equals (path → value)</label>
+                    <div id="ed_assert_jsonEquals" class="ed-grid-col-2"></div>
+                    <label>JSON contains (path → value)</label>
+                    <div id="ed_assert_jsonContains" class="ed-grid-col-2"></div>
+                    <label>Body contains</label>
+                    <div id="ed_assert_bodyContains" class="ed-grid-col-2"></div>
                     <label>Max duration (ms)</label>
-                    <input id="ed_assert_maxDuration" type="number" min="0" step="1"/>
+                    <input id="ed_assert_maxDuration" type="number" min="0"/>
                   </div>
                 </div>
               </details>
-              <details class="ed-panel">
+
+              <details class="ed-panel" open>
                 <summary class="ed-summary">📦 Extract</summary>
                 <div class="ed-body" id="ed_extract"></div>
               </details>
-              <details class="ed-panel tight">
-                <summary class="ed-summary">🏷️ Tags & Matrix</summary>
-                <div class="ed-body ed-grid-2-140" id="ed_tags_matrix">
-                  <label>Tags</label>
-                  <input id="ed_tags" type="text" placeholder="comma-separated tags"/>
-                  <label>Matrix</label>
-                  <div class="ed-col-span-full" id="ed_matrix"></div>
+
+              <details open class="ed-panel">
+                <summary class="ed-summary">🔗 Test Hooks</summary>
+                <div class="ed-body">
+                  <div class="ed-subhead">pre</div>
+                  <div id="ed_test_prehooks"></div>
+                  <div class="ed-spacer-8"></div>
+                  <div class="ed-subhead">post</div>
+                  <div id="ed_test_posthooks"></div>
                 </div>
+              </details>
+
+              <details open class="ed-panel">
+                <summary class="ed-summary">🔄 Retry Policy</summary>
+                <div class="ed-body ed-grid-2-160" id="ed_retry_form">
+                  <label>Enable retry</label>
+                  <input id="ed_retry_enable" type="checkbox"/>
+                  <label>Max attempts</label>
+                  <input id="ed_retry_max" type="number" min="0"/>
+                  <label>Backoff (ms)</label>
+                  <input id="ed_retry_backoff" type="number" min="0"/>
+                  <label>Jitter (%)</label>
+                  <input id="ed_retry_jitter" type="number" min="0" max="100"/>
+                </div>
+              </details>
+
+              <details open class="ed-panel tight">
+                <summary class="ed-summary">🔢 Data Matrix</summary>
+                <div class="ed-body" id="ed_matrix"></div>
               </details>
 
               <details open class="ed-panel tight">
@@ -197,7 +238,7 @@
             </div>
             <div class="ed-col-content" id="pane_yaml">
               <textarea id="ed_raw" class="hidden"></textarea>
-              <div id="ed_yaml_editor" style="flex: 1;"></div>
+              <div id="ed_yaml_editor"></div>
             </div>
           </div>
           

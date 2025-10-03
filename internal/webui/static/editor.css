@@ -108,14 +108,14 @@ a { color: var(--link); }
 .ed-actions { display: flex; gap: 8px; align-items: center; }
 .ed-main { display: flex; gap: 8px; flex: 1; overflow: hidden; min-height: 0; }
 .ed-pane { display: flex; flex-direction: row; flex: 1 1 auto; gap: 8px; overflow: auto; padding: 8px; min-width: 0; min-height: 0; }
-.ed-tests-panel {
-  flex: 0 0 280px;
-  border: 1px solid var(--bd);
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
+.ed-tests-panel { 
+  flex: 0 0 280px; 
+  border: 1px solid var(--bd); 
+  border-radius: 6px; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; 
+  min-height: 0; 
   background: var(--bg);
   /* fill the available vertical space */
   height: 100%;
@@ -143,12 +143,12 @@ a { color: var(--link); }
   flex: 1 1 auto; 
   display: flex; 
   flex-direction: column; 
-  gap: 8px; 
+  gap: 6px; 
   overflow-y: auto; 
   overflow-x: hidden; 
   min-height: 0; 
-  min-width: 640px; 
-  padding-left: 8px;
+  min-width: 520px; 
+  padding: 4px 8px 8px 4px; /* ensure right-side breathing room */
 }
 .ed-panel { border: 1px solid var(--bd); border-radius: 6px; overflow: visible; }
 .ed-panel.tight { overflow: hidden; }

@@ -329,11 +329,17 @@ function listen(id){
   batch = { done:0, total:0 }; suite = { done:0, total:0 };
   // Reset aggregation for a fresh run
   agg.passed=0; agg.failed=0; agg.skipped=0; agg.total=0; agg.suites=0; agg.durationMs=0;
+  // Important: clear cached rows so we don't reference detached DOM from previous runs
+  try{ if (testRows && typeof testRows.clear==='function') testRows.clear(); }catch(e){}
   // Track which tests actually started for the current suite
   const started = new Set(); // keys: path::Name
   // Track stage keys provided at suiteStart to differentiate DAG-dynamic stages
   let suiteStagesFromStart = new Set();
   let dynamicStages = new Set();
+  // Track matrix aggregation per base test name (within current suite)
+  let matrixAgg = new Map(); // baseName -> {passed, failed, skipped}
+  // Track aggregated detail lines per base test (within current suite)
+  let matrixAggMsgs = new Map(); // baseName -> ["- subtest: reason", ...]
   try{ window.__E2E_LISTENED = id; }catch(e){}
   const results = document.getElementById('results');
   const stages = document.getElementById('stages');
@@ -411,6 +417,8 @@ function listen(id){
     try{ suiteStagesFromStart = new Set(Object.keys(payload.stages||{}).map(k=> String(k))); dynamicStages = new Set(); }catch(e){ suiteStagesFromStart = new Set(); dynamicStages = new Set(); }
     renderHeaderTags(); renderHeaderEnv();
   try{ if (currentSuitePath && window.hydreqSuitesState && window.hydreqSuitesState.setTestStatus) {/* ensure map exists lazily */} }catch(e){}
+  // Reset matrix aggregations at new suite
+  try{ matrixAgg = new Map(); matrixAggMsgs = new Map(); }catch(e){}
     const nm = (payload.name || payload.path || '');
     const pth = payload.path || '';
     const base = pth ? pth.split('/').pop() : '';
@@ -437,6 +445,8 @@ function listen(id){
     const {Name, Status, DurationMs, Stage, Messages, Tags, path: evPath} = payload;
     if (evPath && currentSuitePath && evPath !== currentSuitePath) return;
     const key = (currentSuitePath||'') + '::' + Name;
+    // Derive base name for matrix-expanded cases (strip trailing " [..]")
+    const baseName = (typeof Name === 'string' && Name.indexOf(' [') > -1) ? Name.slice(0, Name.indexOf(' [')) : Name;
     let row = testRows.get(key);
     if (!row){
       const wrap = document.createElement('div'); wrap.className='runner-test-container';
@@ -449,23 +459,63 @@ function listen(id){
   // Persist/update details in lastSuiteSummary for cross-view sync
   try{ if (window.hydreqSuitesState && window.hydreqSuitesState.upsertTest) window.hydreqSuitesState.upsertTest(currentSuitePath||'', Name, Status||'', DurationMs||0, Array.isArray(Messages)? Messages: []); }catch(e){}
   try{ if (window.hydreqStore && typeof window.hydreqStore.setTest==='function') window.hydreqStore.setTest(currentSuitePath||'', Name, { status: Status||'', durationMs: DurationMs||0, messages: Array.isArray(Messages)? Messages: [] }); }catch(e){}
+
+    // Update per-base matrix aggregation and reflect as a synthetic base row status
+    try{
+      const rec = matrixAgg.get(baseName) || { passed:0, failed:0, skipped:0 };
+      const st = (Status||'').toLowerCase();
+      if (st === 'failed') rec.failed += 1; else if (st === 'passed') rec.passed += 1; else if (st === 'skipped') rec.skipped += 1;
+      matrixAgg.set(baseName, rec);
+      let overall = 'unknown';
+      if (rec.failed > 0) overall = 'failed'; else if (rec.passed > 0) overall = 'passed'; else if (rec.skipped > 0) overall = 'skipped';
+      if (window.hydreqSuitesState && window.hydreqSuitesState.setTestStatus) window.hydreqSuitesState.setTestStatus(currentSuitePath||'', baseName, overall);
+      // Aggregate a single-line summary for this subtest under the base test
+      const reasonArr = Array.isArray(Messages) && Messages.length ? Messages : ['skipped'];
+      const summaryLine = `- ${Name}: ${reasonArr[0]||'skipped'}`;
+      const lines = matrixAggMsgs.get(baseName) || [];
+      if (!lines.includes(summaryLine)) { lines.push(summaryLine); matrixAggMsgs.set(baseName, lines); }
+      const pth = currentSuitePath||'';
+      // Persist aggregated messages to both state and store so editor/suites can hydrate them
+      try{ if (window.hydreqSuitesState && window.hydreqSuitesState.upsertTest) window.hydreqSuitesState.upsertTest(pth, baseName, overall, DurationMs||0, lines.slice()); }catch(e){}
+      try{ if (window.hydreqStore && typeof window.hydreqStore.setTest==='function') window.hydreqStore.setTest(pth, baseName, { status: overall, durationMs: DurationMs||0, messages: lines.slice() }); }catch(e){}
+    }catch(e){}
     row.line.className = (Status==='passed'?'ok':(Status==='failed'?'fail':'skip'));
-    if (Status==='skipped') {
-      row.line.textContent = `- ${Name} (tags)`;
+      if (Status==='skipped') {
+        row.line.textContent = `- ${Name} (tags)`;
       // Show skip reasons if provided
-      if (Array.isArray(Messages) && Messages.length){
+        let msgArr = Array.isArray(Messages) ? Messages : []; 
+        if (!msgArr.length){
+          // Try to load from store/state if available (for subsequent runs)
+          try{
+            const pth = currentSuitePath||'';
+            if (window.hydreqStore){
+              const s = window.hydreqStore.getSuite(pth);
+              const rec = s && s.tests && s.tests[Name];
+              if (rec && Array.isArray(rec.messages) && rec.messages.length) msgArr = rec.messages;
+            } else if (window.hydreqSuitesState){
+              const rec = (window.hydreqSuitesState.getSuiteSummary(pth)||{}).tests || [];
+              const tc = rec.find(t=> (t.name||t.Name) === Name);
+              const ms = tc && (tc.messages||tc.Messages);
+              if (Array.isArray(ms) && ms.length) msgArr = ms;
+            }
+          }catch(e){}
+        }
         let det = row.container.querySelector('details.suite-test-details');
         if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); row.container.appendChild(det); }
+        // Collapse by default in runner window
+        try{ det.open = false; }catch(e){}
         let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block skip'; det.appendChild(pre); }
-        pre.textContent = Messages.join('\n');
-      }
+        pre.textContent = msgArr.length ? msgArr.join('\n') : 'skipped';
     } else {
   row.line.textContent = (Status==='passed'?'✓':(Status==='failed'?'✗':'○')) + ' ' + Name + ' (' + DurationMs + ' ms)';
-      if (Status==='failed' && Array.isArray(Messages) && Messages.length){
+      if (Status==='failed'){
         let det = row.container.querySelector('details.suite-test-details');
         if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); row.container.appendChild(det); }
+        // Collapse by default in runner window
+        try{ det.open = false; }catch(e){}
         let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block fail'; det.appendChild(pre); }
-        pre.textContent = Messages.join('\n');
+        const msgArr = Array.isArray(Messages) ? Messages : [];
+        pre.textContent = msgArr.length ? msgArr.join('\n') : 'No details reported';
       }
     }
     const skey = (currentSuitePath||'') + '::' + Name;
@@ -491,12 +541,43 @@ function listen(id){
           if (!testsDiv) return;
           const loaded = !!(li.querySelector('button[aria-controls]') || {}).dataset?.loaded;
           if (!loaded) return; // hydrate on expand instead
-          const cont = window.hydreqSuitesDOM.findTestContainer(testsDiv, Name);
-          if (!cont) return;
-          const badgeEl = cont.querySelector('.suite-test-status');
-          if (window.hydreqSuitesDOM.updateTestBadge) window.hydreqSuitesDOM.updateTestBadge(badgeEl, Status);
-          if (Status === 'failed' || (Status === 'skipped' && Array.isArray(Messages) && Messages.length)){
-            if (window.hydreqSuitesDOM.updateTestDetails) window.hydreqSuitesDOM.updateTestDetails(cont, Status, Messages);
+          // Update base row badge when possible; fallback to exact row
+          let cont = window.hydreqSuitesDOM.findTestContainer(testsDiv, baseName);
+          let isBase = false;
+          if (cont){
+            isBase = true;
+            const badgeEl = cont.querySelector('.suite-test-status');
+            const rec = matrixAgg.get(baseName) || {passed:0, failed:0, skipped:0};
+            let overall = 'unknown';
+            if (rec.failed > 0) overall = 'failed'; else if (rec.passed > 0) overall = 'passed'; else if (rec.skipped > 0) overall = 'skipped';
+            if (window.hydreqSuitesDOM.updateTestBadge) window.hydreqSuitesDOM.updateTestBadge(badgeEl, overall);
+            // Aggregate subtest details under the base row
+            try{
+              if (Status === 'failed' || Status === 'skipped'){
+                const msgsArr = Array.isArray(Messages) && Messages.length ? Messages : ['skipped'];
+                let det = cont.querySelector('details.suite-test-details');
+                if (!det){ det = document.createElement('details'); det.className='suite-test-details'; const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum); cont.appendChild(det); }
+                // Keep collapsed by default in suites list
+                try{ det.open = false; }catch(e){}
+                let pre = det.querySelector('pre'); if (!pre){ pre = document.createElement('pre'); pre.className='message-block'; det.appendChild(pre); }
+                pre.className = 'message-block ' + (Status==='failed'?'fail':(Status==='skipped'?'skip':'ok'));
+                const existing = pre.textContent ? pre.textContent.split('\n') : [];
+                const summaryLine = `- ${Name}: ${msgsArr[0]||'skipped'}`;
+                if (!existing.includes(summaryLine)) existing.push(summaryLine);
+                pre.textContent = existing.join('\n');
+              }
+            }catch(e){}
+          } else {
+            cont = window.hydreqSuitesDOM.findTestContainer(testsDiv, Name);
+            if (!cont) return;
+            const badgeEl = cont.querySelector('.suite-test-status');
+            if (window.hydreqSuitesDOM.updateTestBadge) window.hydreqSuitesDOM.updateTestBadge(badgeEl, Status);
+          }
+          // For base row, we've already aggregated details; avoid overwriting.
+          if (!isBase){
+            if (Status === 'failed' || (Status === 'skipped' && Array.isArray(Messages) && Messages.length)){
+              if (window.hydreqSuitesDOM.updateTestDetails) window.hydreqSuitesDOM.updateTestDetails(cont, Status, Messages);
+            }
           }
         } catch(e){}
       };
@@ -526,7 +607,27 @@ function listen(id){
     agg.passed += (s.passed||0); agg.failed += (s.failed||0); agg.skipped += (s.skipped||0); agg.total += (s.total||0);
     try{ const pth = payload.path || payload.name || currentSuitePath;
       if (Array.isArray(payload.tests) && pth){ const map = lastStatus.get(pth) || new Map(); payload.tests.forEach(t=>{ const nm=t.name||t.Name; const st=(t.status||t.Status||'').toLowerCase(); if (nm) map.set(nm, st); }); lastStatus.set(pth, map); }
-  if (pth){ try{ if (window.hydreqSuitesState) window.hydreqSuitesState.setSuiteSummary(pth, s, Array.isArray(payload.tests)? payload.tests: []); else lastSuiteSummary.set(pth, { summary: s, tests: Array.isArray(payload.tests)? payload.tests: [] }); if (window.hydreqStore){ window.hydreqStore.setSummary(pth, s); if (Array.isArray(payload.tests)){ payload.tests.forEach(t=>{ const nm=t.name||t.Name; if (!nm) return; const st=t.status||t.Status||''; const dur=t.durationMs||t.DurationMs||0; const msgs=t.messages||t.Messages||[]; window.hydreqStore.setTest(pth, nm, { status: st, durationMs: dur, messages: Array.isArray(msgs)? msgs: [] }); }); } } }catch(e){}
+  if (pth){ try{ if (window.hydreqSuitesState) window.hydreqSuitesState.setSuiteSummary(pth, s, Array.isArray(payload.tests)? payload.tests: []); else lastSuiteSummary.set(pth, { summary: s, tests: Array.isArray(payload.tests)? payload.tests: [] }); if (window.hydreqStore){ window.hydreqStore.setSummary(pth, s); if (Array.isArray(payload.tests)){ payload.tests.forEach(t=>{ const nm=t.name||t.Name; if (!nm) return; const st=(t.status||t.Status||'').toLowerCase(); const dur=t.durationMs||t.DurationMs||0; const msgs=t.messages||t.Messages||[]; window.hydreqStore.setTest(pth, nm, { status: st, durationMs: dur, messages: Array.isArray(msgs)? msgs: [] }); }); } } }catch(e){}
+    // Patch UI details for skipped/failed from summary when tests list is visible
+    try{
+      const li = document.querySelector('#suites li[data-path="'+pth+'"]');
+      if (li){
+        const testsDiv = li.querySelector('.suite-tests');
+        if (testsDiv && Array.isArray(payload.tests)){
+          payload.tests.forEach(t=>{
+            try{
+              const nm=t.name||t.Name; if (!nm) return;
+              const st=(t.status||t.Status||'').toLowerCase();
+              const msgs = t.messages || t.Messages || [];
+              if (st==='failed' || (st==='skipped' && Array.isArray(msgs) && msgs.length)){
+                const cont = window.hydreqSuitesDOM && window.hydreqSuitesDOM.findTestContainer ? window.hydreqSuitesDOM.findTestContainer(testsDiv, nm) : null;
+                if (cont && window.hydreqSuitesDOM.updateTestDetails){ window.hydreqSuitesDOM.updateTestDetails(cont, st, msgs); }
+              }
+            }catch(e){}
+          });
+        }
+      }
+    }catch(e){}
   }
     }catch(e){}
     try{

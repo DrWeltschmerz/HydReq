@@ -102,8 +102,7 @@
     if (!container) return;
     const st = (status||'').toLowerCase();
     const msgs = Array.isArray(messages) ? messages : [];
-    const hasMsgs = msgs.length > 0;
-    if (st === 'skipped' && !hasMsgs) return; // no-op for skipped without messages
+  const hasMsgs = msgs.length > 0;
     let det = container.querySelector('details.suite-test-details');
     if (!det){
       det = document.createElement('details');
@@ -116,7 +115,8 @@
     let pre = det.querySelector('pre');
     if (!pre){ pre = document.createElement('pre'); pre.className='message-block'; det.appendChild(pre); }
     pre.className = 'message-block ' + (st==='failed'?'fail':(st==='skipped'?'skip':'ok'));
-    pre.textContent = hasMsgs ? msgs.join('\n') : 'No details reported';
+    if (hasMsgs) pre.textContent = msgs.join('\n');
+    else pre.textContent = (st==='skipped') ? 'skipped' : 'No details reported';
   }
 
   // Find an existing test container by name within a testsDiv

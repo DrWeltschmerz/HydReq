@@ -87,6 +87,20 @@ body.dark .CodeMirror { background: #0f172a; color: #e5e7eb; }
 a { color: var(--link); }
 #ed_splitter:hover { background: #93c5fd !important; }
 #ed_splitter.dragging { background: #60a5fa !important; }
+#editorModal #ed_suite_hooks_block {
+  /* Stack label above content and keep it left; prevent right-side overflow */
+  display: grid;
+  grid-template-columns: 1fr !important;
+  align-items: flex-start;
+}
+#editorModal #ed_suite_hooks_block > label {
+  align-self: start;
+  margin-bottom: 4px;
+}
+#editorModal #ed_suite_hooks_block > div {
+  min-width: 0;
+  width: 100%;
+}
 #editorModal .editor-root.comfortable { font-size: 15px; }
 #editorModal .editor-root.comfortable input[type="text"],
 #editorModal .editor-root.comfortable input[type="number"],
@@ -110,7 +124,7 @@ a { color: var(--link); }
 .ed-tests-panel { flex: 0 0 280px; border: 1px solid var(--bd); border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 .ed-tests-header { padding: 8px; border-bottom: 1px solid var(--bd); font-weight: 600; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--bg); z-index: 1; }
 .ed-tests-list { flex: 1; overflow: auto; min-height: 0; }
-.ed-center { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; overflow: auto; min-height: 0; min-width: 640px; }
+.ed-center { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; overflow: auto; min-height: 0; min-width: 460px; }
 .ed-panel { border: 1px solid var(--bd); border-radius: 6px; overflow: visible; }
 .ed-panel.tight { overflow: hidden; }
 .ed-summary { padding: 8px; border-bottom: 1px solid var(--bd); font-weight: 600; cursor: pointer; }
@@ -323,3 +337,21 @@ a { color: var(--link); }
 /* Tag chip selection state */
 .tag-chip { cursor: pointer; opacity: .8; }
 .tag-chip.selected { outline: 1px solid var(--link); outline-offset: 0; opacity: 1; }
+
+/* Hook card compaction: smaller paddings and tighter layout */
+#editorModal .hk_name { font-size: 12px; padding: 4px 6px; }
+#editorModal .hk_type.badge { font-size: 11px; padding: 2px 6px; }
+#editorModal .hk_run, #editorModal .hk_del, #editorModal .hk_toggle_dsn, #editorModal .hk_fill_dsn {
+  padding: 2px 6px;
+}
+#editorModal .hk_js_code,
+#editorModal .hk_querytxt,
+#editorModal .hk_body { font-size: 12px; }
+#editorModal .hk_sql select,
+#editorModal .hk_http select { max-width: 120px; }
+#editorModal .hk_sql textarea,
+#editorModal .hk_http textarea { width: 100%; }
+#editorModal .hk_sql input.hk_dsn { flex: 1 1 auto; min-width: 0; }
+#editorModal .hk_sql .hk_sqlextract,
+#editorModal .hk_http .hk_headers,
+#editorModal .hk_http .hk_query { min-width: 0; }

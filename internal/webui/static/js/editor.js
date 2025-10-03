@@ -45,6 +45,10 @@ let modal = null;
 let working = { tests: [] };
 // Getters for form sub-editors (populated in renderForm)
 let suiteVarsGet = null, headersGet = null, queryGet = null, extractGet = null, matrixGet = null;
+// Suite/Test hooks getters
+let suitePreGet = null, suitePostGet = null, testPreGet = null, testPostGet = null;
+// Assertions getters
+let assertHeaderGet = null, assertJsonEqGet = null, assertJsonContainsGet = null, assertBodyContainsGet = null;
 const LS_VER = 'v1';
 const LS_ENC = (s) => { try { return btoa(unescape(encodeURIComponent(s||''))); } catch { return (s||''); } };
 const LS_KEY = (p) => `hydreq.${LS_VER}.runCache:` + LS_ENC(p||'');
@@ -72,6 +76,13 @@ function renderForm() {
       suiteVarsGet = kvTable(suiteVarsEl, working.vars || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
     } catch (e) { /* no-op */ }
   }
+  // Suite hooks (pre/post)
+  try {
+    const preC = modal.querySelector('#ed_suite_presuite');
+    const postC = modal.querySelector('#ed_suite_postsuite');
+    if (preC) suitePreGet = hookList(preC, Array.isArray(working.preSuite)? working.preSuite: [], { scope: 'suitePre' }, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+    if (postC) suitePostGet = hookList(postC, Array.isArray(working.postSuite)? working.postSuite: [], { scope: 'suitePost' }, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+  } catch {}
   
   // Update test-specific fields if a test is selected
   if (working.tests && Array.isArray(working.tests) && selIndex >= 0 && selIndex < working.tests.length) {
@@ -145,14 +156,59 @@ function renderForm() {
       if (stageElPrimary) stageElPrimary.value = stageVal;
     }catch{}
     
-    // Update assertions
-    if (test.assert) {
-      const statusEl = modal.querySelector('#ed_assert_status');
-      const maxDurationEl = modal.querySelector('#ed_assert_maxDuration');
-      
-      if (statusEl) statusEl.value = test.assert.status || '';
-      if (maxDurationEl) maxDurationEl.value = test.assert.maxDurationMs || test.assert.maxDuration || '';
-    }
+    // Update assertions and editors
+    const statusEl = modal.querySelector('#ed_assert_status');
+    const maxDurationEl = modal.querySelector('#ed_assert_maxDuration');
+    if (statusEl) statusEl.value = (test.assert && (test.assert.status||'')) || '';
+    if (maxDurationEl) maxDurationEl.value = (test.assert && (test.assert.maxDurationMs || test.assert.maxDuration)) || '';
+    // Assertions maps: headerEquals/jsonEquals/jsonContains; list: bodyContains
+    try {
+      const headerC = modal.querySelector('#ed_assert_headerEquals');
+      const jsonEqC = modal.querySelector('#ed_assert_jsonEquals');
+      const jsonCtC = modal.querySelector('#ed_assert_jsonContains');
+      const bodyCtC = modal.querySelector('#ed_assert_bodyContains');
+      if (headerC) {
+        assertHeaderGet = kvTable(headerC, (test.assert && test.assert.headerEquals) || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+      }
+      if (jsonEqC) {
+        // Render as key -> value (string). If value is object/array/number, stringify for display.
+        const src = (test.assert && test.assert.jsonEquals) || {};
+        const flat = {};
+        Object.keys(src||{}).forEach(k=>{ const v = src[k]; flat[k] = (typeof v === 'object') ? JSON.stringify(v) : String(v); });
+        assertJsonEqGet = kvTable(jsonEqC, flat, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+      }
+      if (jsonCtC) {
+        const src = (test.assert && test.assert.jsonContains) || {};
+        const flat = {};
+        Object.keys(src||{}).forEach(k=>{ const v = src[k]; flat[k] = (typeof v === 'object') ? JSON.stringify(v) : String(v); });
+        assertJsonContainsGet = kvTable(jsonCtC, flat, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+      }
+      if (bodyCtC) {
+        const arr = (test.assert && Array.isArray(test.assert.bodyContains)) ? test.assert.bodyContains : (test.assert && typeof test.assert.bodyContains==='string' ? [test.assert.bodyContains] : []);
+        assertBodyContainsGet = listTable(bodyCtC, arr, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+      }
+    } catch {}
+
+    // Test hooks (pre/post)
+    try {
+      const preC = modal.querySelector('#ed_test_prehooks');
+      const postC = modal.querySelector('#ed_test_posthooks');
+      if (preC) testPreGet = hookList(preC, Array.isArray(test.pre)? test.pre: [], { scope: 'testPre' }, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+      if (postC) testPostGet = hookList(postC, Array.isArray(test.post)? test.post: [], { scope: 'testPost' }, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
+    } catch {}
+
+    // Retry policy
+    try{
+      const en = modal.querySelector('#ed_retry_enable');
+      const mx = modal.querySelector('#ed_retry_max');
+      const bo = modal.querySelector('#ed_retry_backoff');
+      const ji = modal.querySelector('#ed_retry_jitter');
+      const rt = test.retry || {};
+      if (en) en.checked = !!(rt && (rt.max!=null || rt.backoffMs!=null || rt.jitterPct!=null));
+      if (mx) mx.value = (rt.max != null) ? String(rt.max) : '';
+      if (bo) bo.value = (rt.backoffMs != null) ? String(rt.backoffMs) : '';
+      if (ji) ji.value = (rt.jitterPct != null) ? String(rt.jitterPct) : '';
+    }catch{}
     
     // Update flow settings: don't prefill 0; clear when unset
   const stageEl = modal.querySelector('#ed_stage') || modal.querySelector('#ed_test_stage');
@@ -213,8 +269,8 @@ function collectFormData() {
     const skipEl = modal.querySelector('#ed_skip');
     const onlyEl = modal.querySelector('#ed_only');
     const stageEl = modal.querySelector('#ed_stage');
-    const statusEl = modal.querySelector('#ed_assert_status');
-    const maxDurationEl = modal.querySelector('#ed_assert_maxDuration');
+  const statusEl = modal.querySelector('#ed_assert_status');
+  const maxDurationEl = modal.querySelector('#ed_assert_maxDuration');
     const dependsEl = modal.querySelector('#ed_test_depends');
     const tagsEl = modal.querySelector('#ed_tags');
     const oapiEl = modal.querySelector('#ed_oapi_enabled');
@@ -249,6 +305,29 @@ function collectFormData() {
       const md = maxDurationEl.value ? parseInt(maxDurationEl.value,10) : NaN;
       if (!isNaN(md)) test.assert.maxDurationMs = md; else if (test.assert) delete test.assert.maxDurationMs;
     }
+    // Assertions maps and lists
+    function tryParse(s){ try{ return JSON.parse(s); }catch{ return s; } }
+    try{
+      if (!test.assert) test.assert = {};
+      if (typeof assertHeaderGet === 'function'){
+        const hv = assertHeaderGet();
+        if (hv && Object.keys(hv).length) test.assert.headerEquals = hv; else delete test.assert.headerEquals;
+      }
+      if (typeof assertJsonEqGet === 'function'){
+        const jv = assertJsonEqGet();
+        const out = {}; Object.keys(jv||{}).forEach(k=>{ const v = jv[k]; if (v!=='' && v!=null) out[k] = tryParse(v); });
+        if (Object.keys(out).length) test.assert.jsonEquals = out; else delete test.assert.jsonEquals;
+      }
+      if (typeof assertJsonContainsGet === 'function'){
+        const jc = assertJsonContainsGet();
+        const out = {}; Object.keys(jc||{}).forEach(k=>{ const v = jc[k]; if (v!=='' && v!=null) out[k] = tryParse(v); });
+        if (Object.keys(out).length) test.assert.jsonContains = out; else delete test.assert.jsonContains;
+      }
+      if (typeof assertBodyContainsGet === 'function'){
+        const bc = assertBodyContainsGet();
+        if (Array.isArray(bc) && bc.length) test.assert.bodyContains = bc; else delete test.assert.bodyContains;
+      }
+    }catch{}
     if (test.assert && Object.keys(test.assert).length === 0) delete test.assert;
     // Flags and meta: only include when set
     if (skipEl) { if (skipEl.checked) test.skip = true; else delete test.skip; }
@@ -261,13 +340,37 @@ function collectFormData() {
     if (dependsEl){ const arr = (dependsEl.value||'').split(',').map(s=>s.trim()).filter(Boolean); if (arr.length) test.dependsOn = arr; else delete test.dependsOn; }
     // tags
     if (tagsEl){ const tg = (tagsEl.value||'').split(',').map(s=>s.trim()).filter(Boolean); if (tg.length) test.tags = tg; else delete test.tags; }
-    // extract
+  // extract
     try{ if (typeof extractGet === 'function'){ const ex = extractGet(); if (ex && Object.keys(ex).length) test.extract = ex; else delete test.extract; } }catch{}
     // matrix
     try{ if (typeof matrixGet === 'function'){ const mx = matrixGet(); if (mx && Object.keys(mx).length) test.matrix = mx; else delete test.matrix; } }catch{}
     // openapi override
     if (oapiEl){ const v = (oapiEl.value||'inherit'); if (v==='inherit'){ delete test.openApi; } else { test.openApi = { enabled: (v==='true') }; } }
+    // test hooks
+    try{
+      if (typeof testPreGet === 'function'){ const arr = testPreGet(); if (Array.isArray(arr) && arr.length) test.pre = arr; else delete test.pre; }
+      if (typeof testPostGet === 'function'){ const arr = testPostGet(); if (Array.isArray(arr) && arr.length) test.post = arr; else delete test.post; }
+    }catch{}
+    // retry policy
+    try{
+      const en = modal.querySelector('#ed_retry_enable');
+      const mx = modal.querySelector('#ed_retry_max');
+      const bo = modal.querySelector('#ed_retry_backoff');
+      const ji = modal.querySelector('#ed_retry_jitter');
+      const enabled = !!(en && en.checked);
+      const r = {};
+      if (mx && mx.value){ const n = parseInt(mx.value,10); if (!isNaN(n)) r.max = n; }
+      if (bo && bo.value){ const n = parseInt(bo.value,10); if (!isNaN(n)) r.backoffMs = n; }
+      if (ji && ji.value){ const n = parseInt(ji.value,10); if (!isNaN(n)) r.jitterPct = n; }
+      if (enabled || Object.keys(r).length){ test.retry = r; } else { delete test.retry; }
+    }catch{}
   }
+
+  // Suite hooks collect
+  try{
+    if (typeof suitePreGet === 'function'){ const arr = suitePreGet(); if (Array.isArray(arr) && arr.length) working.preSuite = arr; else delete working.preSuite; }
+    if (typeof suitePostGet === 'function'){ const arr = suitePostGet(); if (Array.isArray(arr) && arr.length) working.postSuite = arr; else delete working.postSuite; }
+  }catch{}
 }
 
 function addValidationListeners() {
@@ -624,7 +727,7 @@ function kvTable(container, obj, onChange){
   c.innerHTML = '';
   const table = document.createElement('div');
   const addRow = (k='', v='')=>{
-    const row = document.createElement('div'); row.className = 'ed-grid-1-1-auto'; row.style.marginBottom='6px';
+    const row = document.createElement('div'); row.className = 'ed-grid-1-1-auto'; row.style.marginBottom='2px';
     const ki = document.createElement('input'); ki.type='text'; ki.value=k; const vi=document.createElement('input'); vi.type='text'; vi.value=v;
     if (onChange){ ['input','change','blur'].forEach(ev=>{ ki.addEventListener(ev, onChange); vi.addEventListener(ev, onChange); }); }
     const del = document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick = ()=>{ row.remove(); if (onChange) onChange(); };
@@ -652,7 +755,7 @@ function listTable(container, arr, onChange){
   c.innerHTML = '';
   const table = document.createElement('div');
   const addRow = (v='')=>{
-    const row = document.createElement('div'); row.className = 'ed-grid-1-auto'; row.style.marginBottom='6px';
+    const row = document.createElement('div'); row.className = 'ed-grid-1-auto'; row.style.marginBottom='2px';
     const vi=document.createElement('input'); vi.type='text'; vi.value=v;
     if (onChange){ ['input','change','blur'].forEach(ev=> vi.addEventListener(ev, onChange)); }
     const del = document.createElement('button'); del.textContent='×'; del.title='Remove'; del.onclick = ()=>{ row.remove(); if (onChange) onChange(); };
@@ -869,15 +972,20 @@ function hookList(container, hooks, options, onChange){
     const delBtn = document.createElement('button'); delBtn.className='btn btn-xs hk_del'; delBtn.textContent='×'; delBtn.title='Remove';
     header.appendChild(toggle); header.appendChild(nameI); header.appendChild(badge); header.appendChild(runBtn); header.appendChild(convertBtn); header.appendChild(delBtn);
     row.appendChild(header);
-    const body = document.createElement('div'); body.style.padding='8px'; row.appendChild(body);
-    // grid
-    const grid = document.createElement('div'); grid.className='ed-grid-2-140'; body.appendChild(grid);
-    // Vars
-    const varsLabel = document.createElement('label'); varsLabel.textContent='Vars'; const varsDiv=document.createElement('div'); varsDiv.className='hk_vars'; grid.appendChild(varsLabel); grid.appendChild(varsDiv);
+  const body = document.createElement('div'); body.style.padding='8px'; row.appendChild(body);
+  // container grid: single column to maximize content width
+  const grid = document.createElement('div');
+  grid.style.display='grid';
+  grid.style.gridTemplateColumns='1fr';
+  grid.style.gap='6px';
+  body.appendChild(grid);
+  // Vars
+  const varsHeader = document.createElement('div'); varsHeader.className='ed-subhead'; varsHeader.textContent='Variables'; grid.appendChild(varsHeader);
+  const varsDiv=document.createElement('div'); varsDiv.className='hk_vars'; grid.appendChild(varsDiv);
     const varsGet = kvTable(varsDiv, h?.vars||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
-    // HTTP section
-    const httpLabel = document.createElement('label'); httpLabel.textContent='HTTP'; const httpC = document.createElement('div'); httpC.className='hk_http'; grid.appendChild(httpLabel); grid.appendChild(httpC);
-    const http = h?.request||{}; const hg = document.createElement('div'); hg.style.display='grid'; hg.style.gridTemplateColumns='120px 1fr'; hg.style.gap='6px';
+  // HTTP section (no outer label to save horizontal space)
+  const httpC = document.createElement('div'); httpC.className='hk_http'; grid.appendChild(httpC);
+  const http = h?.request||{}; const hg = document.createElement('div'); hg.style.display='grid'; hg.style.gridTemplateColumns='110px 1fr'; hg.style.gap='6px';
     hg.innerHTML = `
       <label>Method</label>
       <select class="hk_method select select-xs"></select>
@@ -897,15 +1005,15 @@ function hookList(container, hooks, options, onChange){
     const hkHeadGet = kvTable(hg.querySelector('.hk_headers'), http.headers||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
     const hkQueryGet = kvTable(hg.querySelector('.hk_query'), http.query||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
     const bodyEl = hg.querySelector('.hk_body'); try { bodyEl.value = (http.body && typeof http.body==='object')? JSON.stringify(http.body,null,2):(http.body||''); } catch { bodyEl.value = http.body||''; }
-    // JS section
-    const jsLabel = document.createElement('label'); jsLabel.textContent='JS'; const jsC = document.createElement('div'); jsC.className='hk_js'; grid.appendChild(jsLabel); grid.appendChild(jsC);
-    const js = h?.js||{}; const jsg = document.createElement('div'); jsg.style.display='grid'; jsg.style.gridTemplateColumns='120px 1fr'; jsg.style.gap='6px';
+  // JS section (no outer label to save horizontal space)
+  const jsC = document.createElement('div'); jsC.className='hk_js'; grid.appendChild(jsC);
+  const js = h?.js||{}; const jsg = document.createElement('div'); jsg.style.display='grid'; jsg.style.gridTemplateColumns='110px 1fr'; jsg.style.gap='6px';
     jsg.innerHTML = `
       <label>Code</label><textarea class="hk_js_code" style="height:120px; font-family: 'Courier New', monospace; font-size: 12px;" placeholder="JavaScript code...">${js.code||''}</textarea>`;
     jsC.appendChild(jsg);
-    // SQL section
-    const sqlLabel = document.createElement('label'); sqlLabel.textContent='SQL'; const sqlC = document.createElement('div'); sqlC.className='hk_sql'; grid.appendChild(sqlLabel); grid.appendChild(sqlC);
-    const sql = h?.sql||{}; const sg = document.createElement('div'); sg.style.display='grid'; sg.style.gridTemplateColumns='120px 1fr'; sg.style.gap='6px';
+  // SQL section (no outer label to save horizontal space)
+  const sqlC = document.createElement('div'); sqlC.className='hk_sql'; grid.appendChild(sqlC);
+  const sql = h?.sql||{}; const sg = document.createElement('div'); sg.style.display='grid'; sg.style.gridTemplateColumns='110px 1fr'; sg.style.gap='6px';
     sg.innerHTML = `
       <label>Driver</label>
       <select class="hk_driver select select-xs"><option value="">(select)</option><option value="sqlite" ${sql.driver==='sqlite'?'selected':''}>sqlite</option><option value="pgx" ${sql.driver==='pgx'?'selected':''}>pgx (Postgres)</option><option value="sqlserver" ${sql.driver==='sqlserver'?'selected':''}>sqlserver (SQL Server)</option></select>
@@ -914,20 +1022,28 @@ function hookList(container, hooks, options, onChange){
       <label>Query</label><textarea class="hk_querytxt" style="height:80px">${sql.query||''}</textarea>
       <label>Extract</label><div class="hk_sqlextract"></div>`;
     sqlC.appendChild(sg);
-    const toggleBtn = sg.querySelector('.hk_toggle_dsn'); const dsnInput = sg.querySelector('.hk_dsn'); toggleBtn.onclick = ()=>{ dsnInput.type = (dsnInput.type==='password'?'text':'password'); };
+  const toggleBtn = sg.querySelector('.hk_toggle_dsn'); const dsnInput = sg.querySelector('.hk_dsn'); toggleBtn.onclick = ()=>{ const show = (dsnInput.type==='password'); dsnInput.type = show?'text':'password'; try{ toggleBtn.textContent = show?'🙈':'👁'; toggleBtn.title = show?'Hide':'Show'; }catch{} };
     const hkSQLExtractGet = kvTable(sg.querySelector('.hk_sqlextract'), sql.extract||{}, ()=>{ try{ sync(); syncYamlPreviewFromVisual(); markDirty(); }catch{} });
     const driverEl = sg.querySelector('.hk_driver'); const dsnEl = sg.querySelector('.hk_dsn'); const dsnPH = { sqlite: 'file:./qa.sqlite?cache=shared', pgx: 'postgres://user:pass@localhost:5432/db?sslmode=disable', sqlserver: 'sqlserver://sa:Your_password123@localhost:1433?database=master' };
     function refreshDsnPH(){ const v=(driverEl.value||'').trim(); dsnEl.placeholder = dsnPH[v]||''; }
     driverEl.addEventListener('change', refreshDsnPH); refreshDsnPH();
-    const fillBtn = sg.querySelector('.hk_fill_dsn'); if (fillBtn) fillBtn.onclick = ()=>{ const v=(driverEl.value||'').trim(); const tmpl=dsnPH[v]||''; if(!tmpl) return; if(!dsnEl.value || confirm('Overwrite DSN with template?')) dsnEl.value = tmpl; };
+    const fillBtn = sg.querySelector('.hk_fill_dsn'); if (fillBtn) fillBtn.onclick = ()=>{ let v=(driverEl.value||'').trim(); let tmpl=dsnPH[v]||''; if(!tmpl){
+        // If driver not selected, default to sqlite template for convenience
+        v='sqlite'; tmpl=dsnPH[v]||'';
+        try{ if (!tmpl) throw new Error(''); }catch{ /* no-op */ }
+        if (!tmpl) { try{ alert('Select a SQL driver first to use a DSN template.'); }catch{} return; }
+        // reflect default selection in UI if empty
+        try{ if (!driverEl.value){ driverEl.value = v; refreshDsnPH(); } }catch{}
+      }
+      if(!dsnEl.value || confirm('Overwrite DSN with template?')) dsnEl.value = tmpl; };
     // enforce mode visibility
     function applyMode(){
       const showHTTP = (row._mode==='http');
       const showSQL = (row._mode==='sql');
       const showJS = (row._mode==='js');
-      httpLabel.style.display = showHTTP?'':'none'; httpC.style.display = showHTTP?'':'none';
-      sqlLabel.style.display = showSQL?'':'none'; sqlC.style.display = showSQL?'':'none';
-      jsLabel.style.display = showJS?'':'none'; jsC.style.display = showJS?'':'none';
+      httpC.style.display = showHTTP?'':'none';
+      sqlC.style.display = showSQL?'':'none';
+      jsC.style.display = showJS?'':'none';
       badge.textContent = (row._mode==='http'?'HTTP':(row._mode==='sql'?'SQL':(row._mode==='js'?'JS':'·')));
     }
     applyMode();
