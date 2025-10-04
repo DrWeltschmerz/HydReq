@@ -1,3 +1,6 @@
+# Getting Started
+
+> Note: This content is summarized in the single [USER_GUIDE](./USER_GUIDE.md). Prefer that as the source of truth; this page will be trimmed over time to reduce duplication.
 # Getting started
 
 HydReq is a lightweight API test runner with a Web UI and CLI. Author tests in YAML and run them locally or in CI.

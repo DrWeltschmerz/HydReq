@@ -1,47 +1,23 @@
-/* Theme tokens */
-:root {
-  --hdr-bg:#0b1020; --hdr-fg:#c6e2ff; --bd:#e5e7eb; --li-hov:#f5f7fb; --li-sel:#e6f2ff; --pill:#eef2ff; --pg-bg:#eee; --txt:#111827; --bg:#ffffff;
-  --btn-bg:#ffffff; --btn-bd:#d1d5db; --btn-hov:#f6f9ff; --link:#2563eb;
-  --input-bg:#ffffff; --input-bd:#d1d5db; --input-fg:#111827; --input-focus:#7aa2ff;
-  --success:#10b981; --error:#ef4444; --warning:#f59e0b; --info:#3b82f6;
-  --grad1:#00d4ff; --grad2:#5bff5b;
-}
-body.dark {
-  --hdr-bg:#0b0e17; --hdr-fg:#d6e0ff; --bd:#222; --li-hov:#1a2230; --li-sel:#10213a; --pill:#1f2937; --pg-bg:#1f2937; --txt:#e5e7eb; --bg:#0b0e17;
-  --btn-bg:#111827; --btn-bd:#374151; --btn-hov:#1f2937; --link:#60a5fa;
-  --input-bg:#0f172a; --input-bd:#374151; --input-fg:#e5e7eb; --input-focus:#7aa2ff;
-  --success:#10b981; --error:#ef4444; --warning:#f59e0b; --info:#60a5fa;
-  --grad1:#22d3ee; --grad2:#4ade80;
-}
-/* Hack theme: neon terminal vibe */
-body.hack {
-  --hdr-bg:#061108; --hdr-fg:#a6ffb0; --bd:#15331b; --li-hov:#0b1f10; --li-sel:#0f2a16; --pill:#092010; --pg-bg:#0f2a16; --txt:#c8ffd2; --bg:#050d07;
-  --btn-bg:#0a1a0f; --btn-bd:#1a3b24; --btn-hov:#0e2315; --link:#8affb5;
-  --input-bg:#0b1f10; --input-bd:#1a3b24; --input-fg:#c8ffd2; --input-focus:#30ff7f;
-  --success:#30ff7f; --error:#ff5f5f; --warning:#ffd166; --info:#7dd3fc;
-  --grad1:#19ff93; --grad2:#5bff5b;
-}
-/* Catppuccin Mocha (dark) */
-body.catppuccin-mocha {
-  --hdr-bg:#11111b; --hdr-fg:#cdd6f4; --bd:#313244; --li-hov:#1e1e2e; --li-sel:#181825; --pill:#181825; --pg-bg:#181825; --txt:#cdd6f4; --bg:#0b0b13;
-  --btn-bg:#11111b; --btn-bd:#313244; --btn-hov:#1e1e2e; --link:#89b4fa;
-  --input-bg:#1e1e2e; --input-bd:#313244; --input-fg:#cdd6f4; --input-focus:#89b4fa;
-  --success:#a6e3a1; --error:#f38ba8; --warning:#f9e2af; --info:#89b4fa;
-  --grad1:#89b4fa; --grad2:#a6e3a1;
-}
-/* Catppuccin Latte (light) */
-body.catppuccin-latte {
-  --hdr-bg:#eff1f5; --hdr-fg:#4c4f69; --bd:#bcc0cc; --li-hov:#e6e9ef; --li-sel:#dce0e8; --pill:#e6e9ef; --pg-bg:#e6e9ef; --txt:#4c4f69; --bg:#fafafa;
-  --btn-bg:#ffffff; --btn-bd:#ccd0da; --btn-hov:#e6e9ef; --link:#1e66f5;
-  --input-bg:#ffffff; --input-bd:#ccd0da; --input-fg:#4c4f69; --input-focus:#1e66f5;
-  --success:#40a02b; --error:#d20f39; --warning:#df8e1d; --info:#1e66f5;
-  --grad1:#1e66f5; --grad2:#40a02b;
-}
-/* Synthwave (dark, DaisyUI-inspired) */
-body.synthwave {
-  --hdr-bg:#2d1b69; --hdr-fg:#f5f1ff; --bd:#3d2a7a; --li-hov:#332366; --li-sel:#3c2b78; --pill:#2f205f; --pg-bg:#2f205f; --txt:#f8f8ff; --bg:#231638;
-  --btn-bg:#2a1f57; --btn-bd:#4a3a8f; --btn-hov:#33276b; --link:#58c7f3;
-  --input-bg:#1f163f; --input-bd:#4a3a8f; --input-fg:#f5f1ff; --input-focus:#58c7f3;
-  --success:#36d399; --error:#f87272; --warning:#fbbd23; --info:#58c7f3;
-  --grad1:#f472b6; --grad2:#60a5fa;
-}
+/* Aggregated theme imports (readable, one per line) */
+@import url('themes/base.css');
+@import url('themes/dark.css');
+@import url('themes/hack.css');
+@import url('themes/catppuccin-mocha.css');
+@import url('themes/catppuccin-latte.css');
+@import url('themes/catppuccin-frappe.css');
+@import url('themes/catppuccin-macchiato.css');
+@import url('themes/synthwave.css');
+@import url('themes/nord.css');
+@import url('themes/dracula.css');
+@import url('themes/monokai.css');
+@import url('themes/gruvbox-dark.css');
+@import url('themes/gruvbox-light.css');
+@import url('themes/solarized-dark.css');
+@import url('themes/solarized-light.css');
+@import url('themes/tokyo-night.css');
+@import url('themes/one-dark-pro.css');
+@import url('themes/palenight.css');
+@import url('themes/rose-pine.css');
+@import url('themes/everforest-dark.css');
+@import url('themes/everforest-light.css');
+@import url('themes/ayu-dark.css');

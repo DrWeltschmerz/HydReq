@@ -1,0 +1,26 @@
+/* One Dark Pro (dark) */
+body.one-dark-pro {
+  --hdr-bg: #282c34;
+  --hdr-fg: #abb2bf;
+  --bd: #3e4451;
+  --li-hov: #21252b;
+  --li-sel: #2c313a;
+  --pill: #2c313a;
+  --pg-bg: #2c313a;
+  --txt: #abb2bf;
+  --bg: #21252b;
+  --btn-bg: #21252b;
+  --btn-bd: #3e4451;
+  --btn-hov: #2c313a;
+  --link: #61afef;
+  --input-bg: #21252b;
+  --input-bd: #3e4451;
+  --input-fg: #abb2bf;
+  --input-focus: #61afef;
+  --success: #98c379;
+  --error: #e06c75;
+  --warning: #e5c07b;
+  --info: #61afef;
+  --grad1: #61afef;
+  --grad2: #98c379;
+}

@@ -1,0 +1,26 @@
+/* Dracula (dark) */
+body.dracula {
+  --hdr-bg: #282a36;
+  --hdr-fg: #f8f8f2;
+  --bd: #44475a;
+  --li-hov: #44475a;
+  --li-sel: #6272a4;
+  --pill: #6272a4;
+  --pg-bg: #6272a4;
+  --txt: #f8f8f2;
+  --bg: #282a36;
+  --btn-bg: #44475a;
+  --btn-bd: #6272a4;
+  --btn-hov: #6272a4;
+  --link: #8be9fd;
+  --input-bg: #44475a;
+  --input-bd: #6272a4;
+  --input-fg: #f8f8f2;
+  --input-focus: #8be9fd;
+  --success: #50fa7b;
+  --error: #ff5555;
+  --warning: #f1fa8c;
+  --info: #8be9fd;
+  --grad1: #bd93f9;
+  --grad2: #50fa7b;
+}

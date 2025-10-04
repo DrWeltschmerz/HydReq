@@ -1,5 +1,7 @@
 # Adapters (import)
 
+> Quick start for imports is covered in the consolidated [USER_GUIDE](./USER_GUIDE.md). This page provides format‑specific flags and examples.
+
 Convert external formats into HydReq suites:
 
 - Postman (v2.1 JSON)

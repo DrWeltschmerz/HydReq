@@ -278,6 +278,14 @@ type TestCase struct {
 - Batch run with environment overrides and tag filtering
 - Theme toggle (light/dark) with persistence
 
+## Frontend Conventions (Refactor-driven)
+
+- Store-first state: hydreqStore is the single source of truth for suite/test status. Views must subscribe and hydrate from the store rather than keeping divergent local state.
+- Status badges: use class-based tokens only (status-badge, status-ok/fail/skip/unknown). Skipped is yellow ○, unknown is dimmed ·.
+- Theme modularization: all theme variables live under `internal/webui/static/themes/` and are aggregated via `themes.css`. Add new themes via a new file plus @import, and ensure they are wired in the theme selector and JS utils.
+- Whitespace policy: keep CSS/JS/HTML human-readable. Avoid long lines; format theme variables one per line; wrap long HTML attributes; keep functions small and focused.
+- No pending buffers: legacy pending buffering removed; rely on store + SSE hydration.
+
 ## Helper Scripts
 
 ### CI and Testing
@@ -295,3 +303,11 @@ type TestCase struct {
 - Scripts automatically set `HTTPBIN_BASE_URL` for local development
 - Use `KEEP_SERVICES=1` to keep Docker containers running after tests
 - Use `SKIP_VALIDATION=1` or `VALIDATION_WARN_ONLY=1` for validation control
+
+## Frontend Conventions (Refactor-driven)
+
+- Store-first state: hydreqStore is the single source of truth for suite/test status. Views must subscribe and hydrate from the store rather than keeping divergent local state.
+- Status badges: use class-based tokens only (status-badge, status-ok/fail/skip/unknown). Skipped is yellow ○, unknown is dimmed ·.
+- Theme modularization: all theme variables live under `internal/webui/static/themes/` and are aggregated via `themes.css`. Add new themes via a new file plus @import, and ensure they are wired in the theme selector and JS utils.
+- Whitespace policy: keep CSS/JS/HTML human-readable. Avoid long lines; format theme variables one per line; wrap long HTML attributes; keep functions small and focused.
+- No pending buffers: legacy pending buffering removed; rely on store + SSE hydration.

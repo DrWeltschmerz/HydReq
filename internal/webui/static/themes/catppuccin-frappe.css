@@ -1,0 +1,26 @@
+/* Catppuccin Frappé (dark) */
+body.catppuccin-frappe {
+  --hdr-bg: #303446;
+  --hdr-fg: #c6d0f5;
+  --bd: #414559;
+  --li-hov: #292c3c;
+  --li-sel: #232634;
+  --pill: #232634;
+  --pg-bg: #232634;
+  --txt: #c6d0f5;
+  --bg: #292c3c;
+  --btn-bg: #303446;
+  --btn-bd: #414559;
+  --btn-hov: #292c3c;
+  --link: #8caaee;
+  --input-bg: #292c3c;
+  --input-bd: #414559;
+  --input-fg: #c6d0f5;
+  --input-focus: #8caaee;
+  --success: #a6d189;
+  --error: #e78284;
+  --warning: #e5c890;
+  --info: #8caaee;
+  --grad1: #8caaee;
+  --grad2: #a6d189;
+}

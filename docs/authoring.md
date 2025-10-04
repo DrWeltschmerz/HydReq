@@ -2,6 +2,7 @@
 
 Use YAML to describe tests. The repo ships `schemas/suite.schema.json` for validation and completions.
 
+> A practical overview is in the single [USER_GUIDE](./USER_GUIDE.md). Use this page for deeper authoring patterns and examples.
 ## VS Code + Copilot setup
 
 Prereqs

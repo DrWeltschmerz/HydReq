@@ -13,7 +13,16 @@ function slugify(name) {
 function pct(d,t){ return t>0 ? Math.min(100, Math.round(100*d/t)) : 0; }
 
 // Set progress bar width
-function setBar(el, d, t){ if(!el) return; el.style.width = pct(d,t) + '%'; }
+function setBar(el, d, t){
+  if(!el) return;
+  const p = pct(d,t);
+  el.style.width = p + '%';
+  try{
+    el.setAttribute('aria-valuenow', String(d));
+    el.setAttribute('aria-valuemax', String(t));
+    el.setAttribute('role','progressbar');
+  }catch{}
+}
 
 // Parse environment variables from textarea
 function parseEnv(){
@@ -33,18 +42,23 @@ function parseEnv(){
 function renderActiveEnv(env){
   const envActive = document.getElementById('env_active');
   if (envActive){
-    envActive.innerHTML='';
+    envActive.replaceChildren();
     Object.keys(env).forEach(k=>{ const b=document.createElement('span'); b.className='pill'; b.textContent=k; envActive.appendChild(b); });
   }
   // Also mirror into header next to Batch progress
   const topWrap = document.getElementById('activeEnvTopWrap');
   const top = document.getElementById('activeEnvTop');
   if (topWrap && top){
-    top.innerHTML='';
+    top.replaceChildren();
     const keys = Object.keys(env);
     if (keys.length){
       topWrap.classList.remove('invisible');
-      keys.slice(0,12).forEach(k=>{ const b=document.createElement('span'); b.className='pill'; b.textContent=k; b.style.fontSize='10px'; top.appendChild(b); });
+      keys.slice(0,12).forEach(k=>{
+        const b = document.createElement('span');
+        b.className = 'pill text-10';
+        b.textContent = k;
+        top.appendChild(b);
+      });
     } else {
       topWrap.classList.add('invisible');
     }
@@ -108,19 +122,41 @@ function downloadRun(format) {
 // Theme helpers
 function themeToDaisy(name){
   switch(name){
+    case 'light': return 'light';
     case 'dark': return 'dark';
     case 'synthwave': return 'synthwave';
     case 'hack': return 'forest';
     case 'catppuccin-mocha': return 'dracula';
     case 'catppuccin-latte': return 'cupcake';
+    case 'catppuccin-frappe': return 'nord';
+    case 'catppuccin-macchiato': return 'dracula';
+    case 'nord': return 'nord';
+    case 'dracula': return 'dracula';
+    case 'monokai': return 'night';
+    case 'gruvbox-dark': return 'coffee';
+    case 'gruvbox-light': return 'autumn';
+    case 'solarized-dark': return 'night';
+    case 'solarized-light': return 'winter';
+    case 'tokyo-night': return 'night';
+    case 'one-dark-pro': return 'dim';
+    case 'palenight': return 'night';
+    case 'rose-pine': return 'sunset';
+    case 'everforest-dark': return 'forest';
+    case 'everforest-light': return 'garden';
+    case 'ayu-dark': return 'black';
     default: return 'light';
   }
 }
 
 function isDocDark(){
-  return document.body.classList.contains('dark') ||
-         document.body.classList.contains('hack') ||
-         document.body.classList.contains('catppuccin-mocha');
+  const b = document.body.classList;
+  if (b.contains('dark')) return true;
+  const darkClasses = [
+    'hack', 'synthwave', 'catppuccin-mocha', 'catppuccin-frappe', 'catppuccin-macchiato',
+    'nord', 'dracula', 'monokai', 'gruvbox-dark', 'solarized-dark', 'tokyo-night',
+    'one-dark-pro', 'palenight', 'rose-pine', 'everforest-dark', 'ayu-dark'
+  ];
+  return darkClasses.some(c => b.contains(c));
 }
 
 function applyTheme(name){
@@ -142,24 +178,29 @@ function applyTheme(name){
   }
 
   // Remove all theme classes first
-  document.body.classList.remove('dark', 'synthwave', 'hack', 'catppuccin-mocha', 'catppuccin-latte');
-  
-  // Add the appropriate theme class
-  if (name === 'dark' || name === 'synthwave') {
-    document.body.classList.add('dark');
-  }
-  if (name === 'synthwave') {
-    document.body.classList.add('synthwave');
-  }
-  if (name === 'hack') {
-    document.body.classList.add('hack');
-  }
-  if (name === 'catppuccin-mocha') {
-    document.body.classList.add('catppuccin-mocha');
-  }
-  if (name === 'catppuccin-latte') {
-    document.body.classList.add('catppuccin-latte');
-  }
+  document.body.classList.remove(
+    'dark', 'synthwave', 'hack', 'catppuccin-mocha', 'catppuccin-latte',
+    'catppuccin-frappe', 'catppuccin-macchiato', 'nord', 'dracula', 'monokai',
+    'gruvbox-dark', 'gruvbox-light', 'solarized-dark', 'solarized-light',
+    'tokyo-night', 'one-dark-pro', 'palenight', 'rose-pine', 'everforest-dark',
+    'everforest-light', 'ayu-dark'
+  );
+
+  // Add the appropriate theme class + ensure dark base for dark themes
+  const darkSet = new Set([
+    'dark', 'synthwave', 'hack', 'catppuccin-mocha', 'catppuccin-frappe', 'catppuccin-macchiato',
+    'nord', 'dracula', 'monokai', 'gruvbox-dark', 'solarized-dark', 'tokyo-night',
+    'one-dark-pro', 'palenight', 'rose-pine', 'everforest-dark', 'ayu-dark'
+  ]);
+  if (darkSet.has(name)) document.body.classList.add('dark');
+
+  // Add specific class if not plain light/dark
+  const specificClasses = new Set([
+    'synthwave','hack','catppuccin-mocha','catppuccin-latte','catppuccin-frappe','catppuccin-macchiato',
+    'nord','dracula','monokai','gruvbox-dark','gruvbox-light','solarized-dark','solarized-light',
+    'tokyo-night','one-dark-pro','palenight','rose-pine','everforest-dark','everforest-light','ayu-dark'
+  ]);
+  if (specificClasses.has(name)) document.body.classList.add(name);
   
   try { localStorage.setItem('hydreq.theme', name); } catch{}
   // Sync CodeMirror theme if available

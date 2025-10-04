@@ -1,0 +1,8 @@
+/* Catppuccin Latte (light) */
+body.catppuccin-latte {
+  --hdr-bg:#eff1f5; --hdr-fg:#4c4f69; --bd:#bcc0cc; --li-hov:#e6e9ef; --li-sel:#dce0e8; --pill:#e6e9ef; --pg-bg:#e6e9ef; --txt:#4c4f69; --bg:#fafafa;
+  --btn-bg:#ffffff; --btn-bd:#ccd0da; --btn-hov:#e6e9ef; --link:#1e66f5;
+  --input-bg:#ffffff; --input-bd:#ccd0da; --input-fg:#4c4f69; --input-focus:#1e66f5;
+  --success:#40a02b; --error:#d20f39; --warning:#df8e1d; --info:#1e66f5;
+  --grad1:#1e66f5; --grad2:#40a02b;
+}

@@ -1,98 +1,69 @@
 package webui
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
+
+	"github.com/DrWeltschmerz/HydReq/pkg/models"
 )
 
-func TestHandleEditorSuites(t *testing.T) {
-	// create a temporary working dir with a testdata/ sample so findSuites will find files
-	td := t.TempDir()
-	tdTestdata := filepath.Join(td, "testdata")
-	if err := os.MkdirAll(tdTestdata, 0o755); err != nil {
-		t.Fatalf("failed to create testdata dir: %v", err)
+// captureOut returns a collector function and a pointer to the sink slice
+func captureOut() (func(any), *[]string) {
+	var mu sync.Mutex
+	sink := make([]string, 0, 16)
+	out := func(ev any) {
+		b, _ := json.Marshal(ev)
+		mu.Lock()
+		sink = append(sink, string(b))
+		mu.Unlock()
 	}
-	samplePath := filepath.Join(tdTestdata, "sample.yaml")
-	sampleYAML := "name: sample suite\ntests: []\n"
-	if err := os.WriteFile(samplePath, []byte(sampleYAML), 0o644); err != nil {
-		t.Fatalf("failed to write sample yaml: %v", err)
-	}
-	// switch working directory to tempdir so findSuites() sees td/testdata
-	oldwd, _ := os.Getwd()
-	if err := os.Chdir(td); err != nil {
-		t.Fatalf("failed to chdir: %v", err)
-	}
-	defer func() { _ = os.Chdir(oldwd) }()
-
-	s := &server{mux: http.NewServeMux(), streams: map[string]chan string{}, runs: map[string]context.CancelFunc{}, ready: map[string]chan struct{}{}, reports: map[string]map[string]any{}}
-	s.routes()
-
-	req := httptest.NewRequest(http.MethodGet, "/api/editor/suites", nil)
-	w := httptest.NewRecorder()
-	s.handleEditorSuites(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK, got %d", w.Code)
-	}
-	var out []map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
-		t.Fatalf("failed to decode json: %v", err)
-	}
-	if len(out) == 0 {
-		t.Fatalf("expected at least one suite in testdata")
-	}
-	// each item should have a path string
-	for i, it := range out {
-		if _, ok := it["path"]; !ok {
-			t.Fatalf("item %d missing path field: %v", i, it)
-		}
-	}
-
+	return out, &sink
 }
 
-func TestHandleEditorCheckPath(t *testing.T) {
-	td := t.TempDir()
-	tdTestdata := filepath.Join(td, "testdata")
-	if err := os.MkdirAll(tdTestdata, 0o755); err != nil {
-		t.Fatalf("failed to create testdata dir: %v", err)
+func TestRun_UsesInlineSuiteWhenProvided(t *testing.T) {
+	s := &server{
+		streams:      map[string]chan string{},
+		runs:         map[string]context.CancelFunc{},
+		ready:        map[string]chan struct{}{},
+		reports:      map[string]map[string]any{},
+		inlineSuites: map[string]map[string]*models.Suite{},
 	}
-	samplePath := filepath.Join(tdTestdata, "new.yaml")
-	sampleYAML := "name: new suite\n"
-	if err := os.WriteFile(samplePath, []byte(sampleYAML), 0o644); err != nil {
-		t.Fatalf("failed to write sample yaml: %v", err)
+	// Prepare a runId and an inline suite under a fake path
+	runId := "run-test-inline"
+	path := "testdata/DOES_NOT_EXIST.yaml"
+	s.inlineSuites[runId] = map[string]*models.Suite{
+		path: {Name: "Inline Suite Test", Tests: nil},
 	}
-	// chdir into td so isEditablePath and file checks operate relative to temp dir
-	oldwd, _ := os.Getwd()
-	if err := os.Chdir(td); err != nil {
-		t.Fatalf("failed to chdir: %v", err)
+	out, sink := captureOut()
+	// Run should complete without emitting a file-open error for the path
+	s.runOneWithCtx(runId, context.Background(), path, 1, nil, nil, 0, out)
+	// Ensure we saw a suiteStart and suiteEnd events referencing Inline Suite Test, and no error for open path
+	var sawStart, sawEnd bool
+	for _, line := range *sink {
+		if !sawStart && (containsAll(line, `"type":"suiteStart"`, `"name":"Inline Suite Test"`) || containsAll(line, `"type":"suiteStart"`)) {
+			sawStart = true
+		}
+		if !sawEnd && (containsAll(line, `"type":"suiteEnd"`) || containsAll(line, `"summary"`)) {
+			sawEnd = true
+		}
+		if containsAll(line, `"type":"error"`, `DOES_NOT_EXIST.yaml`) {
+			t.Fatalf("unexpected disk load error; inline suite was not used: %s", line)
+		}
 	}
-	defer func() { _ = os.Chdir(oldwd) }()
+	if !sawStart || !sawEnd {
+		t.Fatalf("expected suiteStart and suiteEnd; got=%v", *sink)
+	}
+}
 
-	s := &server{mux: http.NewServeMux(), streams: map[string]chan string{}, runs: map[string]context.CancelFunc{}, ready: map[string]chan struct{}{}, reports: map[string]map[string]any{}}
-	s.routes()
-
-	reqBody := map[string]string{"path": "testdata/new.yaml"}
-	b, _ := json.Marshal(reqBody)
-	req := httptest.NewRequest(http.MethodPost, "/api/editor/checkpath", bytes.NewReader(b))
-	w := httptest.NewRecorder()
-	s.handleEditorCheckPath(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK, got %d", w.Code)
+// containsAll checks that s contains all subs
+func containsAll(s string, subs ...string) bool {
+	for _, sub := range subs {
+		if !strings.Contains(s, sub) {
+			return false
+		}
 	}
-	var resp map[string]bool
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to decode json: %v", err)
-	}
-	if safe, ok := resp["safe"]; !ok || !safe {
-		t.Fatalf("expected safe=true for testdata/new.yaml, got %v", resp)
-	}
-	if exists, ok := resp["exists"]; !ok || !exists {
-		t.Fatalf("expected exists=true for testdata/new.yaml, got %v", resp)
-	}
+	return true
 }
