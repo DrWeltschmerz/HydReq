@@ -1,5 +1,6 @@
 # CLI
 
+> Note: A consolidated overview lives in [USER_GUIDE](./USER_GUIDE.md). This page remains for detailed flags/examples and may be trimmed over time.
 Run all suites (default):
 ```
 ./hydreq run --workers 4 -v

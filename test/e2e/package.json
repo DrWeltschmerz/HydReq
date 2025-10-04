@@ -5,6 +5,7 @@
     "@playwright/test": "^1.50.0"
   },
   "scripts": {
-    "test": "playwright test --reporter=list"
+    "test": "playwright test --reporter=list",
+    "demo": "DEMO=1 playwright test --reporter=html"
   }
 }

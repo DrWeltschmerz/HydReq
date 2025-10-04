@@ -111,13 +111,13 @@ a { color: var(--link); }
 #editorModal .editor-root.comfortable #ed_retry_form,
 #editorModal .editor-root.comfortable #ed_oapi_form { gap: 10px !important; }
 /* Overlay and modal layout classes */
-#editorModal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; }
-.editor-root { background: var(--bg); color: var(--txt); position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 90vw; height: 88vh; border: 1px solid var(--bd); border-radius: 8px; display: flex; flex-direction: column; min-height: 0; }
+#editorModal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; overflow: hidden; }
+.editor-root { background: var(--bg); color: var(--txt); position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: min(1200px, 96%); max-width: 96%; height: min(88vh, 920px); border: 1px solid var(--bd); border-radius: 8px; display: flex; flex-direction: column; min-height: 0; box-sizing: border-box; }
 .ed-header { padding: 8px 12px; border-bottom: 1px solid var(--bd); display: flex; gap: 12px; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg); z-index: 2; }
 .ed-header-left { display: flex; align-items: center; gap: 12px; }
 .ed-actions { display: flex; gap: 8px; align-items: center; }
 .ed-main { display: flex; gap: 8px; flex: 1; overflow: hidden; min-height: 0; align-items: stretch; }
-.ed-pane { display: flex; flex-direction: row; flex: 1 1 auto; gap: 8px; overflow: auto; padding: 8px; min-width: 0; min-height: 0; }
+.ed-pane { display: flex; flex-direction: row; flex: 1 1 auto; gap: 8px; overflow: auto; padding: 8px; min-width: 0; min-height: 0; box-sizing: border-box; }
 .ed-test-container {
   border-bottom: 1px solid var(--bd);
 }
@@ -167,6 +167,7 @@ a { color: var(--link); }
   min-height: 0; 
   min-width: 520px; 
   padding: 4px 8px 8px 4px; /* ensure right-side breathing room */
+  box-sizing: border-box;
 }
 .ed-panel { border: 1px solid var(--bd); border-radius: 6px; overflow: visible; }
 .ed-panel.tight { overflow: hidden; }
@@ -178,7 +179,7 @@ a { color: var(--link); }
 .ed-spacer-8 { height: 8px; }
 .ed-subhead { font-weight: 600; margin-bottom: 6px; }
 .ed-splitter { flex: 0 0 6px; cursor: col-resize; background: var(--bd); border-radius: 4px; align-self: stretch; }
-.ed-right { flex: 0 1 30%; margin: 8px; border: 1px solid var(--bd); border-radius: 6px; display: flex; flex-direction: column; min-width: 340px; max-width: 50%; resize: horizontal; overflow: auto; min-height: 0; }
+.ed-right { flex: 0 1 30%; margin: 8px; border: 1px solid var(--bd); border-radius: 6px; display: flex; flex-direction: column; min-width: 340px; max-width: 50%; resize: horizontal; overflow: auto; min-height: 0; box-sizing: border-box; }
 .ed-right-title { padding: 8px; border-bottom: 1px solid var(--bd); font-weight: 600; position: sticky; top: 0; background: var(--bg); z-index: 1; }
 .ed-preview { padding: 8px; overflow: auto; display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; }
 .ed-section { border: 1px solid var(--bd); border-radius: 6px; overflow: auto; display: flex; flex-direction: column; min-height: 0; }
@@ -365,3 +366,10 @@ a { color: var(--link); }
 #col-yaml .ed-col-content { overflow: hidden; }
 #ed_yaml_editor, #pane_yaml { height: 100%; }
 .CodeMirror { height: 100%; min-height: 180px; }
+
+/* Avoid horizontal overflow causing right-side gutters */
+.editor-root, .ed-main, .ed-pane, .ed-center, .ed-right, .ed-tests-list, .ed-preview, .ed-section, .ed-col-content {
+  max-width: 100%;
+}
+
+/* Note: Avoid global scrollbar-gutter for broader browser compatibility. */

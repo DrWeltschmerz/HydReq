@@ -31,7 +31,8 @@
     </td>
     <td valign="top" align="right" width="20%">
       <p style="text-align:right; margin:0;">
-        <a href="docs/README.md">📖 Full Docs</a><br>
+  <a href="docs/USER_GUIDE.md">📖 User Guide (UI & CLI)</a><br>
+  <a href="docs/README.md">� Full Docs Index</a><br>
         <a href="docs/getting-started.md">🚀 Quick Start</a><br>
         <a href="docs/examples.md">🧪 Examples</a><br>
         <a href="#copilot-and-editor-support">🤖 Copilot Setup</a></br>
@@ -62,6 +63,7 @@
   - [Adapters (import)](#adapters-import)
   - [Reports](#reports)
   - [Screenshots & E2E demo](#screenshots--e2e-demo)
+  - [User Guide](#user-guide)
   - [Batch run and summaries](#batch-run-and-summaries)
   - [Example suites (at a glance)](#example-suites-at-a-glance)
 - [Contributing & development](#contributing--development)
@@ -344,6 +346,33 @@ hydreq import newman path/to/collection.json --env path/to/environment.json > su
 
 - CI publishes a Playwright HTML report for each run (Actions → CI → Artifacts → playwright-report).
 - Locally, run Playwright from `test/e2e` to exercise the Web UI; screenshots/videos are retained on failure. You can open `test/e2e/playwright-report/index.html` after a run.
+
+To record a short demo run (Full HD viewport):
+
+```bash
+cd test/e2e
+npm install
+npx playwright install --with-deps
+DEMO=1 npm run demo
+# Open report: test/e2e/playwright-report/index.html
+```
+
+This captures video/screenshots and runs the browser in slow motion for smoother demos.
+
+<details>
+<summary>Demo (click to expand)</summary>
+
+<video src="docs/screenshots/demo.webm" width="960" controls muted loop></video>
+
+</details>
+
+### User Guide
+
+Prefer a single, robust guide to all features? Start here:
+
+- docs/USER_GUIDE.md — UI + CLI in one place, with links to screenshots and the detailed Visual Editor guide.
+
+Maintenance note: Prefer updating the single User Guide and Visual Editor guide when features change, and prune overlapping sections in other docs over time to reduce duplication.
 
 ### Batch run and summaries
 

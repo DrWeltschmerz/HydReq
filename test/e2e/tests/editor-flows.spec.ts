@@ -41,10 +41,10 @@ test.describe("Editor flows with screenshots", () => {
     // Set method to GET and URL to /status/200 (works with httpbin)
     const method = modal.locator("#ed_method");
     const url = modal.locator("#ed_url");
-      if (await method.count()) {
-        await method.waitFor({ state: 'visible' });
-        await method.selectOption('GET');
-      }
+    if (await method.count()) {
+      await method.waitFor({ state: "visible" });
+      await method.selectOption("GET");
+    }
     if (await url.count()) await url.fill("/status/200");
 
     // 6) Run selected test from editor (quick run)

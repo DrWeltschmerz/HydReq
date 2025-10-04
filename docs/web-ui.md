@@ -1,5 +1,6 @@
 # Web UI
 
+> Quick start and screenshots: see the [USER_GUIDE](./USER_GUIDE.md) and [Visual Editor Guide](./visual-editor.md). This page focuses on architecture and deeper notes.
 - Launch: run `hydreq` with no arguments (or `hydreq gui`). The browser opens at `http://127.0.0.1:8787`.
 - To run with prepopulated environment variables from a `.env` file (in the same folder as the binary), use: `HYDREQ_ENV_UI=1 ./bin/hydreq gui --detach`.
 - Controls: Only failed, Auto-scroll, Theme selector (light/dark and more), Stop. Keyboard shortcuts: r=run, s=stop, c=clear, f=only failed, d=dark.
