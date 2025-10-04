@@ -61,6 +61,7 @@
   - [Docker usage](#docker-usage)
   - [Adapters (import)](#adapters-import)
   - [Reports](#reports)
+  - [Screenshots & E2E demo](#screenshots--e2e-demo)
   - [Batch run and summaries](#batch-run-and-summaries)
   - [Example suites (at a glance)](#example-suites-at-a-glance)
 - [Contributing & development](#contributing--development)
@@ -338,6 +339,11 @@ hydreq import newman path/to/collection.json --env path/to/environment.json > su
 
 - JSON, JUnit, and HTML detailed reports include per-test entries and suite summaries. HTML reports are theme-aware (same palette as the Web UI) and include donut charts, filters, and sticky headers.
 - Using `--report-dir` generates timestamped per-suite artifacts and run-level (batch) artifacts: `run-<timestamp>.{json,xml,html}`.
+
+### Screenshots & E2E demo
+
+- CI publishes a Playwright HTML report for each run (Actions → CI → Artifacts → playwright-report).
+- Locally, run Playwright from `test/e2e` to exercise the Web UI; screenshots/videos are retained on failure. You can open `test/e2e/playwright-report/index.html` after a run.
 
 ### Batch run and summaries
 

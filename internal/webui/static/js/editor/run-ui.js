@@ -2,7 +2,7 @@
   function prepare(modal, label){
     try{
       const quickRunBox = modal.querySelector('#ed_quickrun');
-      if (quickRunBox) quickRunBox.innerHTML = `<div>Running ${label}...</div>`;
+  if (quickRunBox){ while (quickRunBox.firstChild) quickRunBox.removeChild(quickRunBox.firstChild); const d=document.createElement('div'); d.textContent = `Running ${label}...`; quickRunBox.appendChild(d); }
       const quickRunDetails = modal.querySelector('#ed_quickrun_box');
       if (quickRunDetails) quickRunDetails.open = true;
     }catch{}
@@ -55,8 +55,7 @@
       try{
         const s = summary || {};
         if (typeof appendQuickRunLine==='function') appendQuickRunLine(`=== ${name || 'suite'} — ${(s.passed||0)} passed, ${(s.failed||0)} failed, ${(s.skipped||0)} skipped, total ${(s.total||0)} in ${(s.durationMs||0)} ms`);
-        const st = ((s.failed||0)>0)? 'failed' : (((s.passed||0)>0)? 'passed' : (((s.skipped||0)>0)? 'skipped' : 'unknown'));
-        if (typeof setSuiteRecord==='function') setSuiteRecord(st, s.durationMs||0, []);
+        // Do not force suite status directly here; per-test updates drive aggregation
   try{ (tests||[]).forEach(t=>{ const nm = t.name; const idx = typeof getTestIndexByName==='function' ? getTestIndexByName(nm) : -1; if (idx>=0 && typeof updateTestBadgeByIndex==='function') updateTestBadgeByIndex(idx, t.status, t.messages||[], nm); }); }catch{}
       }catch{}
     };

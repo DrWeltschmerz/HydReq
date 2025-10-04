@@ -12,7 +12,7 @@
       if (!rawEl) return null;
       if (window.hydreqEditorYAML && typeof window.hydreqEditorYAML.mount === 'function'){
         yamlEditor = window.hydreqEditorYAML.mount(rawEl);
-        try{ var el = yamlEditor && yamlEditor.getWrapperElement ? yamlEditor.getWrapperElement() : null; if (el) el.style.height = '100%'; }catch{}
+        try{ var el = yamlEditor && yamlEditor.getWrapperElement ? yamlEditor.getWrapperElement() : null; if (el) el.classList.add('h-100'); }catch{}
         setTimeout(function(){ try{ yamlEditor && yamlEditor.refresh && yamlEditor.refresh(); }catch{} }, 0);
         return yamlEditor;
       }
@@ -43,7 +43,8 @@
       try{
         var cur = getText();
         var isDirty = (baselineYaml || '') !== (cur || '');
-        var di = modal.querySelector('#ed_dirty_indicator'); if (di) di.style.display = isDirty ? '' : 'none';
+        var di = modal.querySelector('#ed_dirty_indicator');
+        if (di){ if (isDirty){ di.classList.remove('hidden'); } else { di.classList.add('hidden'); } }
         if (window.hydreqEditorState && window.hydreqEditorState.setDirty) window.hydreqEditorState.setDirty(isDirty);
         
       }catch{}
@@ -52,7 +53,7 @@
     function resetBaseline(){
       try{ 
         baselineYaml = getText() || ''; 
-        var di = modal.querySelector('#ed_dirty_indicator'); if (di) di.style.display = 'none';
+        var di = modal.querySelector('#ed_dirty_indicator'); if (di) di.classList.add('hidden');
         try{ if (window.hydreqEditorState && window.hydreqEditorState.setDirty) window.hydreqEditorState.setDirty(false); }catch{}
         
       }catch{}

@@ -1,7 +1,7 @@
 (function(){
   function render(modal, tests, selIndex, { onSelect, onDelete, getResult }){
-    const testsEl = modal.querySelector('#ed_tests'); if (!testsEl) return;
-    testsEl.innerHTML = '';
+  const testsEl = modal.querySelector('#ed_tests'); if (!testsEl) return;
+  while (testsEl.firstChild) testsEl.removeChild(testsEl.firstChild);
     if (!Array.isArray(tests)) return;
     tests.forEach((test, index)=>{
       const testContainer = document.createElement('div'); testContainer.className='ed-test-container';

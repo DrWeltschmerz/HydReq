@@ -1,41 +1,62 @@
 # Visual YAML Editor (beta)
 
-The Web UI includes a visual editor for suite YAMLs. It aims to keep authoring fast and safe while preserving a minimal YAML style on save.
+The Web UI includes a visual editor for suite YAMLs. Author tests quickly in forms, validate in real time, and keep your YAML clean on save.
 
-What you can do
-- Browse tests and add/delete tests.
-- Edit Request: method, URL path, timeout, headers, query, body (JSON or text).
-- Define Assertions: status, headers, JSON equals/contains, body contains, max duration.
-- Extract variables (JSONPath via gjson syntax, e.g. `json.id`, `data.items.0.id`).
-- Flow & Meta: skip/only, stage, tags, dependsOn, timeout.
-- Retry: max/backoff/jitter.
-- Matrix: simple var -> [values] lists.
-- OpenAPI: per-test override to inherit/enable/disable.
+![Home — suites list](../docs/screenshots/home.png)
+
+## What you can do
+
+- Browse, add, and delete tests.
+- Request editor: method, URL/path, timeout, headers, query, body (JSON or text).
+- Assertions: status, header equals, JSON equals/contains, body contains, max response time.
+- Extract: capture values via gjson paths (examples: `json.id`, `data.items.0.id`).
+- Flow & meta: skip/only, stage, tags, dependsOn, timeout.
+- Retry: max/backoff/jitter with optional jitter %.
+- Matrix: var → [values] for cartesian expansion.
+- OpenAPI: per-test override (inherit/enable/disable); suite-level OpenAPI in the Suite tab.
 - Hooks (HTTP/SQL):
-	- Add hook rows via a template selector (Empty/HTTP/SQL). The mode is locked per row and only relevant fields are shown.
-	- HTTP: method, URL, headers, query, body.
-	- SQL: driver (sqlite/pgx/sqlserver), DSN with show/hide, one-click DSN templates, query, extract column->var mapping.
-	- Collapse/expand each row, and see a type badge (HTTP/SQL).
-	- Convert… action to switch modes (optional).
-	- Run a single hook inline to see pass/fail, messages, and extracted vars.
+  - Add hook rows via templates (Empty/HTTP/SQL). Each row locks its mode and shows only relevant fields.
+  - HTTP hooks: method, URL, headers, query, body.
+  - SQL hooks: driver (sqlite/pgx/sqlserver), DSN with show/hide, DSN templates, query, extract column→var.
+  - Collapse/expand rows; badges show HTTP/SQL; inline “Run” to validate that hook and view messages/extracted vars.
 
-YAML tab and mirroring
-- Live two‑way sync:
-	- YAML → Visual: when YAML parses, Visual re-enables and repopulates immediately.
-	- Visual → YAML: all controls (suite/request/assertions/extract/flow/retry/matrix/hooks) update YAML live; add/remove rows are captured.
-- Malformed YAML: Visual is disabled but YAML stays editable so you can fix it; tabs are auto‑converted to spaces.
-- Save from YAML preserves your formatting/comments; Visual save uses a minimal, stable format.
+![Editor — open](../docs/screenshots/editor-open.png)
 
-Quick Run and validation
-- Quick Run executes the currently selected test (or the whole suite from the YAML tab). Toggle “with deps” to include transitive dependsOn.
-- Validation shows severity and path, with friendlier YAML errors (line numbers, and a hint when tabs are detected). Copy collects issues plus the YAML preview.
+## YAML tab and two-way sync
 
-Quality-of-life
-- Save vs Save & Close. Saves are atomic and create timestamped backups.
-- Dark theme by default; density toggle (compact/comfortable); resizable preview pane; sticky headers.
-- Per-test quick-run cache and badges.
+- Live roundtrip:
+  - YAML → Visual: when YAML parses, the Visual tab immediately refreshes and re-enables.
+  - Visual → YAML: every control change updates YAML live, including add/remove rows.
+- Malformed YAML keeps the YAML tab editable and temporarily disables the Visual tab. Tabs are auto‑converted to spaces.
+- Save from YAML preserves your formatting/comments; Save from Visual writes a minimal stable YAML with `omitempty`.
 
-Notes
+## Quick Run and validation
+
+- Quick Run executes just the selected test (or the whole suite from the YAML tab). You can toggle:
+  - “with deps” — include transitive `dependsOn` chain.
+  - “with previous stages” — include all earlier stages before the selected test.
+- Validation aggregates schema errors with file/line and friendly hints (e.g., when tabs are detected). You can copy the issues list with the YAML preview.
+
+![Editor — quick run passed](../docs/screenshots/editor-run-pass.png)
+
+## Batch run from the main view
+
+- Select suites in the list and press Run to execute in stages with real-time progress and logs.
+- The console shows a start line and a result line per test. Failures include collapsible details.
+- Headers allow filtering only-failed, toggling auto-scroll, and switching themes.
+
+![Batch run](../docs/screenshots/batch-run.png)
+
+## Tips and shortcuts
+
+- Keyboard: r (run), s (stop), c (clear), f (only failed), d (dark).
+- Theme selector and density toggle for comfortable editing.
+- Download JSON/JUnit/HTML run artifacts from the UI; for CI, prefer CLI `--report-*` flags or `--report-dir`.
+- Active environment overrides and tags are visible as pills in the header and rehydrate on refresh.
+
+## Notes
+
 - Edits are restricted to `testdata/`.
-- The YAML output from Visual save uses `omitempty` across models to avoid emitting empty values. Strings that might be misread (e.g., `yes`, `on`, numeric-looking) will be quoted for correctness.
-- More validations (engine-level and OpenAPI checks) will continue to improve.
+- YAML serialization uses `omitempty` so empty fields are omitted; strings that could be misread (yes/on/numeric-looking) are quoted.
+- OpenAPI validation runs when configured at the suite level and enabled for the test.
+- More engine-level validations will continue to improve over time.

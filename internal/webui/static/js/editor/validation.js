@@ -29,17 +29,17 @@
 
   function showFieldValidation(element, errors){
     try{
-      element.classList.remove('border-red-500','border-green-500');
+      element.classList.remove('border-red-500','border-green-500','border-2','border');
       const existing = element.parentNode && element.parentNode.querySelector ? element.parentNode.querySelector('.validation-error') : null;
       if (existing) existing.remove();
       if (errors.length){
-        element.style.borderColor = '#ef4444'; element.style.borderWidth = '2px';
+        element.classList.add('border-red-500','border-2');
         const div = document.createElement('div');
-        div.className='validation-error'; div.style.color='#ef4444'; div.style.fontSize='12px'; div.style.marginTop='2px';
+        div.className='validation-error text-error text-12 mt-2';
         div.textContent = errors[0];
         if (element.parentNode) element.parentNode.insertBefore(div, element.nextSibling);
       } else {
-        element.style.borderColor = '#10b981'; element.style.borderWidth = '1px';
+        element.classList.add('border-green-500','border');
       }
     }catch{}
   }

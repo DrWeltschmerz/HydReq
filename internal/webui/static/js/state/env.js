@@ -19,15 +19,15 @@
     try{
       const envActive = document.getElementById(targetId||'env_active');
       if (envActive){
-        envActive.innerHTML='';
+        while (envActive.firstChild) envActive.removeChild(envActive.firstChild);
         Object.keys(env).forEach(k=>{ const b=document.createElement('span'); b.className='pill'; b.textContent=k; envActive.appendChild(b); });
       }
       const topWrap = document.getElementById('activeEnvTopWrap');
       const top = document.getElementById('activeEnvTop');
       if (topWrap && top){
-        top.innerHTML='';
+        while (top.firstChild) top.removeChild(top.firstChild);
         const keys = Object.keys(env);
-        if (keys.length){ topWrap.classList.remove('invisible'); keys.slice(0,12).forEach(k=>{ const b=document.createElement('span'); b.className='pill'; b.textContent=k; b.style.fontSize='10px'; top.appendChild(b); }); }
+        if (keys.length){ topWrap.classList.remove('invisible'); keys.slice(0,12).forEach(k=>{ const b=document.createElement('span'); b.className='pill text-10'; b.textContent=k; top.appendChild(b); }); }
         else { topWrap.classList.add('invisible'); }
       }
     }catch{}

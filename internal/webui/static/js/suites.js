@@ -65,7 +65,7 @@ function renderSuites(list){
         // Toggle handling is managed by view; now fetch tests when not loaded
         if (expandBtn.dataset.loaded === '1') {
           // ensure visible if already loaded
-          try{ testsDiv.classList.add('open'); testsDiv.style.display = 'block'; }catch(e){}
+          try{ testsDiv.classList.add('open'); if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.show) window.hydreqSuitesDOM.show(testsDiv); }catch(e){}
           // No pending buffer
           try{ hydrateFromSummary(pathKey); }catch(e){}
           if (expandBtn._resolveExpand) { expandBtn._resolveExpand(); expandBtn._expandPromise = null; expandBtn._resolveExpand = null; }
@@ -82,7 +82,7 @@ function renderSuites(list){
           const res = await fetch('/api/editor/suite?path='+p);
           if (res.ok){
             const dd = await res.json(); const parsed = dd.parsed || dd; const tests = (parsed && parsed.tests) ? parsed.tests : [];
-            testsDiv.innerHTML='';
+            while (testsDiv.firstChild) testsDiv.removeChild(testsDiv.firstChild);
             const selectedArr = Array.from(selected);
             tests.forEach(t=>{
               const statusMap = lastStatus.get(pathKey) || new Map();
@@ -120,11 +120,11 @@ function renderSuites(list){
             });
             expandBtn.dataset.loaded = '1';
             // make tests visible after load
-            try{ testsDiv.classList.add('open'); testsDiv.style.display = 'block'; }catch(e){}
+            try{ testsDiv.classList.add('open'); if (window.hydreqSuitesDOM && window.hydreqSuitesDOM.show) window.hydreqSuitesDOM.show(testsDiv); }catch(e){}
             // No pending buffer
             try{ hydrateFromSummary(pathKey); }catch(e){}
           }
-        }catch(err){ try{ testsDiv.innerHTML = '<div class="dim">Failed to load tests</div>'; }catch(e){} }
+  }catch(err){ try{ while (testsDiv.firstChild) testsDiv.removeChild(testsDiv.firstChild); const d=document.createElement('div'); d.className='dim'; d.textContent='Failed to load tests'; testsDiv.appendChild(d); }catch(e){} }
         try{ if (spinner && spinner.parentNode) spinner.remove(); }catch(e){}
         try{
           const id = 'tests-' + slugify(pathKey);
@@ -210,6 +210,27 @@ function renderSuites(list){
           }catch(e){}
         });
       }catch(e){}
+  // Patch suite badges from store to avoid visual reset after rerender
+      try{
+        if (window.hydreqStore && window.hydreqSuitesDOM){
+          Array.from(document.querySelectorAll('#suites li')).forEach(li => {
+            try{
+              const path = li.getAttribute('data-path') || '';
+              if (!path) return;
+              const suiteObj = window.hydreqStore.getSuite(path);
+              if (!suiteObj) return; // no store info for this suite — don't touch existing UI state
+              const badge = (suiteObj.badge || '').toLowerCase();
+              if (!badge || badge === 'unknown') return; // avoid resetting to unknown
+              const sb = li.querySelector('.suite-badge');
+              if (!sb || !window.hydreqSuitesDOM.updateSuiteBadge) return;
+              const prev = (sb.dataset && sb.dataset.status) || 'unknown';
+              // Never downgrade failed → anything else here
+              if (prev === 'failed' && badge !== 'failed') return;
+              window.hydreqSuitesDOM.updateSuiteBadge(sb, badge);
+            }catch(e){}
+          });
+        }
+      }catch(e){}
     }catch(e){ console.error('suites-view render failed, falling back to inline implementation', e); }
   }catch(e){ console.error('renderSuites delegation failed', e); }
 }
@@ -217,49 +238,22 @@ function renderSuites(list){
 
 // Refresh the suite list from the server
 async function refresh(){
-  console.log('refresh: fetching /api/editor/suites');
+  // fetch suites list and render; keep logs minimal
   try {
     const res = await fetch('/api/editor/suites');
-    console.log('refresh: fetch complete, status=', res && res.status);
-    try{
-      window.__HYDREQ_REFRESH = window.__HYDREQ_REFRESH || {};
-      window.__HYDREQ_REFRESH.status = res && res.status;
-      console.log('refresh: set status to', window.__HYDREQ_REFRESH.status);
-    }catch{}
     let list = [];
     try {
       list = await res.json();
-      console.log(
-        'refresh: parsed JSON, list length:',
-        Array.isArray(list) ? list.length : 'not array'
-      );
     } catch (e) {
       console.error('refresh: failed parsing JSON', e);
     }
-    console.log('refresh: got list (len=', (Array.isArray(list)?list.length:0), ')');
-    try{
-      window.__HYDREQ_REFRESH.list = list;
-      window.__HYDREQ_REFRESH.len = Array.isArray(list) ? list.length : 0;
-      console.log('refresh: set list and len', window.__HYDREQ_REFRESH.len);
-    }catch{}
     try {
       renderSuites(list || []);
-      console.log('refresh: renderSuites completed');
     } catch (e) {
       console.error('refresh: renderSuites threw', e);
-      try{ window.__HYDREQ_REFRESH.err = String(e); }catch{}
     }
-    try {
-      const results = document.getElementById('results');
-      if (results) {
-        const d = document.createElement('div');
-        d.textContent = 'DEBUG: refresh list len=' + (Array.isArray(list) ? list.length : 0);
-        results.appendChild(d);
-      }
-    }catch(e){}
   } catch (err) {
     console.error('refresh: fetch failed', err);
-    try{ window.__HYDREQ_REFRESH = window.__HYDREQ_REFRESH || {}; window.__HYDREQ_REFRESH.err = String(err); }catch{}
   }
 }
 
@@ -357,7 +351,7 @@ function listen(id){
   renderHeaderTags();
   renderHeaderEnv();
   if (results) results.textContent=''; 
-  if (stages) stages.innerHTML=''; 
+  if (stages) { while (stages.firstChild) stages.removeChild(stages.firstChild); }
   if (batchBar) setBar(batchBar,0,1); 
   if (batchText) batchText.textContent = '0/0'; 
   if (suiteBar) setBar(suiteBar,0,1); 
@@ -366,7 +360,7 @@ function listen(id){
   // Handler implementations extracted from original ES onmessage
   function handleTestStart(payload){
     const {Name, Stage, path: evPath} = payload;
-    if (evPath && currentSuitePath && evPath !== currentSuitePath) return;
+  if (evPath && currentSuitePath && evPath !== currentSuitePath) return;
     const wrap = document.createElement('div');
     const line = document.createElement('div'); line.className='run'; line.textContent = '… ' + Name;
     wrap.appendChild(line);
@@ -384,23 +378,22 @@ function listen(id){
             if (!st || !stt){
               const d = document.createElement('div');
               d.className = 'row';
-              d.innerHTML =
-                '<div class="w-120px">stage ' + Stage + '</div>' +
-                '<div class="progress flex-1">' +
-                  '<div id="' + id + '" style="width:0%"></div>' +
-                '</div>' +
-                '<div class="pill" id="' + txt + '">0/0</div>';
+              const left = document.createElement('div'); left.className='w-120px'; left.textContent='stage ' + Stage;
+              const progWrap = document.createElement('div'); progWrap.className='progress flex-1';
+              const bar = document.createElement('div'); bar.id = id; setBar(bar,0,1); progWrap.appendChild(bar);
+              const pill = document.createElement('div'); pill.className='pill'; pill.id = txt; pill.textContent='0/0';
+              d.appendChild(left); d.appendChild(progWrap); d.appendChild(pill);
               if (stages) stages.appendChild(d);
               st = document.getElementById(id);
               stt = document.getElementById(txt);
             }
             return { barEl: st, textEl: stt, created: true };
           })();
-      if (created) dynamicStages.add(String(Stage));
+  if (created) dynamicStages.add(String(Stage));
       if (!suiteStagesFromStart.has(String(Stage))){
-        const parts = (stt.textContent||'0/0').split('/');
-        const done = parseInt(parts[0],10)||0; const total = (parseInt(parts[1],10)||0) + 1;
-        stt.textContent = done + '/' + total; st.style.width = pct(done,total)+'%';
+  const parts = (stt.textContent||'0/0').split('/');
+  const done = parseInt(parts[0],10)||0; const total = (parseInt(parts[1],10)||0) + 1;
+  stt.textContent = done + '/' + total; setBar(st, done, total);
       }
     }catch(e){}
     scrollBottom();
@@ -409,7 +402,7 @@ function listen(id){
   function handleBatchStart(payload){ batch.total = payload.total; batch.done = 0; if (batchBar) setBar(batchBar,0,batch.total); if (batchText) batchText.textContent = '0/' + batch.total; }
 
   async function handleSuiteStart(payload){
-    suite.total = payload.total; suite.done = 0; if (suiteBar) setBar(suiteBar,0,suite.total); if (suiteText) suiteText.textContent = '0/' + suite.total; if (stages) stages.innerHTML='';
+  suite.total = payload.total; suite.done = 0; if (suiteBar) setBar(suiteBar,0,suite.total); if (suiteText) suiteText.textContent = '0/' + suite.total; if (stages) { while (stages.firstChild) stages.removeChild(stages.firstChild); }
     if (currentSuiteEl) currentSuiteEl.textContent = (payload.name || payload.path || '');
   currentSuitePath = payload.path || payload.name || null;
   try{ if (window.hydreqSuitesState) window.hydreqSuitesState.setCurrentSuitePath(currentSuitePath); }catch(e){}
@@ -437,7 +430,7 @@ function listen(id){
         }
       }
     }catch(e){}
-  for(const k in stageMap){ try{ const { textEl, barEl } = window.hydreqSuitesDOM.ensureStageRow(k); if (textEl) textEl.textContent = '0/'+stageMap[k]; if (barEl) barEl.style.width = '0%'; }catch(e){} }
+  for(const k in stageMap){ try{ const { textEl, barEl } = window.hydreqSuitesDOM.ensureStageRow(k); if (textEl) textEl.textContent = '0/'+stageMap[k]; if (barEl) setBar(barEl, 0, stageMap[k]); }catch(e){} }
     try{ const target = payload.path || payload.name || ''; if (target) { try{ await expandSuiteByPath(target); }catch(e){} } }catch(e){}
   }
 
@@ -523,8 +516,8 @@ function listen(id){
   let st = null, stt = null;
   try{ const h = window.hydreqSuitesDOM.ensureStageRow(Stage); st = h.barEl; stt = h.textEl; }catch(e){}
     const isDynamic = !(suiteStagesFromStart && suiteStagesFromStart.has(String(Stage)));
-    if (hadStarted){ if(st && stt){ const txt = stt.textContent.split('/'); const done = (parseInt(txt[0],10)||0)+1; const total = parseInt(txt[1],10)||0; st.style.width = pct(done,total)+'%'; stt.textContent = done+'/'+total; } suite.done++; if (suiteBar) setBar(suiteBar, suite.done, suite.total); if (suiteText) suiteText.textContent = suite.done + '/' + suite.total; started.delete(skey); }
-    else { if(st && stt){ const txt = stt.textContent.split('/'); let done = parseInt(txt[0],10)||0; let total = parseInt(txt[1],10)||0; if (isDynamic) { total += 1; } done += 1; st.style.width = pct(done,total)+'%'; stt.textContent = done+'/'+total; } suite.done++; if (suiteBar) setBar(suiteBar, suite.done, suite.total); if (suiteText) suiteText.textContent = suite.done + '/' + suite.total; }
+  if (hadStarted){ if(st && stt){ const txt = stt.textContent.split('/'); const done = (parseInt(txt[0],10)||0)+1; const total = parseInt(txt[1],10)||0; setBar(st, done, total); stt.textContent = done+'/'+total; } suite.done++; if (suiteBar) setBar(suiteBar, suite.done, suite.total); if (suiteText) suiteText.textContent = suite.done + '/' + suite.total; started.delete(skey); }
+  else { if(st && stt){ const txt = stt.textContent.split('/'); let done = parseInt(txt[0],10)||0; let total = parseInt(txt[1],10)||0; if (isDynamic) { total += 1; } done += 1; setBar(st, done, total); stt.textContent = done+'/'+total; } suite.done++; if (suiteBar) setBar(suiteBar, suite.done, suite.total); if (suiteText) suiteText.textContent = suite.done + '/' + suite.total; }
     try {
       if (document.getElementById('editorModal')) return;
       const applyToLi = (li) => {

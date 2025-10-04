@@ -80,20 +80,29 @@ This is the authoritative snapshot of the Web UI refactor plan. It reflects the 
   - `.editorconfig` aligned with these rules (2 spaces, LF, UTF-8).
   - If linting is added later, codify the above via ESLint/Prettier configs without enforcing a build step.
 
-## Recent decisions (2025-10-03)
+## Recent decisions (2025-10-03 → 2025-10-04)
 
 - Editor clean-slate by default; persistence opt-in via `localStorage['hydreq.editor.persistRuns']='1'`.
 - Preserve prefill from suites view/store on editor open; immediate test-list render of badges.
 - Centralized propagation in `editor/run-records.js` plus `hydreq:editor:test:update` events; removed duplicate paths from handlers.
+ - Extract/Hook regression fixes:
+   - Extract: `editor.js` now uses `window.hydreqEditorTables.extractTable` for rendering and round-tripping mappings.
+   - Hooks: `forms/hooks.js` switched to namespaced `kvTable`; added empty-state toggling and deletion behavior; hook run uses centralized editor state for working/selIndex.
+ - SSE syntax error fix: `run-listener.js` header comment corrected to avoid parse error on page load.
+ - OpenAPI panel regression fix:
+   - Root cause: After modal refactor, the OpenAPI details panel was correctly built, but the form module did not enforce visibility, and some flows left the form under a hidden state. The `wire` function also did not ensure the `<details>` was open when wiring.
+   - Fix: In `forms/openapi.js`, ensure `#ed_oapi_form` has `.hidden` removed and its ancestor `<details>` is open during wiring; keep select value synced to `test.openApi.enabled`. Added unit test `editor-openapi.spec.js` to assert presence, visibility, and correct value.
+  - Also removed misleading `tight` class from OpenAPI and Matrix panels in `editor/modal.js` as it caused them to become visually collapsed/invisible under some styles; added `editor-matrix.spec.js` to assert Matrix panel visibility.
 
 ## Pain points (scan highlights)
 
-- Inline style usage
-  - `suites-dom.js`: setFlexRow/Col, show/hide, menu.style.display toggles.
-  - `suites.js`: testsDiv.style.display in expand handlers.
-  - `app.js`: debug banner sets `style.opacity`, `style.fontSize`.
-  - `editor.js`: dirty-indicator `style.display` writes.
-  - `editor/issues.js`: line spacing via `style.marginBottom`.
+- Inline style usage — largely removed
+  - Replaced remaining `.style.*` hotspots with classes/utilities where practical.
+  - suites progress bars now use `setBar()`; initial width is handled by CSS.
+  - Editor new-file banner uses badge classes instead of background/color/margin styles.
+  - Validation UI uses class tokens (`text-error`, `border-red-500`, etc.) instead of inline colors.
+  - Test harness feedback uses `text-success`/`text-error` classes.
+  - Note: Any future style tweaks should be implemented as classes in `components.css`/`editor.css`.
 
 - innerHTML usage
   - Widespread for clearing/rebuilding containers (tests/issues/tables) and injecting small HTML snippets.
@@ -126,8 +135,25 @@ Phase A: Hygiene
 - Reduce console noise: gate debug logs; ensure errors are actionable and scoped.
 - Add missing aria-labels/titles to editor actions; confirm keyboard nav across details/summary and controls.
 
+Status 2025-10-04:
+- Completed: Eliminated remaining innerHTML clears in app/suites/utils; modal refactor to DOM builders; hooks.js hygiene; replaced inline styles in editor banner, suites stage progress, validation UI, and test harness.
+- Remaining: A few legacy `.style.*` usages may still exist in rarely-hit branches; schedule follow-up sweep with grep and targeted fixes.
+
 Phase B: Editor slimming
 - Extract `editor/render-form.js`; remove test-only fallbacks from orchestrator; add minimal unit tests.
+
+Status 2025-10-04 (update):
+- Extracted `editor/render-form.js` and delegated from `editor.js`; added `editor-render-form.spec.js` to verify getters and selIndex re-wiring.
+- A11y: added label/for mappings for key inputs and aria-labels for collapse/toggle controls; set progressbar aria attributes in `utils.setBar`.
+- Added targeted unit tests beyond OpenAPI/Matrix:
+  - `suites-dom-progress.spec.js` for stage progress and aria.
+  - `run-records-badge.spec.js` for suite badge no-downgrade.
+  - `editor-update-event.spec.js` for re-render on `hydreq:editor:test:update`.
+  - `hooks-empty-extract.spec.js` for hooks empty-state and basic collect.
+
+Remaining TODOs:
+- Optional: add stricter hooks extract round-trip tests (jsdom quirks tolerated).
+- Optional: expand store-first badge hydration tests after page refresh.
 
 Phase C: Store-first consolidation
 - Ensure all UI updates follow store writes; reduce reliance on legacy `suites-state` to hydration-only.
@@ -153,8 +179,8 @@ Phase G: Build opt-in and Svelte islands
 
 ## Acceptance criteria
 
-- No inline-style hotspots; utility classes used.
-- Editor orchestrator < ~500 lines; forms wiring fully extracted.
+- No inline-style hotspots; utility classes used. (most addressed; minor follow-ups noted)
+- Editor orchestrator < ~500 lines; forms wiring fully extracted. (in progress—slimmed with render-form extraction)
 - Single propagation path with store-first semantics; dependsOn skip normalization covered by tests.
 - Consistent tokens for badges/message blocks across views.
 - Optional build coexists with zero-build path.
@@ -255,6 +281,10 @@ Phase 1: Module boundaries (completed)
 
 Acceptance: suites list renders; SSE updates badges/progress as before; editor opens; quick-run works; New Suite flow presents a safer, validated create path; test details display clearly underneath the test name; suite list failure details are collapsed by default and expand on demand; message blocks are scrollable and easy to copy. Unit tests cover run-listener, suites-dom helpers, suites-sse wrapper, and suites-api hydration.
 
+Additional (2025-10-04 updates):
+- utils.js renderActiveEnv now avoids innerHTML for clearing; uses safe child removal.
+- Expanded unit tests: suite badge re-hydration, env state read/render, suites-state basics, assert form wiring, and editor validation helpers.
+
 Note on componentization path (user-preferred)
 - Consider Svelte + Vite + Tailwind (+ DaisyUI) + CodeMirror for component-based architecture. Keep current zero-build path running in parallel during migration.
 - Hosting remains via Go static file server; Vite build outputs to `internal/webui/static/dist/` and index.html can conditionally load built assets.
@@ -336,6 +366,27 @@ Phase 4: Preact islands (optional)
   - Tag chip ↔ checkbox sync
   - Env pills mirrored in header and aside
 - Unit tests (small): factor logic (tags/env state) into pure functions. (in-progress — adding Node-based unit tests using Mocha + JSDOM under internal/webui/static/test to validate run-listener and suites flush behavior.)
+
+### E2E framework choice: Cypress vs Playwright
+
+Context
+- Repo contains `Dockerfile.playwright`, and we already use `docker-compose.playwright.yml` for local stacks. Our UI is server-rendered/static assets with SSE.
+
+Comparison (focused on our needs)
+- Cross-browser: Playwright ships WebKit/Firefox/Chromium out-of-the-box; Cypress relies on the system browser (Chromium-family strongest). Playwright wins for breadth (useful if we want Safari/WebKit sanity checks).
+- SSE support and network control: Both can assert UI effects; Playwright has strong network mocking and event listeners. SSE is best validated via UI assertions; both are fine, but Playwright’s waiting and event primitives are a bit cleaner.
+- Parallelism and retries: Both support; Playwright’s sharding/retries are first-class and simple to wire in CI.
+- Headless containerization: Playwright publishes maintained images (already referenced by our Dockerfile). Cypress also has images, but given our existing Playwright setup, Playwright integrates faster.
+- API testing overlap: We already test backend in Go; UI E2E should focus on DOM interactions and SSE-driven updates. Either works; Playwright’s fixtures/page model align well with our minimal build setup.
+
+Recommendation
+- Use Playwright for E2E. Rationale: repo already includes Playwright Dockerfile; cross-browser coverage; robust CI story; minimal additional tooling.
+
+Initial E2E scenarios
+- Suites list: render list, expand a suite, verify test rows and details collapse/expand.
+- Batch run: simulate or run a small suite; assert stage counters and progress; badge updates.
+- Editor quick-run: open editor for a fixture; run a test; assert badge and messages appear.
+- Tag/env filters: toggle tag chips; verify filter affects displayed tests; env pills mirrored in header.
 
 ## Risks and mitigations
 
@@ -428,6 +479,11 @@ Decisions and changes
 - Quality gates
   - Build: PASS
   - Tests: PASS
+
+Progress estimate (overall refactor): ~82–85%
+- Phase 1 (module boundaries): done.
+- Phase 2 (editor split): largely done—core splits complete; remaining: a few unit tests and minor orchestrator trimming.
+- Hygiene and a11y: substantially improved; a few inline style hotspots remain by design (progress width), now centralized and annotated for future CSS-based approach.
 
 Current pain points (observed)
 

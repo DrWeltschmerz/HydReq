@@ -7,17 +7,25 @@
       const baseUrlEl = modal.querySelector('#ed_suite_baseurl');
       const authBearerEl = modal.querySelector('#ed_auth_bearer');
       const authBasicEl = modal.querySelector('#ed_auth_basic');
-      const suiteVarsEl = modal.querySelector('#ed_suite_vars');
+  const suiteVarsEl = modal.querySelector('#ed_suite_vars');
+  const oapiFileEl = modal.querySelector('#ed_suite_openapi_file');
+  const oapiEnabledEl = modal.querySelector('#ed_suite_openapi_enabled');
 
       if (suiteNameEl) suiteNameEl.value = suite.name || '';
       if (baseUrlEl) baseUrlEl.value = suite.baseUrl || suite.baseURL || '';
       if (authBearerEl) authBearerEl.value = (suite.auth && (suite.auth.bearerEnv || suite.auth.bearer)) || '';
       if (authBasicEl) authBasicEl.value = (suite.auth && (suite.auth.basicEnv || suite.auth.basic)) || '';
 
-      [suiteNameEl, baseUrlEl, authBearerEl, authBasicEl].forEach(el=>{
+      [suiteNameEl, baseUrlEl, authBearerEl, authBasicEl, oapiFileEl, oapiEnabledEl].forEach(el=>{
         if (!el) return;
         if (!el.dataset.boundSuite){ evs.forEach(ev=> el.addEventListener(ev, ()=>{ try{ onChange && onChange(); }catch{} })); el.dataset.boundSuite='1'; }
       });
+
+      // Initialize OpenAPI fields from suite
+      try{
+        if (oapiFileEl) oapiFileEl.value = (suite.openApi && suite.openApi.file) || '';
+        if (oapiEnabledEl) oapiEnabledEl.checked = (suite.openApi ? !!suite.openApi.enabled : false);
+      }catch{}
 
       let suiteVarsGet = null;
       if (suiteVarsEl){

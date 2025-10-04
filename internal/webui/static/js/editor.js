@@ -21,123 +21,30 @@ const RUNREC_KEY = (p) => `hydreq.${LS_VER}.editorRun:` + LS_ENC(p||'');
 // Global renderForm function that can be called from renderTests
 function renderForm() {
   if (!modal || !working) return;
-  
-  // Delegate suite-level fields and hooks
-  try{
-    if (window.hydreqEditorForms && window.hydreqEditorForms.suite && typeof window.hydreqEditorForms.suite.wire === 'function'){
-      const suiteFns = window.hydreqEditorForms.suite.wire(modal, working, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-      suiteVarsGet = suiteFns.suiteVarsGet || suiteVarsGet;
-      suitePreGet = suiteFns.suitePreGet || suitePreGet;
-      suitePostGet = suiteFns.suitePostGet || suitePostGet;
-    }
-  }catch{}
-  
-  // Update test-specific fields if a test is selected
-  if (working.tests && Array.isArray(working.tests) && selIndex >= 0 && selIndex < working.tests.length) {
-    const test = working.tests[selIndex];
-    // Delegate to test meta form module (name, depends, stage, skip/only, tags)
-    try {
-      if (window.hydreqEditorForms && window.hydreqEditorForms.testmeta && typeof window.hydreqEditorForms.testmeta.wire === 'function') {
-        window.hydreqEditorForms.testmeta.wire(modal, test, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-      }
-    } catch {}
-    const methodEl = modal.querySelector('#ed_method');
-    const urlEl = modal.querySelector('#ed_url');
-    const timeoutEl = modal.querySelector('#ed_timeout');
-    const bodyEl = modal.querySelector('#ed_body');
-    const headersEl = modal.querySelector('#ed_headers');
-    const queryEl = modal.querySelector('#ed_query');
-    const extractEl = modal.querySelector('#ed_extract');
-    const tagsEl = modal.querySelector('#ed_tags');
-    const matrixEl = modal.querySelector('#ed_matrix');
-    const oapiEl = modal.querySelector('#ed_oapi_enabled');
-    
-    
-    // Delegate to request form module
-    try {
-      if (window.hydreqEditorForms && window.hydreqEditorForms.request && typeof window.hydreqEditorForms.request.wire === 'function') {
-        const reqFns = window.hydreqEditorForms.request.wire(modal, test, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-        headersGet = reqFns.headersGet || headersGet;
-        queryGet = reqFns.queryGet || queryGet;
-      }
-    } catch {}
-  // Extract mapping (key -> jsonPath)
-    if (extractEl) {
-      try { extractGet = extractTable(extractEl, test.extract || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} }); } catch{}
-    }
-    // Tags handled by testmeta module
-    // Matrix editor (delegated)
-    if (matrixEl) {
-      try {
-        if (window.hydreqEditorForms && window.hydreqEditorForms.matrix && typeof window.hydreqEditorForms.matrix.render === 'function') {
-          matrixGet = window.hydreqEditorForms.matrix.render(modal, matrixEl, test.matrix || {}, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-        } else {
-          // Module not loaded; provide a no-op getter to avoid errors in headless tests
-          matrixGet = ()=> (test.matrix || {});
-          matrixEl.innerHTML = '<div class="dim">Matrix editor unavailable.</div>';
-        }
-      } catch{}
-    }
-    // OpenAPI override (delegated)
-    try {
-      if (window.hydreqEditorForms && window.hydreqEditorForms.openapi && typeof window.hydreqEditorForms.openapi.wire === 'function') {
-        window.hydreqEditorForms.openapi.wire(modal, test, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-      }
-    } catch {}
-    
-    // Stage handled by testmeta module
-    
-    // Delegate to assertions form module
-    try {
-      if (window.hydreqEditorForms && window.hydreqEditorForms.assert && typeof window.hydreqEditorForms.assert.wire === 'function') {
-        const asFns = window.hydreqEditorForms.assert.wire(modal, test, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-        assertHeaderGet = asFns.assertHeaderGet || assertHeaderGet;
-        assertJsonEqGet = asFns.assertJsonEqGet || assertJsonEqGet;
-        assertJsonContainsGet = asFns.assertJsonContainsGet || assertJsonContainsGet;
-        assertBodyContainsGet = asFns.assertBodyContainsGet || assertBodyContainsGet;
-      }
-    } catch {}
-
-    // Test hooks (pre/post)
-    try {
-      const preC = modal.querySelector('#ed_test_prehooks');
-      const postC = modal.querySelector('#ed_test_posthooks');
-      if (preC) {
-        if (window.hydreqEditorHooks && typeof window.hydreqEditorHooks.hookList === 'function') {
-          testPreGet = window.hydreqEditorHooks.hookList(preC, Array.isArray(test.pre)? test.pre: [], { scope: 'testPre' }, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-        } else {
-          preC.innerHTML = '<div class="dim">Hooks module not loaded.</div>';
-          testPreGet = ()=> (Array.isArray(test.pre) ? test.pre : []);
-        }
-      }
-      if (postC) {
-        if (window.hydreqEditorHooks && typeof window.hydreqEditorHooks.hookList === 'function') {
-          testPostGet = window.hydreqEditorHooks.hookList(postC, Array.isArray(test.post)? test.post: [], { scope: 'testPost' }, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-        } else {
-          postC.innerHTML = '<div class="dim">Hooks module not loaded.</div>';
-          testPostGet = ()=> (Array.isArray(test.post) ? test.post : []);
-        }
-      }
-    } catch {}
-
-    // Retry policy (delegated)
-    try{
-      if (window.hydreqEditorForms && window.hydreqEditorForms.retry && typeof window.hydreqEditorForms.retry.wire === 'function') {
-        window.hydreqEditorForms.retry.wire(modal, test, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} });
-      }
-    }catch{}
-    
-    // Skip/Only handled by testmeta module
-  }
-  
-  // Add validation event listeners after a short delay to ensure DOM is ready
-  setTimeout(() => {
-    try {
-      if (window.hydreqEditorValidation && typeof window.hydreqEditorValidation.wire === 'function') {
-        window.hydreqEditorValidation.wire(modal);
-      }
-    } catch {}
-  }, 100);
+  const prev = {
+    suiteVarsGet, suitePreGet, suitePostGet,
+    headersGet, queryGet, extractGet, matrixGet,
+    testPreGet, testPostGet,
+    assertHeaderGet, assertJsonEqGet, assertJsonContainsGet, assertBodyContainsGet
+  };
+  const fns = (window.hydreqEditorRenderForm && window.hydreqEditorRenderForm.render)
+    ? window.hydreqEditorRenderForm.render(modal, working, selIndex, ()=>{ try{ collectFormData(); mirrorYamlFromVisual(); }catch{} }, prev)
+    : prev;
+  suiteVarsGet = fns.suiteVarsGet || null;
+  suitePreGet = fns.suitePreGet || null;
+  suitePostGet = fns.suitePostGet || null;
+  headersGet = fns.headersGet || null;
+  queryGet = fns.queryGet || null;
+  extractGet = fns.extractGet || null;
+  matrixGet = fns.matrixGet || null;
+  testPreGet = fns.testPreGet || null;
+  testPostGet = fns.testPostGet || null;
+  assertHeaderGet = fns.assertHeaderGet || null;
+  assertJsonEqGet = fns.assertJsonEqGet || null;
+  assertJsonContainsGet = fns.assertJsonContainsGet || null;
+  assertBodyContainsGet = fns.assertBodyContainsGet || null;
+  // Validation wiring after DOM ready
+  setTimeout(() => { try { if (window.hydreqEditorValidation?.wire) window.hydreqEditorValidation.wire(modal); } catch {} }, 100);
 }
 
 // Function to collect form data into working model
@@ -225,7 +132,7 @@ function openEditor(path, data){
   if (!Array.isArray(working.tests)) working.tests = [];
   
   modal = document.getElementById('editorModal');
-  if (!modal){
+  if (!modal || (modal && !modal.querySelector('#ed_close'))){
     // Use the modular modal shell
     if (window.hydreqEditorModal && typeof window.hydreqEditorModal.open === 'function') {
       modal = window.hydreqEditorModal.open({ title: 'Editor', create: !!(data && data._new), path });
@@ -236,13 +143,19 @@ function openEditor(path, data){
       document.body.appendChild(modal);
     }
     // Global modal UX hooks
-    document.body.classList.add('modal-open');
+  document.body.classList.add('modal-open');
     modal.addEventListener('wheel', (e)=>{ e.stopPropagation(); }, { passive: true });
     modal.addEventListener('touchmove', (e)=>{ e.stopPropagation(); }, { passive: true });
     modal.addEventListener('click', (e)=>{ if (e.target === modal) attemptClose(); });
   }
   // Ensure dirty indicator is hidden at start and state is clean
-  try{ const di = modal.querySelector('#ed_dirty_indicator'); if (di) di.style.display = 'none'; }catch{}
+  try{
+    const di = modal.querySelector('#ed_dirty_indicator');
+    if (di){
+      if (window.hydreqEditorUtils && window.hydreqEditorUtils.hide) window.hydreqEditorUtils.hide(di);
+      else { di.classList.add('hidden'); try{ di.style.display = 'none'; }catch{} }
+    }
+  }catch{}
   try{ if (window.hydreqEditorState && window.hydreqEditorState.setDirty) window.hydreqEditorState.setDirty(false); }catch{}
   // Initialize editor tables with current modal
   try{ if (window.hydreqEditorTables && window.hydreqEditorTables.init) window.hydreqEditorTables.init(modal); }catch{}
@@ -313,7 +226,7 @@ function openEditor(path, data){
   const yamlCtl = (window.hydreqEditorYAMLControl && typeof window.hydreqEditorYAMLControl.mount==='function') ? window.hydreqEditorYAMLControl.mount(modal) : null;
   // Fallback: ensure CodeMirror mount if yaml-control is unavailable (test/env safety)
   try{ if (!yamlCtl && window.hydreqEditorYAML && typeof window.hydreqEditorYAML.mount==='function' && rawEl) window.hydreqEditorYAML.mount(rawEl); }catch{}
-  issuesEl.innerHTML = '';
+  try{ if (issuesEl){ while (issuesEl.firstChild) issuesEl.removeChild(issuesEl.firstChild); } }catch{}
   (function attachVisualDelegates(){
     const root = modal.querySelector('#pane_visual');
     if (!root) return;
@@ -416,7 +329,12 @@ function openEditor(path, data){
         const di = modal && modal.querySelector && modal.querySelector('#ed_dirty_indicator');
         if (di) {
           if (window.__ed_uiSuppressDirty) return;
-          di.style.display = dty ? '' : 'none';
+          if (window.hydreqEditorUtils && window.hydreqEditorUtils.show && window.hydreqEditorUtils.hide) {
+            if (dty) window.hydreqEditorUtils.show(di); else window.hydreqEditorUtils.hide(di);
+          } else {
+            if (dty) { di.classList.remove('hidden'); try{ di.style.display=''; }catch{} }
+            else { di.classList.add('hidden'); try{ di.style.display='none'; }catch{} }
+          }
         }
       }catch{}
     });
@@ -439,7 +357,7 @@ function openEditor(path, data){
   // Seed global editor state working model
   try{ if (window.hydreqEditorState && window.hydreqEditorState.setWorking) window.hydreqEditorState.setWorking(working); }catch{}
   const cacheKey = ()=>{ const t = (working.tests && working.tests[selIndex]) || {}; return selIndex + ':' + (t.name||('test '+(selIndex+1))); };
-  function clearQuickRun(){ const qr = modal.querySelector('#ed_quickrun'); if (qr) qr.innerHTML = ''; }
+  function clearQuickRun(){ const qr = modal.querySelector('#ed_quickrun'); if (!qr) return; while (qr.firstChild) qr.removeChild(qr.firstChild); }
   function appendQuickRunLine(text, cls){ const qr = modal.querySelector('#ed_quickrun'); if (!qr) return; const d=document.createElement('div'); if (cls) d.className=cls; d.textContent=text; qr.appendChild(d); qr.scrollTop = qr.scrollHeight; }
   // Create run records helper with a dump-enabled local cache adapter
   const __updateLocalCache = (key, val)=>{ try{ testRunCache.set(key, val); }catch{} };
@@ -447,7 +365,7 @@ function openEditor(path, data){
   const runRecs = (window.hydreqEditorRunRecords && window.hydreqEditorRunRecords.create)
     ? window.hydreqEditorRunRecords.create(modal, ()=> working, ()=> selIndex, __updateLocalCache)
     : null;
-  function setQuickRunBox(result){ const qr = modal.querySelector('#ed_quickrun'); if (!qr) return; qr.innerHTML=''; if (!result) return; const icon = result.status==='passed'?'✓':(result.status==='failed'?'✗':(result.status==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${result.name||''}`,(result.status==='passed'?'text-success':(result.status==='failed'?'text-error':'text-warning'))); }
+  function setQuickRunBox(result){ const qr = modal.querySelector('#ed_quickrun'); if (!qr) return; while (qr.firstChild) qr.removeChild(qr.firstChild); if (!result) return; const icon = result.status==='passed'?'✓':(result.status==='failed'?'✗':(result.status==='skipped'?'○':'·')); appendQuickRunLine(`${icon} ${result.name||''}`,(result.status==='passed'?'text-success':(result.status==='failed'?'text-error':'text-warning'))); }
   // Quick run rendering proxies
   function renderLatestForSelection(){ try{ if (runRecs && runRecs.renderLatestForSelection) return runRecs.renderLatestForSelection(); }catch{} }
   function renderQuickRunForSelection(){ try{ if (runRecs && runRecs.renderQuickRunForSelection) return runRecs.renderQuickRunForSelection(); }catch{} }
@@ -557,15 +475,58 @@ function openEditor(path, data){
   // Wire buttons via controls module
   try{
     const btnRunTest = modal.querySelector('#ed_run_test');
-    if (btnRunTest && window.hydreqEditorControls && window.hydreqEditorControls.runTest){ btnRunTest.onclick = ()=> window.hydreqEditorControls.runTest(modal, ctx); }
     const btnValidate = modal.querySelector('#ed_validate');
-    if (btnValidate && window.hydreqEditorControls && window.hydreqEditorControls.validate){ btnValidate.onclick = ()=> window.hydreqEditorControls.validate(modal, ctx); }
     const btnRunSuite = modal.querySelector('#ed_run_suite');
-    if (btnRunSuite && window.hydreqEditorControls && window.hydreqEditorControls.runSuite){ btnRunSuite.onclick = ()=> window.hydreqEditorControls.runSuite(modal, ctx); }
     const btnSave = modal.querySelector('#ed_save');
-    if (btnSave && window.hydreqEditorControls && window.hydreqEditorControls.save){ btnSave.onclick = ()=> window.hydreqEditorControls.save(modal, ctx); }
     const btnSaveClose = modal.querySelector('#ed_save_close');
-    if (btnSaveClose && window.hydreqEditorControls && window.hydreqEditorControls.saveClose){ btnSaveClose.onclick = ()=> window.hydreqEditorControls.saveClose(modal, ctx); }
+    // Prefer controls module
+    if (btnRunTest){
+      if (window.hydreqEditorControls?.runTest){ btnRunTest.onclick = ()=> window.hydreqEditorControls.runTest(modal, ctx); }
+      else { btnRunTest.onclick = async ()=>{
+          try{
+            ctx.prepareQuickRun && ctx.prepareQuickRun('test');
+            const includeDeps = !!(modal.querySelector('#ed_run_with_deps')?.checked);
+            const includePrevStages = !!(modal.querySelector('#ed_run_with_prevstages')?.checked);
+            const runId = await (window.hydreqEditorRun?.quickRun?.({ testIndex: selIndex, includeDeps, includePrevStages }) || null);
+            if (runId) window.hydreqEditorRun?.listen?.(runId, ctx.makeRunHandlers());
+          }catch{}
+        }; }
+    }
+    if (btnValidate){
+      if (window.hydreqEditorControls?.validate){ btnValidate.onclick = ()=> window.hydreqEditorControls.validate(modal, ctx); }
+      else { btnValidate.onclick = async ()=>{
+          try{ const raw = await ctx.getYamlText(); const res = await window.hydreqEditorRun?.validate?.(raw); ctx.renderIssues && ctx.renderIssues(res&&res.issues||[], raw); }catch{}
+        }; }
+    }
+    if (btnRunSuite){
+      if (window.hydreqEditorControls?.runSuite){ btnRunSuite.onclick = ()=> window.hydreqEditorControls.runSuite(modal, ctx); }
+      else { btnRunSuite.onclick = async ()=>{
+          try{
+            ctx.prepareQuickRun && ctx.prepareQuickRun('suite');
+            const includeDeps = !!(modal.querySelector('#ed_run_with_deps')?.checked);
+            const includePrevStages = !!(modal.querySelector('#ed_run_with_prevstages')?.checked);
+            const runId = await (window.hydreqEditorRun?.quickRun?.({ runAll:true, includeDeps, includePrevStages }) || null);
+            if (runId) window.hydreqEditorRun?.listen?.(runId, ctx.makeRunHandlers());
+          }catch{}
+        }; }
+    }
+    if (btnSave){
+      if (window.hydreqEditorControls?.save){ btnSave.onclick = ()=> window.hydreqEditorControls.save(modal, ctx); }
+      else { btnSave.onclick = async ()=>{
+          try{
+            const raw = await ctx.getYamlText();
+            const path = ctx.getPath();
+            const res = await fetch('/api/editor/save', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ path, raw }) });
+            const data = res && res.ok ? (await res.json().catch(()=>({}))) : {};
+            ctx.afterSaved && ctx.afterSaved(raw);
+            return data;
+          }catch(e){ console.error('save failed', e); return null; }
+        }; }
+    }
+    if (btnSaveClose){
+      if (window.hydreqEditorControls?.saveClose){ btnSaveClose.onclick = ()=> window.hydreqEditorControls.saveClose(modal, ctx); }
+      else { btnSaveClose.onclick = async ()=>{ try{ await (btnSave && btnSave.onclick ? btnSave.onclick() : Promise.resolve()); ctx.attemptClose && ctx.attemptClose(); }catch{} }; }
+    }
   }catch{}
   
   // listenToQuickRun moved to hydreqEditorRun.listen
@@ -581,7 +542,17 @@ function openEditor(path, data){
   
   // At top of openEditor() after computing working and modal existence
   const isNewFile = !!(data && data._new);
-  try{ const bannerWrap = modal.querySelector('#ed_new_banner'); if (isNewFile && !bannerWrap){ const b = document.createElement('div'); b.id='ed_new_banner'; b.className='pill'; b.style.background='#eef6ff'; b.style.color='#0369a1'; b.style.marginRight='8px'; b.textContent = 'New suite (will create file at ' + path + ')'; const headerLeft = modal.querySelector('.ed-header-left'); if (headerLeft) headerLeft.insertBefore(b, headerLeft.firstChild); } }catch(e){}
+  try{
+    const bannerWrap = modal.querySelector('#ed_new_banner');
+    if (isNewFile && !bannerWrap){
+      const b = document.createElement('div');
+      b.id='ed_new_banner';
+      b.className='badge badge-info mr-8';
+      b.textContent = 'New suite (will create file at ' + path + ')';
+      const headerLeft = modal.querySelector('.ed-header-left');
+      if (headerLeft) headerLeft.insertBefore(b, headerLeft.firstChild);
+    }
+  }catch(e){}
   try{ const saveBtn = modal.querySelector('#ed_save'); const saveCloseBtn = modal.querySelector('#ed_save_close'); if (isNewFile){ if (saveBtn) saveBtn.textContent = 'Create'; if (saveCloseBtn) saveCloseBtn.textContent = 'Create & Close'; modal.dataset.isNew = '1'; } else { modal.dataset.isNew = '0'; } }catch{}
 
   // Save and Save & Close now delegated via controls (see wiring above)
@@ -652,6 +623,11 @@ function openEditor(path, data){
         const d = e && e.detail || {};
         const pth = (modal.querySelector('#ed_path')||{}).textContent||'';
         if (!d || d.path !== pth) return;
+        // Update local cache so tests list can render a badge immediately
+        try{
+          const key = (typeof d.idx==='number' ? d.idx : (function(){ const wk=(working||{}).tests||[]; for(let i=0;i<wk.length;i++){ if ((wk[i].name||'')===d.name) return i; } return 0; })()) + ':' + (d.name||'');
+          if (testRunCache && typeof testRunCache.set==='function') testRunCache.set(key, { status: d.status, name: d.name, messages: Array.isArray(d.messages)? d.messages: [] });
+        }catch{}
         // Re-render tests and quick run to reflect new status/details
         renderTests();
         try{ renderQuickRunForSelection(); }catch{}

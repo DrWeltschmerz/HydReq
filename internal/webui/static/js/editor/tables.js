@@ -5,7 +5,7 @@
   function kvTable(container, obj, onChange){
     const c = (typeof container === 'string') ? (modal && modal.querySelector(container)) : container;
     if (!c) return ()=>({});
-    c.innerHTML = '';
+  while (c.firstChild) c.removeChild(c.firstChild);
     const table = document.createElement('div');
     const addRow = (k='', v='')=>{
       const row = document.createElement('div'); row.className = 'ed-grid-1-1-auto mb-2';
@@ -33,7 +33,7 @@
   function listTable(container, arr, onChange){
     const c = (typeof container === 'string') ? (modal && modal.querySelector(container)) : container;
     if (!c) return ()=>[];
-    c.innerHTML = '';
+  while (c.firstChild) c.removeChild(c.firstChild);
     const table = document.createElement('div');
     const addRow = (v='')=>{
       const row = document.createElement('div'); row.className = 'ed-grid-1-auto mb-2';

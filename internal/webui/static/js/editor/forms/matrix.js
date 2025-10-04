@@ -2,7 +2,7 @@
   function render(modal, container, matrix, onChange){
     const c = (typeof container === 'string') ? modal.querySelector(container) : container;
     if (!c) return ()=>({});
-    c.innerHTML = '';
+    while (c.firstChild) c.removeChild(c.firstChild);
     const table = document.createElement('div'); table.className='ed-matrix-table';
     function addRow(key='', values=[]){
       const row = document.createElement('div'); row.className='ed-matrix-row';
@@ -17,7 +17,7 @@
     }
     if (matrix && typeof matrix==='object'){ Object.keys(matrix).forEach(k=> addRow(k, Array.isArray(matrix[k])?matrix[k]:[])); }
     if (!matrix || Object.keys(matrix).length===0) addRow();
-    const addBtn=document.createElement('button'); addBtn.textContent='+ Add Variable'; addBtn.className='btn btn-sm btn-primary'; addBtn.style.marginTop='8px'; addBtn.onclick=()=>{ addRow(); if (onChange) onChange(); };
+  const addBtn=document.createElement('button'); addBtn.textContent='+ Add Variable'; addBtn.className='btn btn-sm btn-primary mt-8'; addBtn.onclick=()=>{ addRow(); if (onChange) onChange(); };
     c.appendChild(table); c.appendChild(addBtn);
     return ()=>{ const result={}; const rows=table.querySelectorAll('.ed-matrix-row'); rows.forEach(row=>{ const keyInput=row.querySelector('.ed-matrix-key'); const valueInputs=row.querySelectorAll('.ed-matrix-values input[type="text"]'); if (keyInput && keyInput.value.trim()){ const key=keyInput.value.trim(); const values=[]; valueInputs.forEach(input=>{ if (input.value.trim()) values.push(input.value.trim()); }); if (values.length>0) result[key]=values; } }); return result; };
   }

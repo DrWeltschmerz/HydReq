@@ -22,7 +22,7 @@
       try{
         const wrap = cm.getWrapperElement ? cm.getWrapperElement() : null;
         const host = document.getElementById('ed_yaml_editor');
-        if (wrap && host && wrap.parentNode !== host){ host.innerHTML=''; host.appendChild(wrap); }
+        if (wrap && host && wrap.parentNode !== host){ while (host.firstChild) host.removeChild(host.firstChild); host.appendChild(wrap); }
       }catch{}
       // Best-effort beforeChange: replace tabs with spaces if editor exposes hook
       try{
@@ -35,7 +35,7 @@
           });
         }
       }catch{}
-      if (cm.getWrapperElement) { try{ cm.getWrapperElement().style.height = '100%'; }catch{} }
+  if (cm.getWrapperElement) { try{ cm.getWrapperElement().classList.add('h-100'); }catch{} }
       cm.on('change', debounce(handleChange, 200));
       // Defer handling changes until after initial hydration
       hydrated = false;

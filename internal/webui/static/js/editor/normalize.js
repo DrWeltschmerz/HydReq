@@ -9,6 +9,14 @@
     out.auth = au ? { bearerEnv: (au.BearerEnv || au.bearerEnv || ''), basicEnv: (au.BasicEnv || au.basicEnv || '') } : null;
     out.preSuite = inObj.PreSuite || inObj.preSuite || [];
     out.postSuite = inObj.PostSuite || inObj.postSuite || [];
+    // Suite-level OpenAPI
+    (function(){
+      const oa = inObj.OpenAPI || inObj.openApi || null;
+      if (oa && (oa.File || oa.file)){
+        out.openApi = { file: (oa.File || oa.file) };
+        if (oa.Enabled !== undefined || oa.enabled !== undefined) out.openApi.enabled = (oa.Enabled ?? oa.enabled);
+      }
+    })();
     const testsArr = Array.isArray(inObj.Tests) ? inObj.Tests : (Array.isArray(inObj.tests) ? inObj.tests : []);
     if (Array.isArray(testsArr)){
       out.tests = testsArr.map(function(tc){

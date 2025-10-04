@@ -13,7 +13,16 @@ function slugify(name) {
 function pct(d,t){ return t>0 ? Math.min(100, Math.round(100*d/t)) : 0; }
 
 // Set progress bar width
-function setBar(el, d, t){ if(!el) return; el.style.width = pct(d,t) + '%'; }
+function setBar(el, d, t){
+  if(!el) return;
+  const p = pct(d,t);
+  el.style.width = p + '%';
+  try{
+    el.setAttribute('aria-valuenow', String(d));
+    el.setAttribute('aria-valuemax', String(t));
+    el.setAttribute('role','progressbar');
+  }catch{}
+}
 
 // Parse environment variables from textarea
 function parseEnv(){
@@ -33,18 +42,23 @@ function parseEnv(){
 function renderActiveEnv(env){
   const envActive = document.getElementById('env_active');
   if (envActive){
-    envActive.innerHTML='';
+    while (envActive.firstChild) envActive.removeChild(envActive.firstChild);
     Object.keys(env).forEach(k=>{ const b=document.createElement('span'); b.className='pill'; b.textContent=k; envActive.appendChild(b); });
   }
   // Also mirror into header next to Batch progress
   const topWrap = document.getElementById('activeEnvTopWrap');
   const top = document.getElementById('activeEnvTop');
   if (topWrap && top){
-    top.innerHTML='';
+    while (top.firstChild) top.removeChild(top.firstChild);
     const keys = Object.keys(env);
     if (keys.length){
       topWrap.classList.remove('invisible');
-      keys.slice(0,12).forEach(k=>{ const b=document.createElement('span'); b.className='pill'; b.textContent=k; b.style.fontSize='10px'; top.appendChild(b); });
+      keys.slice(0,12).forEach(k=>{
+        const b = document.createElement('span');
+        b.className = 'pill text-10';
+        b.textContent = k;
+        top.appendChild(b);
+      });
     } else {
       topWrap.classList.add('invisible');
     }

@@ -69,7 +69,7 @@
       const st = (status||'').toLowerCase();
       if (window.hydreqSuitesState && window.hydreqSuitesState.setTestStatus) window.hydreqSuitesState.setTestStatus(path, name, st);
       const li = document.querySelector('#suites li[data-path="'+path+'"]'); if (!li) return;
-      const testsDiv = li.querySelector('.suite-tests'); if (!testsDiv || testsDiv.style.display==='none') return;
+  const testsDiv = li.querySelector('.suite-tests'); if (!testsDiv || testsDiv.classList.contains('hidden')) return;
       const cont = (window.hydreqSuitesDOM && window.hydreqSuitesDOM.findTestContainer)
         ? window.hydreqSuitesDOM.findTestContainer(testsDiv, name)
         : null;
@@ -109,6 +109,19 @@
         }));
       }
       const li = document.querySelector('#suites li[data-path="'+pathKey+'"]'); if (!li) return;
+      // Update suite-level badge early (independent of test row presence)
+      try{
+        const sb = li.querySelector('.suite-badge');
+        if (sb && window.hydreqSuitesDOM && window.hydreqSuitesDOM.updateSuiteBadge){
+          let badge = 'unknown';
+          for (const t of testsArr){ if ((t.status||'').toLowerCase()==='failed'){ badge='failed'; break; } }
+          if (badge==='unknown'){
+            if (testsArr.some(t=> (t.status||'').toLowerCase()==='passed')) badge='passed';
+            else if (testsArr.some(t=> (t.status||'').toLowerCase()==='skipped')) badge='skipped';
+          }
+          window.hydreqSuitesDOM.updateSuiteBadge(sb, badge);
+        }
+      }catch(e){}
       const testsDiv = li.querySelector('.suite-tests'); if (!testsDiv) return;
       const map = window.hydreqSuitesState ? window.hydreqSuitesState.getLastStatus(pathKey) : new Map();
       testsArr.forEach(t=>{
@@ -142,6 +155,7 @@
           if (window.hydreqSuitesState && window.hydreqSuitesState.setTestStatus) window.hydreqSuitesState.setTestStatus(pathKey, nm, st);
         }catch(e){}
       });
+      // Suite badge already updated above
     }catch(e){}
   }
 

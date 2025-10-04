@@ -112,7 +112,13 @@ elif [[ ${#COMPOSE[@]} -gt 0 ]]; then
 	  echo -e "${CYAN}ℹ HOST_NETWORK=1 set; using host networking compose file${NC}"
 	fi
 	set +e
-	"${COMPOSE[@]}" "${COMPOSE_FILE_ARG[@]}" up -d
+		# Use CI override to avoid binding hydreq 8787 on host when not using host networking
+		if [[ "${HOST_NETWORK:-0}" == "1" ]]; then
+			"${COMPOSE[@]}" "${COMPOSE_FILE_ARG[@]}" up -d httpbin postgres mssql
+		else
+			# docker-compose.yml plus override; start only required services to avoid hydreq port binding
+			"${COMPOSE[@]}" -f docker-compose.yml -f docker-compose.override.ci.yml up -d httpbin postgres mssql
+		fi
 	up_rc=$?
 	set -e
 	if [[ $up_rc -ne 0 ]]; then
@@ -156,8 +162,19 @@ elif [[ ${#COMPOSE[@]} -gt 0 ]]; then
 		echo -e "\n${BOLD}${BLUE}========================================${NC}"
 		echo -e "${BOLD}${CYAN}Running Playwright E2E tests${NC}"
 		echo -e "${BOLD}${BLUE}========================================${NC}\n"
-		# Run Playwright tests and capture clean output
-		"${COMPOSE[@]}" "${COMPOSE_FILE_ARG[@]}" run --rm playwright || true
+		# Run Playwright tests (use CI-friendly compose when HOST_NETWORK=0)
+		if [[ "${HOST_NETWORK:-0}" == "1" ]]; then
+			"${COMPOSE[@]}" "${COMPOSE_FILE_ARG[@]}" run --rm playwright || true
+		else
+			# Fall back to CI compose which uses service names inside the network
+			if [[ -f docker-compose.playwright.ci.yml ]]; then
+			"${COMPOSE[@]}" -f docker-compose.playwright.ci.yml up --build --abort-on-container-exit --exit-code-from playwright || true
+				# Ensure teardown
+				"${COMPOSE[@]}" -f docker-compose.playwright.ci.yml down --remove-orphans || true
+			else
+				"${COMPOSE[@]}" "${COMPOSE_FILE_ARG[@]}" run --rm playwright || true
+			fi
+		fi
 		# Tear down compose (unless KEEP_SERVICES=1)
 		if [[ "${KEEP_SERVICES:-0}" != "1" ]]; then
 			subsection "Shutting down compose services"

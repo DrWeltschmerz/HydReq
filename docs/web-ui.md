@@ -30,3 +30,9 @@
 - Store-first state: the suites/test statuses and messages flow through a central `hydreqStore` and a small suites-scoped state helper (`suites-state.js`). Views hydrate from the store when expanded and subscribe for incremental updates.
 - Public API surface: `suites-api.js` exposes stable, window-scoped helpers used by the editor and other modules, such as `getSuiteLastStatus(path)`, `getSuiteSummary(path)`, `getSuiteBadgeStatus(path)`, `setSuiteTestDetails(path, name, messages)`, `setSuiteTestStatus(path, name, status)`, `hydrateFromSummary(path)`, and `expandSuiteByPath(path)`.
 - Modularity: `suites.js` is now a thin orchestrator delegating DOM to `suites-dom.js`, SSE to `suites-sse.js`, state to `suites-state.js`, and public helpers to `suites-api.js`.
+
+## Screenshots & reports
+
+- CI publishes a Playwright HTML report for the E2E smoke run (Actions → Artifacts → playwright-report).
+- Local screenshots/videos are saved on failure under `test/e2e/playwright-report/` when running `npx playwright test`.
+- You can include curated screenshots under `docs/screenshots/` for documentation or READMEs.

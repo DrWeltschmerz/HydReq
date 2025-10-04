@@ -28,6 +28,7 @@
     nm.textContent = name;
     nm.title = name;
     nm.dataset.name = name;
+    nm.setAttribute('aria-label', 'Test: ' + name);
 
     try{
       if (Array.isArray(tags) && tags.length){
@@ -109,6 +110,7 @@
       det.className='suite-test-details';
       const sum=document.createElement('summary');
       sum.textContent='details';
+      sum.setAttribute('aria-label','Test details');
       det.appendChild(sum);
       container.appendChild(det);
     }
@@ -140,7 +142,7 @@
       const wrap = document.getElementById('activeTagsTopWrap');
       const cont = document.getElementById('activeTagsTop');
       if (!wrap || !cont) return;
-      cont.innerHTML = '';
+      while (cont.firstChild) cont.removeChild(cont.firstChild);
       if (Array.isArray(selTags) && selTags.length){
         wrap.classList.remove('invisible');
         selTags.forEach(t=>{ const b=document.createElement('span'); b.className='pill tag-chip text-10'; b.textContent='#'+t; cont.appendChild(b); });
@@ -157,7 +159,7 @@
       const wrap = document.getElementById('activeEnvTopWrap');
       const cont = document.getElementById('activeEnvTop');
       if (!wrap || !cont) return;
-      cont.innerHTML = '';
+      while (cont.firstChild) cont.removeChild(cont.firstChild);
       const keys = Object.keys(env);
       if (keys.length){
         wrap.classList.remove('invisible');
@@ -169,25 +171,40 @@
   }
 
   // Small style utilities to keep view code readable
-  function setFlexCol(el){ if (!el) return; el.style.display='flex'; el.style.flexDirection='column'; }
-  function setFlexRow(el){ if (!el) return; el.style.display='flex'; el.style.flexDirection='row'; }
-  function hide(el){ if (!el) return; el.style.display='none'; el.classList.remove('open'); }
-  function show(el){ if (!el) return; el.style.display='block'; el.classList.add('open'); }
+  function setFlexCol(el){
+    if (!el) return;
+    el.classList.add('flex');
+    el.classList.add('flex-col');
+    el.classList.remove('flex-row');
+  }
+  function setFlexRow(el){
+    if (!el) return;
+    el.classList.add('flex');
+    el.classList.add('flex-row');
+    el.classList.remove('flex-col');
+  }
+  function hide(el){ if (!el) return; el.classList.add('hidden'); el.classList.remove('open'); }
+  function show(el){ if (!el) return; el.classList.remove('hidden'); el.classList.add('open'); }
 
   // Build a simple dropdown menu and toggle handler
   function buildDownloadMenu(pathKey, onDownload){
-    const wrap = document.createElement('span'); wrap.className='suite-download pos-relative d-inline-block';
-    const btn = document.createElement('button'); btn.className='btn btn-ghost btn-xs'; btn.title='Download'; btn.setAttribute('aria-label','Download suite'); btn.dataset.path = pathKey;
+    const wrap = document.createElement('span');
+    wrap.className='suite-download pos-relative d-inline-block';
+    const btn = document.createElement('button');
+    btn.className='btn btn-ghost btn-xs';
+    btn.title='Download';
+    btn.setAttribute('aria-label','Download suite');
+    btn.dataset.path = pathKey;
     const icon = document.createElement('span'); icon.className='dl-icon'; icon.textContent='⬇'; btn.appendChild(icon);
-    const menu = document.createElement('div'); menu.className='menu-panel';
+    const menu = document.createElement('div'); menu.className='menu-panel'; menu.setAttribute('role','menu');
     const addItem = (label, fmt)=>{
-      const b = document.createElement('div'); b.textContent = label; b.className='menu-item';
-      b.onclick = (e)=>{ e.stopPropagation(); if (typeof onDownload==='function') onDownload(pathKey, fmt); menu.style.display='none'; };
+      const b = document.createElement('div'); b.textContent = label; b.className='menu-item'; b.setAttribute('role','menuitem');
+      b.onclick = (e)=>{ e.stopPropagation(); if (typeof onDownload==='function') onDownload(pathKey, fmt); menu.classList.remove('open'); };
       menu.appendChild(b);
     };
     addItem('Download JSON','json'); addItem('Download JUnit','junit'); addItem('Download HTML','html');
-    btn.addEventListener('click', (e)=>{ e.stopPropagation(); menu.style.display = (menu.style.display === 'none') ? 'block' : 'none'; });
-    document.addEventListener('click', ()=>{ try{ menu.style.display='none'; }catch(e){} });
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); menu.classList.toggle('open'); });
+    document.addEventListener('click', ()=>{ try{ menu.classList.remove('open'); }catch(e){} });
     wrap.appendChild(btn); wrap.appendChild(menu);
     return wrap;
   }
@@ -203,9 +220,26 @@
     if (!barEl || !textEl){
       const d = document.createElement('div');
       d.className = 'row';
-      d.innerHTML = '<div class="w-120px">stage ' + stage + '</div>' +
-                    '<div class="progress flex-1"><div id="' + stId + '" style="width:0%"></div></div>' +
-                    '<div class="pill" id="' + txtId + '">0/0</div>';
+      // label
+      const label = document.createElement('div');
+      label.className = 'w-120px';
+      label.textContent = 'stage ' + stage;
+      d.appendChild(label);
+      // progress
+      const progWrap = document.createElement('div');
+      progWrap.className = 'progress flex-1';
+  const progBar = document.createElement('div');
+      progBar.id = stId;
+      progBar.setAttribute('aria-label','Stage ' + stage + ' progress');
+  // width is managed via setBar utility during updates
+      progWrap.appendChild(progBar);
+      d.appendChild(progWrap);
+      // text pill
+      const pill = document.createElement('div');
+      pill.className = 'pill';
+      pill.id = txtId;
+      pill.textContent = '0/0';
+      d.appendChild(pill);
       if (stages) stages.appendChild(d);
       barEl = document.getElementById(stId);
       textEl = document.getElementById(txtId);

@@ -8,12 +8,28 @@
     const baseUrlEl = modal.querySelector('#ed_suite_baseurl');
     const authBearerEl = modal.querySelector('#ed_auth_bearer');
     const authBasicEl = modal.querySelector('#ed_auth_basic');
-    const suiteVarsEl = modal.querySelector('#ed_suite_vars');
+  const suiteVarsEl = modal.querySelector('#ed_suite_vars');
+  const oapiFileEl = modal.querySelector('#ed_suite_openapi_file');
+  const oapiEnabledEl = modal.querySelector('#ed_suite_openapi_enabled');
     if (suiteNameEl) out.name = suiteNameEl.value;
     if (baseUrlEl) out.baseUrl = baseUrlEl.value;
     try{ if (suiteVarsEl && typeof getters.suiteVarsGet==='function'){ const v = getters.suiteVarsGet(); if (v && Object.keys(v).length) out.vars=v; else delete out.vars; } }catch{}
-    const bearerVal = authBearerEl ? (authBearerEl.value||'').trim() : '';
+  const bearerVal = authBearerEl ? (authBearerEl.value||'').trim() : '';
     const basicVal = authBasicEl ? (authBasicEl.value||'').trim() : '';
+    // Suite-level OpenAPI
+    (function(){
+      try{
+        const file = oapiFileEl ? (oapiFileEl.value||'').trim() : '';
+        const enabled = oapiEnabledEl ? !!oapiEnabledEl.checked : false;
+        if (file) {
+          out.openApi = { file: file };
+          if (enabled) out.openApi.enabled = true; else delete out.openApi.enabled;
+        } else {
+          // If no file, remove openApi entirely regardless of enabled toggle.
+          delete out.openApi;
+        }
+      }catch{}
+    })();
     if (bearerVal || basicVal){ out.auth = out.auth || {}; if (bearerVal) out.auth.bearerEnv=bearerVal; else delete out.auth.bearerEnv; if (basicVal) out.auth.basicEnv=basicVal; else delete out.auth.basicEnv; delete out.auth.bearer; delete out.auth.basic; if (!out.auth.bearerEnv && !out.auth.basicEnv) delete out.auth; } else { delete out.auth; }
 
     // Suite hooks

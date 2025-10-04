@@ -40,6 +40,7 @@ services:
     working_dir: /work
     environment:
       ENABLE_DEMO_AUTH: "1"
+      HYDREQ_GUI_ADDR: "0.0.0.0:8787"
     depends_on:
       - httpbin
       - postgres

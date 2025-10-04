@@ -58,8 +58,8 @@
     const expected = ['batchStart','suiteStart','testStart','test','testStart','test','suiteEnd','batchEnd','done'];
     const ok = names.join(',') === expected.join(',');
     const out = document.getElementById('run-listener-test-output');
-    if (ok){ out.textContent = 'run-listener test passed'; out.style.color='green'; console.log('run-listener test passed'); }
-    else { out.textContent = 'run-listener test FAILED: got ' + names.join(','); out.style.color='red'; console.error('run-listener test FAILED', names); }
+  if (ok){ out.textContent = 'run-listener test passed'; out.classList.remove('text-error'); out.classList.add('text-success'); console.log('run-listener test passed'); }
+  else { out.textContent = 'run-listener test FAILED: got ' + names.join(','); out.classList.remove('text-success'); out.classList.add('text-error'); console.error('run-listener test FAILED', names); }
     // restore original EventSource
     window.EventSource = RealEventSource;
     if (typeof unsub === 'function') unsub();

@@ -6,7 +6,7 @@ try{
   console.log('HYDREQ-INIT: script start');
   try{ window.__HYDREQ_INIT = (window.__HYDREQ_INIT || 0) + 1; }catch(e){}
   // If #results exists append a small marker so Playwright can snapshot it
-  (function(){ try{ const r=document.getElementById('results'); if (r){ const d=document.createElement('div'); d.textContent='HYDREQ-INIT: script start'; d.style.opacity='0.6'; d.style.fontSize='12px'; r.appendChild(d); } }catch(e){} })();
+  (function(){ try{ const r=document.getElementById('results'); if (r){ const d=document.createElement('div'); d.textContent='HYDREQ-INIT: script start'; d.className='opacity-50 text-xs'; r.appendChild(d); } }catch(e){} })();
 }catch(e){ /* ignore */ }
 
 // Global variables
@@ -66,8 +66,12 @@ function initApp(){
   (function initEnvKV(){
     if (!envKVList) return;
     const root = envKVList;
-    root.innerHTML = '';
-    const head = document.createElement('div'); head.className='row'; head.innerHTML='<div class="fw-600">Overrides</div><div style="flex:1"></div><button id="env_add" class="btn btn-xs">+ Add</button>';
+  while (root.firstChild) root.removeChild(root.firstChild);
+  const head = document.createElement('div'); head.className='row';
+  const headLabel = document.createElement('div'); headLabel.className='fw-600'; headLabel.textContent='Overrides';
+  const headSpacer = document.createElement('div'); headSpacer.className='flex-1';
+  const headBtn = document.createElement('button'); headBtn.id='env_add'; headBtn.className='btn btn-xs'; headBtn.textContent='+ Add';
+  head.appendChild(headLabel); head.appendChild(headSpacer); head.appendChild(headBtn);
     root.appendChild(head);
     const list = document.createElement('div'); list.className='col'; root.appendChild(list);
     function addRow(k='', v=''){
@@ -141,8 +145,12 @@ function initApp(){
   (function initTagsUI(){
     if (!tagsKVList) return;
     const root = tagsKVList;
-    root.innerHTML = '';
-    const head = document.createElement('div'); head.className='row'; head.innerHTML='<div class="fw-600">Tags</div><div style="flex:1"></div><button id="tag_add" class="btn btn-xs">+ Add</button>';
+  while (root.firstChild) root.removeChild(root.firstChild);
+  const head = document.createElement('div'); head.className='row';
+  const headLabel = document.createElement('div'); headLabel.className='fw-600'; headLabel.textContent='Tags';
+  const headSpacer = document.createElement('div'); headSpacer.className='flex-1';
+  const headBtn = document.createElement('button'); headBtn.id='tag_add'; headBtn.className='btn btn-xs'; headBtn.textContent='+ Add';
+  head.appendChild(headLabel); head.appendChild(headSpacer); head.appendChild(headBtn);
     root.appendChild(head);
     const list = document.createElement('div'); list.className='col'; root.appendChild(list);
     function addRow(tag='', checked=false){
@@ -162,7 +170,7 @@ function initApp(){
     }
     function renderActiveTags(){
       if (!tagsActive) return;
-      tagsActive.innerHTML='';
+  while (tagsActive.firstChild) tagsActive.removeChild(tagsActive.firstChild);
       try{
         const sel = readTagState().selected;
         sel.forEach(v=>{ const b=document.createElement('span'); b.className='pill tag-chip selected'; b.textContent='#'+v; b.dataset.tag=v; b.title='Click to unselect';
@@ -170,7 +178,7 @@ function initApp(){
           tagsActive.appendChild(b); 
         });
         if (activeTagsTop){
-          activeTagsTop.innerHTML = '';
+          while (activeTagsTop.firstChild) activeTagsTop.removeChild(activeTagsTop.firstChild);
           sel.forEach(v=>{ const b=document.createElement('span'); b.className='pill tag-chip selected'; b.textContent='#'+v; b.dataset.tag=v; b.title='Click to unselect'; b.addEventListener('click', ()=> window.toggleSelectedTag(v)); activeTagsTop.appendChild(b); });
         }
   if (activeTagsTopWrap){ activeTagsTopWrap.classList.toggle('invisible', sel.length === 0); }
@@ -181,7 +189,7 @@ function initApp(){
       // rebuild rows to reflect any external changes
       const current = Array.from(list.children).map(r=> ({ cb: r.querySelector('input[type="checkbox"]'), ti: r.querySelector('input[type="text"]') }));
       // Simple approach: clear and rebuild
-      list.innerHTML='';
+  while (list.firstChild) list.removeChild(list.firstChild);
       st.list.forEach(tag=> addRow(tag, st.selected.includes(tag)));
     }
     // preload
@@ -313,7 +321,7 @@ function initApp(){
         console.log('HYDREQ: post-load check 1, __HYDREQ_REFRESH=', window.__HYDREQ_REFRESH); 
         const count = document.querySelectorAll('#suites li').length; 
         console.log('HYDREQ: post-load check 1, suites li count=', count); 
-        try{ if (results) { const d=document.createElement('div'); d.textContent = 'HYDREQ-DBG: post-load-1 count=' + count; results.appendChild(d); } }catch(e){} 
+        try{ if (results) { const d=document.createElement('div'); d.textContent = 'HYDREQ-DBG: post-load-1 count=' + count; d.className='opacity-50 text-xs'; results.appendChild(d); } }catch(e){} 
       }catch(e){ console.error('HYDREQ: post-load check 1 failed', e); } 
     }, 800);
     
@@ -322,7 +330,7 @@ function initApp(){
         console.log('HYDREQ: post-load check 2, __HYDREQ_REFRESH=', window.__HYDREQ_REFRESH); 
         const count = document.querySelectorAll('#suites li').length; 
         console.log('HYDREQ: post-load check 2, suites li count=', count); 
-        try{ if (results) { const d=document.createElement('div'); d.textContent = 'HYDREQ-DBG: post-load-2 count=' + count; results.appendChild(d); } }catch(e){} 
+  try{ if (results) { const d=document.createElement('div'); d.textContent = 'HYDREQ-DBG: post-load-2 count=' + count; d.className='opacity-50 text-xs'; results.appendChild(d); } }catch(e){} 
       }catch(e){ console.error('HYDREQ: post-load check 2 failed', e); } 
     }, 2500);
     
@@ -331,7 +339,7 @@ function initApp(){
         const probe = window.__HYDREQ_REFRESH || {}; 
         const info = 'HYDREQ-FINAL: status=' + (probe.status||'') + ' len=' + (probe.len||0) + ' err=' + (probe.err||''); 
         console.log(info); 
-        try{ if (results) { const d=document.createElement('div'); d.textContent = info; results.appendChild(d); } }catch(e){} 
+  try{ if (results) { const d=document.createElement('div'); d.textContent = info; d.className='opacity-50 text-xs'; results.appendChild(d); } }catch(e){} 
       }catch(e){ console.error('HYDREQ: final probe failed', e); } 
     }, 3500);
   }catch(e){}
