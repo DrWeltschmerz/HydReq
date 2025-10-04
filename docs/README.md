@@ -7,6 +7,8 @@ Welcome! This is the full documentation for HydReq. Start here and jump to the t
   - ./docker.md
 - Web UI guide
   - ./web-ui.md
+  - UI refactor plan
+    - ./ui-refactor-plan.md
  - Visual editor
    - ./visual-editor.md
   - ./cli.md

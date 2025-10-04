@@ -1,0 +1,26 @@
+/* Tokyo Night (dark) */
+body.tokyo-night {
+  --hdr-bg: #1a1b26;
+  --hdr-fg: #c0caf5;
+  --bd: #414868;
+  --li-hov: #24283b;
+  --li-sel: #2f3449;
+  --pill: #2f3449;
+  --pg-bg: #2f3449;
+  --txt: #c0caf5;
+  --bg: #1a1b26;
+  --btn-bg: #24283b;
+  --btn-bd: #414868;
+  --btn-hov: #2f3449;
+  --link: #7dcfff;
+  --input-bg: #24283b;
+  --input-bd: #414868;
+  --input-fg: #c0caf5;
+  --input-focus: #7dcfff;
+  --success: #9ece6a;
+  --error: #f7768e;
+  --warning: #e0af68;
+  --info: #7dcfff;
+  --grad1: #7dcfff;
+  --grad2: #9ece6a;
+}

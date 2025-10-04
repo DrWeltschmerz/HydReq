@@ -627,7 +627,11 @@ func main() {
 			// For true detachment, fork the process
 			if os.Getppid() == 1 {
 				// Already a daemon, just run
-				return gui.Run("localhost:8787", true)
+				addr := os.Getenv("HYDREQ_GUI_ADDR")
+				if strings.TrimSpace(addr) == "" {
+					addr = "localhost:8787"
+				}
+				return gui.Run(addr, true)
 			}
 			// Fork and exit parent
 			args := os.Args
@@ -648,14 +652,22 @@ func main() {
 			os.Exit(0)
 			return nil
 		}
-		return gui.Run("localhost:8787", true)
+		addr := os.Getenv("HYDREQ_GUI_ADDR")
+		if strings.TrimSpace(addr) == "" {
+			addr = "localhost:8787"
+		}
+		return gui.Run(addr, true)
 	}}
 	guiCmd.Flags().BoolVarP(&detach, "detach", "d", false, "Run GUI server in background")
 	rootCmd.AddCommand(guiCmd)
 
 	// Default to GUI when no args; TUI remains available via subcommand
 	if len(os.Args) == 1 {
-		if err := gui.Run("localhost:8787", true); err != nil {
+		addr := os.Getenv("HYDREQ_GUI_ADDR")
+		if strings.TrimSpace(addr) == "" {
+			addr = "localhost:8787"
+		}
+		if err := gui.Run(addr, true); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}

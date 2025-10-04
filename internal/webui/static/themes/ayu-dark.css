@@ -1,0 +1,26 @@
+/* Ayu Dark (dark) */
+body.ayu-dark {
+  --hdr-bg: #0a0e14;
+  --hdr-fg: #b3b1ad;
+  --bd: #1a2332;
+  --li-hov: #0f1419;
+  --li-sel: #131925;
+  --pill: #131925;
+  --pg-bg: #131925;
+  --txt: #b3b1ad;
+  --bg: #0a0e14;
+  --btn-bg: #0f1419;
+  --btn-bd: #1a2332;
+  --btn-hov: #131925;
+  --link: #39bae6;
+  --input-bg: #0f1419;
+  --input-bd: #1a2332;
+  --input-fg: #b3b1ad;
+  --input-focus: #39bae6;
+  --success: #aad94c;
+  --error: #f51818;
+  --warning: #ff8f40;
+  --info: #39bae6;
+  --grad1: #39bae6;
+  --grad2: #aad94c;
+}

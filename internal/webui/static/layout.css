@@ -1,4 +1,5 @@
-body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; background: var(--bg); color: var(--txt); }
+html { height: 100%; }
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 0; background: var(--bg); color: var(--txt); min-height: 100%; overflow-x: hidden; }
 header { background: var(--hdr-bg); color: var(--hdr-fg); padding: 16px; font-weight: 700; display:flex; align-items:center; justify-content:space-between; }
 /* Make the left pane ~30% of the page with sensible min/max for readability */
 main { display: grid; grid-template-columns: minmax(400px, 35%) 1fr; height: calc(100vh - 64px); }

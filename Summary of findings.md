@@ -166,5 +166,21 @@ Wrap-up
 - Minimal change set: add UI button + small JS flow to prompt for a name, compute a safe path, open the editor with a default suite, validate, and call /api/editor/save. This leverages the existing server save endpoint and requires no immediate server code changes.
 - Recommended improvement: add a small server API to check path safety/existence and unit tests around the new behavior.
 
+Additional notes (post Phase 1 work)
+- Collapsible details are now implemented everywhere:
+  - Suites list (left): failed test messages render below the test name as a collapsed-by-default details/summary with a scrollable, copy-friendly pre block.
+  - Runner window (center): live results show collapsed details for failures.
+  - Editor: test list and quick-run outputs use the same collapsed details block.
+- Gaps identified for Phase 0/1 cleanup:
+  - Some JS files remain large (`internal/webui/static/js/suites.js`, `internal/webui/static/js/editor.js`).
+  - Residual inline style assignments in JS (spacing, backgrounds) should be migrated to CSS classes.
+  - Status/badge colors are set inline in places; introduce `.status-passed|failed|skipped` classes and use theme tokens.
+- Cleanup plan:
+  1) Move remaining inline style assignments to CSS utility classes in `app.css`.
+  2) Split `suites.js` into `sse-handlers.js`, `suite-state.js`, and `suite-dom.js` with a thin orchestrator.
+  3) Continue splitting `editor.js` (modal/state/yaml/forms/run) per Phase 2.
+  4) Add status classes and replace inline background setting.
+  5) Add E2E tests to verify expand, SSE updates, and details collapse/expand + scrollability.
+
 If you want, I can:
 - Produce the concrete patch for the HTML/JS (full modified internal/webui/static/index.html) and a small Go handler for /api/editor/checkpath and a unit test skeleton for isEditablePath and handleEditorSave.

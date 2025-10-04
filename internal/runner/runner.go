@@ -421,7 +421,7 @@ func RunSuite(ctx context.Context, s *models.Suite, opts Options) (Summary, erro
 				sum.Skipped++
 				ui.Skipf("%s (only)", t.Name)
 				if opts.OnResult != nil {
-					opts.OnResult(TestResult{Name: t.Name, Stage: t.Stage, Tags: t.Tags, Status: "skipped"})
+					opts.OnResult(TestResult{Name: t.Name, Stage: t.Stage, Tags: t.Tags, Status: "skipped", Messages: []string{"filtered by only"}})
 				}
 				continue
 			}
@@ -429,7 +429,7 @@ func RunSuite(ctx context.Context, s *models.Suite, opts Options) (Summary, erro
 				sum.Skipped++
 				ui.Skipf("%s (skip)", t.Name)
 				if opts.OnResult != nil {
-					opts.OnResult(TestResult{Name: t.Name, Stage: t.Stage, Tags: t.Tags, Status: "skipped"})
+					opts.OnResult(TestResult{Name: t.Name, Stage: t.Stage, Tags: t.Tags, Status: "skipped", Messages: []string{"explicit skip"}})
 				}
 				continue
 			}
@@ -437,7 +437,7 @@ func RunSuite(ctx context.Context, s *models.Suite, opts Options) (Summary, erro
 				sum.Skipped++
 				ui.Skipf("%s (tags)", t.Name)
 				if opts.OnResult != nil {
-					opts.OnResult(TestResult{Name: t.Name, Stage: t.Stage, Tags: t.Tags, Status: "skipped"})
+					opts.OnResult(TestResult{Name: t.Name, Stage: t.Stage, Tags: t.Tags, Status: "skipped", Messages: []string{"filtered by tags"}})
 				}
 				continue
 			}

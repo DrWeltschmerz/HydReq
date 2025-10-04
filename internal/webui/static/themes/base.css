@@ -1,0 +1,8 @@
+/* Base theme variables */
+:root {
+  --hdr-bg:#0b1020; --hdr-fg:#c6e2ff; --bd:#e5e7eb; --li-hov:#f5f7fb; --li-sel:#e6f2ff; --pill:#eef2ff; --pg-bg:#eee; --txt:#111827; --bg:#ffffff;
+  --btn-bg:#ffffff; --btn-bd:#d1d5db; --btn-hov:#f6f9ff; --link:#2563eb;
+  --input-bg:#ffffff; --input-bd:#d1d5db; --input-fg:#111827; --input-focus:#7aa2ff;
+  --success:#10b981; --error:#ef4444; --warning:#f59e0b; --info:#3b82f6;
+  --grad1:#00d4ff; --grad2:#5bff5b;
+}
