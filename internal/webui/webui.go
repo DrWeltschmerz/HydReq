@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -53,6 +54,8 @@ type server struct {
 	schema  *jsonschema.Schema
 	// reports stores generated reports keyed by runId and suite path
 	reports map[string]map[string]any
+	// inlineSuites stores, per runId, an optional map of path -> in-memory Suite to run instead of loading from disk
+	inlineSuites map[string]map[string]*models.Suite
 }
 
 func Run(addr string, openBrowser bool) error {
@@ -1208,6 +1211,9 @@ func (s *server) handleEditorTestRun(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
+// handleEditorStreamRun starts an in-memory run (single test or full suite) and streams via /api/stream using returned runId
+// (removed) handleEditorStreamRun: we reuse /api/run for streaming suite runs
+
 func mustRead(p string) []byte { b, _ := os.ReadFile(p); return b }
 
 type runReq struct {
@@ -1216,6 +1222,8 @@ type runReq struct {
 	Env            map[string]string `json:"env"`
 	Tags           []string          `json:"tags"`
 	DefaultTimeout int               `json:"defaultTimeout"`
+	// Optional: provide in-memory suites to run under specific paths; when present, server uses these instead of reading from disk.
+	InlineSuites map[string]any `json:"inlineSuites,omitempty"`
 }
 type runResp struct {
 	RunID string `json:"runId"`
@@ -1241,6 +1249,27 @@ func (s *server) handleRun(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.streams[id] = ch
 	s.ready[id] = rd
+	// capture inlineSuites for this runId if provided
+	if req.InlineSuites != nil {
+		if s.inlineSuites == nil {
+			s.inlineSuites = map[string]map[string]*models.Suite{}
+		}
+		m := make(map[string]*models.Suite)
+		for k, v := range req.InlineSuites {
+			// coerce v into models.Suite
+			var suite models.Suite
+			// try direct map->json->struct
+			if b, err := json.Marshal(v); err == nil {
+				if err2 := json.Unmarshal(b, &suite); err2 == nil {
+					sc := suite
+					m[k] = &sc
+				}
+			}
+		}
+		if len(m) > 0 {
+			s.inlineSuites[id] = m
+		}
+	}
 	s.mu.Unlock()
 	go s.runSuites(id, req.Suites, req.Workers, req.Env, req.Tags, req.DefaultTimeout)
 	w.Header().Set("Content-Type", "application/json")
@@ -1654,14 +1683,21 @@ func (s *server) runSuites(id string, suites []string, workers int, env map[stri
 		Type    string `json:"type"`
 		Payload any    `json:"payload"`
 	}
-	// wait for at least one SSE subscriber or a short timeout to reduce race for early events
+	// Wait for at least one SSE subscriber or a short timeout to reduce race for early events.
+	// The default grace is 1500ms, overridable via HYDREQ_SSE_READY_WAIT_MS (milliseconds).
 	s.mu.Lock()
 	rd, ok := s.ready[id]
 	s.mu.Unlock()
 	if ok {
+		waitMs := 1500
+		if s := strings.TrimSpace(os.Getenv("HYDREQ_SSE_READY_WAIT_MS")); s != "" {
+			if v, err := strconv.Atoi(s); err == nil && v >= 0 {
+				waitMs = v
+			}
+		}
 		select {
 		case <-rd:
-		case <-time.After(500 * time.Millisecond):
+		case <-time.After(time.Duration(waitMs) * time.Millisecond):
 		}
 	}
 	out(evt{Type: "batchStart", Payload: map[string]any{"total": len(suites)}})
@@ -1707,10 +1743,28 @@ func (s *server) runOneWithCtx(runId string, ctx context.Context, path string, w
 	defer func() { ui.Enabled = prev }()
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer cancel()
-	suite, err := runner.LoadSuite(path)
-	if err != nil {
-		out(evt{Type: "error", Payload: map[string]any{"path": path, "error": err.Error()}})
-		return
+	// Prefer inline in-memory suite if present for this runId and path; else load from disk
+	var suite *models.Suite
+	var err error
+	s.mu.Lock()
+	if s.inlineSuites != nil {
+		if mm, ok := s.inlineSuites[runId]; ok {
+			if inl, ok2 := mm[path]; ok2 && inl != nil {
+				// copy to avoid concurrent mutation issues
+				cp := *inl
+				suite = &cp
+			}
+		}
+	}
+	s.mu.Unlock()
+	if suite == nil {
+		var ld *models.Suite
+		ld, err = runner.LoadSuite(path)
+		if err != nil {
+			out(evt{Type: "error", Payload: map[string]any{"path": path, "error": err.Error()}})
+			return
+		}
+		suite = ld
 	}
 	// compute totals and stage counts from loaded suite
 	stageCounts := map[int]int{}

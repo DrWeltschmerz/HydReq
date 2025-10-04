@@ -42,14 +42,14 @@ function parseEnv(){
 function renderActiveEnv(env){
   const envActive = document.getElementById('env_active');
   if (envActive){
-    while (envActive.firstChild) envActive.removeChild(envActive.firstChild);
+    envActive.replaceChildren();
     Object.keys(env).forEach(k=>{ const b=document.createElement('span'); b.className='pill'; b.textContent=k; envActive.appendChild(b); });
   }
   // Also mirror into header next to Batch progress
   const topWrap = document.getElementById('activeEnvTopWrap');
   const top = document.getElementById('activeEnvTop');
   if (topWrap && top){
-    while (top.firstChild) top.removeChild(top.firstChild);
+    top.replaceChildren();
     const keys = Object.keys(env);
     if (keys.length){
       topWrap.classList.remove('invisible');

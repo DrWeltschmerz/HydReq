@@ -9,7 +9,9 @@
     function getPath(){ try{ return (modal.querySelector('#ed_path')||{}).textContent||''; }catch{ return ''; } }
 
   function clearQuickRun(){ const qr = modal.querySelector('#ed_quickrun'); if (!qr) return; while (qr.firstChild) qr.removeChild(qr.firstChild); }
+    function clearSuiteResults(){ const el = modal.querySelector('#ed_suiteresults'); if (!el) return; while (el.firstChild) el.removeChild(el.firstChild); }
     function appendQuickRunLine(text, cls){ const qr = modal.querySelector('#ed_quickrun'); if (!qr) return; const d=document.createElement('div'); if (cls) d.className=cls; d.textContent=text; qr.appendChild(d); qr.scrollTop = qr.scrollHeight; }
+    function appendSuiteResultsLine(text, cls){ const el = modal.querySelector('#ed_suiteresults'); if (!el) return; const d=document.createElement('div'); if (cls) d.className=cls; d.textContent=text; el.appendChild(d); el.scrollTop = el.scrollHeight; }
 
   function getRunRecord(){ try{ if (!persistEnabled()) return {}; const k = RUNREC_KEY(getPath()); return JSON.parse(localStorage.getItem(k)||'{}'); }catch{return {}} }
   function saveRunRecord(rec){ try{ if (!persistEnabled()) return; const k = RUNREC_KEY(getPath()); localStorage.setItem(k, JSON.stringify(rec)); }catch{} }
@@ -122,6 +124,8 @@
         const path = getPath();
         // Prefer aggregated badge/summary from current tests in store
         publishAggregatedSuite(path);
+        // Re-render suite results section for current modal
+        try{ renderSuiteResultsFromStore(); }catch{}
       }catch{}
     }
 
@@ -160,6 +164,8 @@
         }
         // After updating test record, recompute and publish suite badge/summary
         publishAggregatedSuite(path);
+        // Update suite results view as tests are updated
+        try{ renderSuiteResultsFromStore(); }catch{}
       }catch{}
     }
 
@@ -193,11 +199,175 @@
     }
     function renderQuickRunForSelection(){ renderLatestForSelection(); const qrBox = modal.querySelector('#ed_quickrun_box'); if (qrBox) qrBox.open = true; }
 
+    function renderSuiteResultsFromStore(){
+      try{
+        const path = getPath(); if (!path) return;
+        const box = modal.querySelector('#ed_suiteresults_box'); if (box) box.open = true;
+        const el = modal.querySelector('#ed_suiteresults'); if (!el) return;
+        const agg = aggregateSuiteFromStore(path);
+        const suiteObj = (window.hydreqStore && window.hydreqStore.getSuite) ? (window.hydreqStore.getSuite(path) || {}) : {};
+        const tests = suiteObj.tests || {};
+        if (!agg && (!tests || Object.keys(tests).length===0)){
+          // If container is empty, show hint unless a suite run is in progress
+          const inProg = (modal && modal.dataset && modal.dataset.suiteInProgress==='1');
+          if (!el.firstChild && !inProg) appendSuiteResultsLine('No suite results yet');
+          return;
+        }
+        // Per test lines grouped by stage (if available): ensure stage blocks with headers, then move/append rows into the correct block
+        // Build an array of {name, stage, rec}
+        const items = Object.keys(tests).map(name=>({
+          name,
+          rec: tests[name] || {},
+          stage: (function(){
+            try{
+              // Prefer SSE-populated stage map keyed by path/name
+              const p = getPath();
+              if (p && window.__ed_stageMap && window.__ed_stageMap[p] && (name in window.__ed_stageMap[p])){
+                const stg = window.__ed_stageMap[p][name];
+                if (typeof stg === 'number') return stg;
+              }
+              // Fallback: attempt to derive stage from details messages when present: look for 'stage: N'
+              const msgs = (tests[name] && Array.isArray(tests[name].messages)) ? tests[name].messages : [];
+              const m = msgs.find(x=> typeof x === 'string' && /^stage\s*:\s*\d+/i.test(x));
+              if (m){ const n = m.match(/\d+/); if (n && n[0]) return parseInt(n[0],10); }
+            }catch{}
+            // Fallback: try to read from DOM if available
+            try{ const row = el.querySelector('div[data-test-name="'+name+'"]'); const ds = row && row.getAttribute('data-stage'); if (ds) return parseInt(ds,10); }catch{}
+            return null;
+          })()
+        }));
+        items.sort((a,b)=>{
+          // sort by stage (null last), then by name
+          const sa = (a.stage==null)? Number.MAX_SAFE_INTEGER : a.stage;
+          const sb = (b.stage==null)? Number.MAX_SAFE_INTEGER : b.stage;
+          if (sa !== sb) return sa - sb; return a.name.localeCompare(b.name);
+        });
+        // Ensure blocks per stage appear in ascending order
+        const seenStages = [];
+        items.forEach(it => { if (!seenStages.includes(it.stage)) seenStages.push(it.stage); });
+        seenStages
+          .filter(s => s != null)
+          .sort((a,b)=> a-b)
+          .forEach(s => {
+            const blkId = 'ed_stage_block_'+s;
+            let blk = el.querySelector('#'+blkId);
+            if (!blk){
+              blk = document.createElement('div');
+              blk.id = blkId;
+              // simple header inside block
+              const hdr = document.createElement('div'); hdr.id = 'ed_stage_hdr_'+s; hdr.className='dim text-sm mt-2'; hdr.textContent = `--- stage ${s} ---`;
+              blk.appendChild(hdr);
+              el.appendChild(blk);
+            }
+          });
+        // Unknown stage items go at the end (no header)
+        items.forEach(({name, rec, stage})=>{
+          const r = rec || tests[name] || {};
+          const st = String(r.status||'').toLowerCase();
+          const icon = st==='passed'?'✓':(st==='failed'?'✗':(st==='skipped'?'○':'·'));
+          const cls = st==='passed'?'text-success':(st==='failed'?'text-error':'text-warning');
+          const rowSel = `div[data-test-name="${name}"]`;
+          let row = el.querySelector(rowSel);
+          if (!row){
+            row = document.createElement('div');
+            row.setAttribute('data-test-name', name);
+            row.className = 'ed-test-container';
+            if (stage != null) row.setAttribute('data-stage', String(stage)); else row.removeAttribute('data-stage');
+            // line
+            const line = document.createElement('div');
+            line.className = 'ed-test-line';
+            row.appendChild(line);
+            // details placeholder
+            const detWrap = document.createElement('div');
+            detWrap.className = 'ed-test-details';
+            row.appendChild(detWrap);
+            // append to stage block if known, else to root (will appear above summary)
+            if (stage != null){
+              const blk = el.querySelector('#ed_stage_block_'+stage);
+              if (blk) blk.appendChild(row); else el.appendChild(row);
+            } else {
+              el.appendChild(row);
+            }
+          } else {
+            // Move row under the correct stage block if needed and update data-stage
+            if (stage != null){
+              row.setAttribute('data-stage', String(stage));
+              const blk = el.querySelector('#ed_stage_block_'+stage);
+              if (blk && row.parentElement !== blk){
+                blk.appendChild(row);
+              }
+            }
+          }
+          const line = row.querySelector('.ed-test-line');
+          if (line){ line.className = 'ed-test-line ' + cls; line.textContent = `${icon} ${name}${r.durationMs?` (${r.durationMs}ms)`:''}`; }
+          const detWrap = row.querySelector('.ed-test-details');
+          if (detWrap){
+            // rebuild details content for this test only
+            while (detWrap.firstChild) detWrap.removeChild(detWrap.firstChild);
+            const msgs = Array.isArray(r.messages) ? r.messages : [];
+            if (msgs.length){
+              const det=document.createElement('details'); det.className='ed-msg-details';
+              const sum=document.createElement('summary'); sum.textContent='details'; det.appendChild(sum);
+              const pre=document.createElement('pre'); pre.className='message-block ' + (st==='failed'?'fail':(st==='skipped'?'skip':'ok'));
+              pre.textContent = msgs.join('\n'); det.appendChild(pre);
+              detWrap.appendChild(det);
+            }
+          }
+        });
+        // If running a single test, show transient running state until it resolves
+        try{
+          const kind = (modal && modal.dataset && modal.dataset.quickRunType) || '';
+          const runningName = (modal && modal.dataset && modal.dataset.runningTestName) || '';
+          if (kind === 'test' && runningName){
+            const name = runningName;
+            let row = el.querySelector(`div[data-test-name="${name}"]`);
+            if (!row){
+              row = document.createElement('div'); row.setAttribute('data-test-name', name); row.className='ed-test-container';
+              const line=document.createElement('div'); line.className='ed-test-line'; row.appendChild(line);
+              const detWrap=document.createElement('div'); detWrap.className='ed-test-details'; row.appendChild(detWrap);
+              el.appendChild(row);
+            }
+            const line = row.querySelector('.ed-test-line'); if (line){ line.className = 'ed-test-line text-warning'; line.textContent = `… ${name} (running)`; }
+          }
+        }catch{}
+        // Summary at bottom (update or create dedicated node)
+        const summaryNodeId = 'ed_suite_summary';
+        let summaryNode = el.querySelector('#'+summaryNodeId);
+        const summary = (suiteObj && suiteObj.summary) ? suiteObj.summary : (agg && agg.summary ? agg.summary : null);
+        const inProg = (modal && modal.dataset && modal.dataset.suiteInProgress==='1');
+        if (summary && !inProg){
+          const s = summary;
+          if (!summaryNode){ summaryNode = document.createElement('div'); summaryNode.id = summaryNodeId; el.appendChild(summaryNode); }
+          summaryNode.textContent = `Summary — ${s.passed||0} passed, ${s.failed||0} failed, ${s.skipped||0} skipped, total ${s.total||0}${(s.durationMs?` in ${s.durationMs} ms`:``)}`;
+        }
+        // Auto-scroll to bottom on update
+        try{ el.scrollTop = el.scrollHeight; }catch{}
+      }catch{}
+    }
+
+    // Subscribe to store to render in real-time on test/summary updates
+    let __storeSubId = null;
+    try{
+      if (window.hydreqStore && typeof window.hydreqStore.subscribe==='function'){
+        __storeSubId = window.hydreqStore.subscribe((evt)=>{
+          try{
+            const p = getPath();
+            if (!evt || evt.path !== p) return;
+            if (evt.type === 'test' || evt.type === 'summary') renderSuiteResultsFromStore();
+          }catch{}
+        });
+      }
+      // Unsubscribe on modal close to avoid leaks
+      modal.addEventListener('close', ()=>{ try{ if (__storeSubId && window.hydreqStore && typeof window.hydreqStore.unsubscribe==='function') window.hydreqStore.unsubscribe(__storeSubId); }catch{} });
+    }catch{}
+
     return {
       LS_KEY, RUNREC_KEY,
       getPath,
       clearQuickRun,
+      clearSuiteResults,
       appendQuickRunLine,
+      appendSuiteResultsLine,
       getRunRecord,
       saveRunRecord,
       setSuiteRecord,
@@ -206,7 +376,8 @@
       updateTestBadgeByIndex,
       renderLatestForSelection,
       renderQuickRunForSelection,
-      updateSuiteBadgeUI
+      updateSuiteBadgeUI,
+      renderSuiteResultsFromStore
     };
   }
 

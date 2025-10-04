@@ -1,4 +1,9 @@
 // suites.js - Suite management functions for HydReq GUI
+try {
+  // Soft deprecation banner in console to guide to the modular structure
+  // (No redirect here to avoid breaking deep links or dev workflows)
+  console.warn('HydReq: internal/webui/static/js/suites.js is deprecated. Please use the modular entry points under internal/webui/static/js/*. See docs/web-ui.md.');
+} catch {}
 
 // Global variables for suite management
 let selected = (window.hydreqSuitesState && window.hydreqSuitesState.getSelected()) || new Set();
@@ -342,6 +347,8 @@ function listen(id){
   const suiteBar = document.getElementById('suiteBar');
   const suiteText = document.getElementById('suiteText');
   const currentSuiteEl = document.getElementById('currentSuite');
+  // Track last stage header appended to results to provide clear separation in output
+  let lastStageShown = null;
 
   // Prepare header pills for tags and env (delegated to DOM helpers)
   const renderHeaderTags = () => { try{ window.hydreqSuitesDOM && window.hydreqSuitesDOM.renderHeaderTags(); }catch(e){} };
@@ -361,6 +368,16 @@ function listen(id){
   function handleTestStart(payload){
     const {Name, Stage, path: evPath} = payload;
   if (evPath && currentSuitePath && evPath !== currentSuitePath) return;
+    try{
+      // Insert a visible stage header in the textual results stream when stage changes
+      if (Stage !== undefined && String(Stage) !== String(lastStageShown)){
+        const hdr = document.createElement('div');
+        hdr.className = 'dim';
+        hdr.textContent = `--- stage ${Stage} ---`;
+        if (results) results.appendChild(hdr);
+        lastStageShown = String(Stage);
+      }
+    }catch(e){}
     const wrap = document.createElement('div');
     const line = document.createElement('div'); line.className='run'; line.textContent = '… ' + Name;
     wrap.appendChild(line);
@@ -412,6 +429,8 @@ function listen(id){
   try{ if (currentSuitePath && window.hydreqSuitesState && window.hydreqSuitesState.setTestStatus) {/* ensure map exists lazily */} }catch(e){}
   // Reset matrix aggregations at new suite
   try{ matrixAgg = new Map(); matrixAggMsgs = new Map(); }catch(e){}
+    // Reset last shown stage header for new suite
+    try{ lastStageShown = null; }catch(e){}
     const nm = (payload.name || payload.path || '');
     const pth = payload.path || '';
     const base = pth ? pth.split('/').pop() : '';
@@ -437,6 +456,16 @@ function listen(id){
   function handleTest(payload){
     const {Name, Status, DurationMs, Stage, Messages, Tags, path: evPath} = payload;
     if (evPath && currentSuitePath && evPath !== currentSuitePath) return;
+    try{
+      // Ensure stage header appears even if we missed testStart or dynamic stages
+      if (Stage !== undefined && String(Stage) !== String(lastStageShown)){
+        const hdr = document.createElement('div');
+        hdr.className = 'dim';
+        hdr.textContent = `--- stage ${Stage} ---`;
+        if (results) results.appendChild(hdr);
+        lastStageShown = String(Stage);
+      }
+    }catch(e){}
     const key = (currentSuitePath||'') + '::' + Name;
     // Derive base name for matrix-expanded cases (strip trailing " [..]")
     const baseName = (typeof Name === 'string' && Name.indexOf(' [') > -1) ? Name.slice(0, Name.indexOf(' [')) : Name;

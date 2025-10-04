@@ -19,6 +19,7 @@ services:
     environment:
       ENABLE_DEMO_AUTH: "1"
       HYDREQ_GUI_ADDR: "0.0.0.0:8787"
+      HTTPBIN_BASE_URL: "http://httpbin:80"
     volumes:
       - .:/work
     depends_on:
@@ -27,10 +28,13 @@ services:
   playwright:
     image: mcr.microsoft.com/playwright:v1.50.0-noble
     user: "root"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       CI: "true"
-      HYDREQ_E2E_URL: "http://host.docker.internal:8787/"
-      HTTPBIN_BASE_URL: "http://host.docker.internal:8080"
+      # Default to internal service names; local-ci may override these when using host GUI
+      HYDREQ_E2E_URL: "http://hydreq:8787/"
+      HTTPBIN_BASE_URL: "http://httpbin"
     volumes:
       - ./:/work
     working_dir: /work/test/e2e

@@ -11,55 +11,17 @@
       const includeDeps = !!(modal.querySelector('#ed_run_with_deps')?.checked);
       const includePrevStages = !!(modal.querySelector('#ed_run_with_prevstages')?.checked);
       const label = w.tests[sel].name || `test ${sel+1}`;
-      ctx.clearQuickRun();
-      ctx.appendQuickRunLine('Starting test...', 'dim');
+  // Prepare Quick run UI upfront (clears quickrun and opens panel)
+  ctx.prepareQuickRun(label, 'test');
       let started = false;
       try { if (window.hydreqEditorState?.setWorking) window.hydreqEditorState.setWorking(w); } catch {}
-      try{
-        if (window.hydreqEditorRun?.quickRun){
-          const runId = await window.hydreqEditorRun.quickRun({
-            runAll: false,
-            includeDeps,
-            includePrevStages,
-            testIndex: sel
-          });
-          if (runId){
-            ctx.prepareQuickRun(label);
-            window.hydreqEditorRun.listen(runId, ctx.makeRunHandlers());
-            started = true;
-          }
-        }
-      }catch{}
-      if (started) return;
+      // Use existing editor endpoint for single test (immediate result), then normalize via dispatchImmediate
       const env = ctx.parseEnvFromPage();
-      const payload = {
-        parsed: w,
-        testIndex: sel,
-        env,
-        runAll: false,
-        includeDeps,
-        includePrevStages
-      };
-      const res = await fetch('/api/editor/testrun', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok){
-        let txt=''; try{ txt=await res.text(); }catch{}
-        throw new Error('HTTP '+res.status+(txt?(': '+txt):''));
-      }
+      const payload = { parsed: w, testIndex: sel, env, runAll: false, includeDeps, includePrevStages };
+      const res = await fetch('/api/editor/testrun', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if (!res.ok){ let txt=''; try{ txt=await res.text(); }catch{} throw new Error('HTTP '+res.status+(txt?(': '+txt):'')); }
       const data = await res.json();
-      if (data && data.runId){
-        ctx.prepareQuickRun(label);
-        window.hydreqEditorRun.listen(data.runId, ctx.makeRunHandlers());
-      } else {
-        window.hydreqEditorRun.dispatchImmediate(
-          data,
-          ctx.makeRunHandlers(),
-          label
-        );
-      }
+      window.hydreqEditorRun.dispatchImmediate(data, ctx.makeRunHandlers(), label);
     })().catch(e => {
       console.error(e);
       try{ ctx.appendQuickRunLine('Run failed: '+e.message, 'text-error'); }catch{}
@@ -71,45 +33,36 @@
       const w = ctx.getWorking();
       ctx.collectFormData();
       const label = w.name || 'suite';
-      ctx.clearQuickRun();
-      ctx.appendQuickRunLine('Starting suite...', 'dim');
+  // Prepare upfront; also triggers Suite results clear/reset via prepare(...,'suite')
+  ctx.prepareQuickRun(label, 'suite');
       let started = false;
       try { if (window.hydreqEditorState?.setWorking) window.hydreqEditorState.setWorking(w); } catch {}
-      try{
-        if (window.hydreqEditorRun?.quickRun){
-          const runId = await window.hydreqEditorRun.quickRun({ runAll: true, includeDeps: true });
-          if (runId){
-            ctx.prepareQuickRun(label);
-            window.hydreqEditorRun.listen(runId, ctx.makeRunHandlers());
-            started = true;
-          }
-        }
-      }catch{}
-      if (started) return;
+      const handlers = ctx.makeRunHandlers && ctx.makeRunHandlers();
+      // Otherwise, use runner view endpoint: select current suite by path, stream via /api/stream
       const env = ctx.parseEnvFromPage();
-      const res = await fetch('/api/editor/testrun', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ parsed: w, env, runAll: true, includeDeps: true })
-      });
-      if (!res.ok){
-        let txt=''; try{ txt=await res.text(); }catch{}
-        throw new Error('HTTP '+res.status+(txt?(': '+txt):''));
-      }
+      const path = ctx.getPath();
+      const wcopy = JSON.parse(JSON.stringify(w||{}));
+      // Keep payload schema identical to runner view (see suites.js): use defaultTimeoutMs only when > 0
+      const payload = { suites: [path], workers: 1, env, tags: [], inlineSuites: { [path]: wcopy } };
+      // default timeout: read from UI if present
+      try{
+        const defToEl = document.getElementById('defaultTimeout');
+        const ms = defToEl ? (parseInt(defToEl.value,10)||0) : 0;
+        if (ms > 0) payload.defaultTimeoutMs = ms;
+      }catch{}
+      const res = await fetch('/api/run', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if (!res.ok){ let txt=''; try{ txt=await res.text(); }catch{} throw new Error('HTTP '+res.status+(txt?(': '+txt):'')); }
       const data = await res.json();
-      if (data && data.runId){
-        ctx.prepareQuickRun(label);
-        window.hydreqEditorRun.listen(data.runId, ctx.makeRunHandlers());
-      } else {
-        window.hydreqEditorRun.dispatchImmediate(
-          data,
-          ctx.makeRunHandlers(),
-          label
-        );
-      }
+      const runId = data && (data.runId || data.RunID || data.runID) || null;
+      if (!runId) throw new Error('Failed to start suite run');
+      window.hydreqEditorRun.listen(runId, handlers || ctx.makeRunHandlers());
     })().catch(e => {
       console.error(e);
       try{ ctx.appendQuickRunLine('Suite run failed: '+e.message, 'text-error'); }catch{}
+      // Clear running flag and publish failure into suite results so UI doesn't hang
+      try{ if (modal && modal.dataset) modal.dataset.suiteInProgress = '0'; }catch{}
+      try{ const h = (ctx && ctx.makeRunHandlers && ctx.makeRunHandlers()) || null; if (h && h.onError) h.onError(String(e && e.message ? e.message : e)); }catch{}
+      try{ if (typeof window.__ed_renderSuiteResults==='function') window.__ed_renderSuiteResults(); }catch{}
     });
   }
 

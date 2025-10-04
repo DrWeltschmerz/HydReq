@@ -6,6 +6,7 @@
     "mocha": "^10.8.2"
   },
   "scripts": {
-    "test:js": "mocha --timeout 5000 \"internal/webui/static/test/**/*.spec.js\""
+    "test:js": "mocha --timeout 5000 \"internal/webui/static/test/**/*.spec.js\"",
+    "demo:gif": "node test/e2e/scripts/webm-to-gif.js docs/screenshots/demo.webm docs/screenshots/demo.gif"
   }
 }

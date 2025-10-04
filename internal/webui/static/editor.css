@@ -112,7 +112,7 @@ a { color: var(--link); }
 #editorModal .editor-root.comfortable #ed_oapi_form { gap: 10px !important; }
 /* Overlay and modal layout classes */
 #editorModal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; overflow: hidden; }
-.editor-root { background: var(--bg); color: var(--txt); position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: min(1200px, 96%); max-width: 96%; height: min(88vh, 920px); border: 1px solid var(--bd); border-radius: 8px; display: flex; flex-direction: column; min-height: 0; box-sizing: border-box; }
+.editor-root { background: var(--bg); color: var(--txt); position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 98vw; height: 92vh; border: 1px solid var(--bd); border-radius: 8px; display: flex; flex-direction: column; min-height: 0; box-sizing: border-box; }
 .ed-header { padding: 8px 12px; border-bottom: 1px solid var(--bd); display: flex; gap: 12px; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg); z-index: 2; }
 .ed-header-left { display: flex; align-items: center; gap: 12px; }
 .ed-actions { display: flex; gap: 8px; align-items: center; }
@@ -349,11 +349,16 @@ a { color: var(--link); }
   display: none;
 }
 
-/* Column sizing: tests fixed; others flex */
-#col-tests { flex: 0 0 280px; min-width: 240px; }
-#col-visual { flex: 2 1 500px; min-width: 0; }
-#col-yaml { flex: 1 1 400px; min-width: 0; }
-#col-results { flex: 1 1 400px; min-width: 0; }
+/* Column sizing: adjust proportions per UX request
+  - Tests: ~50% wider (from 280px to 420px base)
+  - Visual: ~10% narrower
+  - Results: ~30% narrower
+  - YAML: receives the remainder for better editing space
+*/
+#col-tests { flex: 0 0 336px; min-width: 280px; }
+#col-visual { flex: 1.5 1 534px; min-width: 0; }
+#col-yaml { flex: 2 1 520px; min-width: 0; }
+#col-results { flex: 0.8 1 300px; min-width: 260px; }
 
 /* When tests column is collapsed, override width */
 #col-tests.collapsed {

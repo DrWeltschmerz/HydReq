@@ -13,11 +13,14 @@
     }
     // Fallback: direct EventSource
     const es = new EventSource('/api/stream?runId=' + encodeURIComponent(runId));
+    let firstMessageReceived = false;
+    let lastErrorEmitAt = 0;
     es.onmessage = async (e)=>{
       try{
         const ev = JSON.parse(e.data);
         const type = ev.type;
         const payload = ev.payload || {};
+        firstMessageReceived = true;
         if (!type) return;
         if (type !== 'done' && typeof handlers[type] === 'function'){
           try{ await handlers[type](payload); }catch(err){ console.error('suites-sse handler error', err); }
@@ -28,7 +31,13 @@
         }
       }catch(err){ console.error('suites-sse parse error', err); }
     };
-    es.onerror = ()=>{ try{ if (typeof handlers.error==='function') handlers.error({ error:'connection error' }); }catch{} };
+    es.onerror = ()=>{ 
+      // Throttle/suppress transient reconnect noise. Be quiet after first data; if no data ever arrived, emit sparingly.
+      const now = Date.now();
+      const tooSoon = (now - lastErrorEmitAt) < 2000;
+      const allowEmit = !tooSoon && !firstMessageReceived;
+      if (allowEmit){ try{ if (typeof handlers.error==='function') handlers.error({ error:'connection error' }); lastErrorEmitAt = now; }catch{} }
+    };
     return ()=>{ try{ es.close(); }catch{} };
   }
 

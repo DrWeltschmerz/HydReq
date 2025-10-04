@@ -71,5 +71,11 @@
   }
   function unsubscribe(id){ if (id && _listeners.has(id)) _listeners.delete(id); }
 
-  window.hydreqStore = { getSuite, getAll, setTest, setSummary, setBadge, subscribe, unsubscribe };
+  function resetSuite(path){
+    if (!path) return;
+    _suites[path] = { summary:null, badge:'unknown', tests:{} };
+    _emit({ type:'reset', path });
+  }
+
+  window.hydreqStore = { getSuite, getAll, setTest, setSummary, setBadge, subscribe, unsubscribe, resetSuite };
 })();

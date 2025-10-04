@@ -26,8 +26,7 @@ tests:
           code: >
             setVar('timestamp', new Date().toISOString());
 
-            setVar('request_id', 'req_' + Math.random().toString(36).substr(2,
-            9));
+            setVar('request_id', 'req_' + Math.random().toString(36).slice(2, 11));
 
             console.log('Pre-request: Generated request ID:',
             getVar('request_id'));

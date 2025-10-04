@@ -359,12 +359,7 @@ DEMO=1 npm run demo
 
 This captures video/screenshots and runs the browser in slow motion for smoother demos.
 
-<details>
-<summary>Demo (click to expand)</summary>
-
-<video src="docs/screenshots/demo.webm" width="960" controls muted loop></video>
-
-</details>
+<img src="docs/screenshots/demo.gif" width="960" alt="HydReq demo"/>
 
 ### User Guide
 

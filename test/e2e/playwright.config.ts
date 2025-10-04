@@ -22,6 +22,7 @@ if (process.env.DEMO === "1") {
       video: "on",
       screenshot: "on",
       trace: "on",
+      colorScheme: "dark",
       launchOptions: { slowMo: 250 },
     },
   });

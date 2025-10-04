@@ -216,15 +216,34 @@ jobs:
         run: |
           docker version
           docker compose version
-      - name: Build and run hydreq + httpbin + playwright
+      - name: Bring up services (httpbin, postgres, mssql, hydreq, playwright)
         run: |
-          docker compose -f docker-compose.playwright.ci.yml up --build --abort-on-container-exit --exit-code-from playwright
+          docker compose -f docker-compose.yml up -d httpbin postgres mssql hydreq playwright
+  - name: Run Playwright tests inside playwright container
+        env:
+          UPDATE_SNAPSHOTS: "0"
+        run: |
+          set -euo pipefail
+          # Prepare deps
+          docker compose -f docker-compose.yml exec -T playwright sh -lc '
+            cd /work/test/e2e &&
+            [ -d node_modules ] || npm ci >/dev/null 2>&1 || npm install >/dev/null 2>&1 &&
+            npx playwright install --with-deps >/dev/null 2>&1 || true
+          '
+          # Run tests with dot + html reporters for concise CI logs
+          docker compose -f docker-compose.yml exec -T playwright sh -lc '
+            cd /work/test/e2e && npx playwright test --reporter=dot --reporter=html
+          '
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: test/e2e/playwright-report/
+      - name: Down services
+        if: always()
+        run: |
+          docker compose -f docker-compose.yml down --remove-orphans
 
   pr-summary:
     name: PR summary from reports

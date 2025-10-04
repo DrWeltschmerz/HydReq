@@ -371,6 +371,8 @@ function openEditor(path, data){
   function renderQuickRunForSelection(){ try{ if (runRecs && runRecs.renderQuickRunForSelection) return runRecs.renderQuickRunForSelection(); }catch{} }
   // Expose for global selector
   try{ window.__ed_renderQuickRunForSelection = renderQuickRunForSelection; }catch(e){}
+  // Expose suite results renderer for immediate refresh (e.g., to show running state)
+  try{ window.__ed_renderSuiteResults = function(){ try{ if (runRecs && runRecs.renderSuiteResultsFromStore) runRecs.renderSuiteResultsFromStore(); }catch{} }; }catch(e){}
   function updateBadgesFromSuiteResult(res){
     try{
       if (!res) return;
@@ -454,11 +456,11 @@ function openEditor(path, data){
     collectFormData,
     appendQuickRunLine,
     clearQuickRun,
-    prepareQuickRun: (label)=>{
+    prepareQuickRun: (label, kind)=>{
       try{
         if (window.hydreqEditorRunUI &&
             typeof window.hydreqEditorRunUI.prepare==='function'){
-          window.hydreqEditorRunUI.prepare(modal, label);
+          window.hydreqEditorRunUI.prepare(modal, label, kind);
         }
       }catch{}
     },
@@ -505,8 +507,15 @@ function openEditor(path, data){
             ctx.prepareQuickRun && ctx.prepareQuickRun('suite');
             const includeDeps = !!(modal.querySelector('#ed_run_with_deps')?.checked);
             const includePrevStages = !!(modal.querySelector('#ed_run_with_prevstages')?.checked);
-            const runId = await (window.hydreqEditorRun?.quickRun?.({ runAll:true, includeDeps, includePrevStages }) || null);
-            if (runId) window.hydreqEditorRun?.listen?.(runId, ctx.makeRunHandlers());
+            const qr = await (window.hydreqEditorRun?.quickRun?.({ runAll:true, includeDeps, includePrevStages }) || null);
+            // Back-compat: when quickRun returns a payload, delegate to hydreqRun.start if available
+            if (qr && typeof qr === 'object' && window.hydreqRun && typeof window.hydreqRun.start==='function'){
+              const rid = await window.hydreqRun.start(qr);
+              // hydreqRun.start may call listen() itself; do not force listen here for tests
+              return;
+            }
+            // Otherwise, assume quickRun returned a runId and proceed to listen
+            if (qr && typeof qr === 'string') window.hydreqEditorRun?.listen?.(qr, ctx.makeRunHandlers());
           }catch{}
         }; }
     }

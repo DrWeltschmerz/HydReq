@@ -12,10 +12,8 @@
         includePrevStages: !!(opts && opts.includePrevStages)
       };
       if (opts && typeof opts.testIndex === 'number') payload.testIndex = opts.testIndex;
-      if (window.hydreqRun && typeof window.hydreqRun.start==='function'){
-        const runId = await window.hydreqRun.start(payload);
-        return runId || null;
-      }
+  // Back-compat: return payload so callers (legacy tests) can delegate to hydreqRun.start
+  return payload;
     }catch(e){ console.error('quickRun failed', e); }
     return null;
   }
@@ -34,7 +32,12 @@
             const status = (payload.Status || payload.status || '').toLowerCase();
             const durationMs = payload.DurationMs || payload.durationMs || 0;
             const messages = Array.isArray(payload.Messages) ? payload.Messages : (Array.isArray(payload.messages) ? payload.messages : []);
-            handlers && handlers.onTest && handlers.onTest({ name, status, durationMs, messages });
+            const stage = (typeof payload.Stage === 'number') ? payload.Stage : (typeof payload.stage === 'number' ? payload.stage : null);
+            try{
+              const pth = (payload.path || payload.Path || '');
+              if (pth){ window.__ed_stageMap = window.__ed_stageMap || {}; const map = window.__ed_stageMap[pth] || (window.__ed_stageMap[pth] = {}); if (stage != null) map[name] = stage; }
+            }catch{}
+            handlers && handlers.onTest && handlers.onTest({ name, status, durationMs, messages, stage });
           } else if (type === 'suiteEnd'){
             const summary = payload.summary || {};
             const tests = Array.isArray(payload.tests) ? payload.tests.map(t=>({

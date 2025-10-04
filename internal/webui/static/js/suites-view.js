@@ -22,7 +22,7 @@
       }
     }catch(e){}
 
-  while (suitesEl.firstChild) suitesEl.removeChild(suitesEl.firstChild);
+    suitesEl.replaceChildren();
     const selectedSet = opts.selectedSet || new Set();
     const openSet = opts.openSet || new Set();
     const lastStatusObj = opts.lastStatusObj || {}; // { path: { testName: status } }
@@ -169,7 +169,7 @@
       try{
         const preloaded = opts.preloadedTests && opts.preloadedTests[pathKey];
         if (preloaded && Array.isArray(preloaded)){
-          while (testsDiv.firstChild) testsDiv.removeChild(testsDiv.firstChild);
+          testsDiv.replaceChildren();
           preloaded.forEach(t=>{
             const cont = document.createElement('div');
             cont.className = 'suite-test-container';

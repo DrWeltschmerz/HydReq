@@ -22,13 +22,16 @@ subsection() {
     echo -e "${BOLD}${BLUE}--- $1 ---${NC}"
 }
 
-# Default to host networking for local development
-HOST_NETWORK="${HOST_NETWORK:-1}"
+# Default to non-host networking; force non-host on GitHub CI for portability
+HOST_NETWORK="${HOST_NETWORK:-0}"
+if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+	HOST_NETWORK=0
+fi
 
 # Compose command detection (prefer docker compose)
 COMPOSE=()
 if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
-  COMPOSE=(docker compose)
+	COMPOSE=(docker compose)
 elif command -v docker-compose >/dev/null 2>&1; then
   COMPOSE=(docker-compose)
 fi
@@ -104,21 +107,25 @@ if [[ "${SKIP_SERVICES:-0}" == "1" ]]; then
 elif [[ ${#COMPOSE[@]} -gt 0 ]]; then
 	section "Integration Tests"
 
-	subsection "Starting compose services"
-	# Choose compose file (host networking can help on restricted environments)
-	COMPOSE_FILE_ARG=(-f docker-compose.yml)
-	if [[ "${HOST_NETWORK:-0}" == "1" ]]; then
-	  COMPOSE_FILE_ARG=(-f docker-compose.hostnet.yml)
-	  echo -e "${CYAN}ℹ HOST_NETWORK=1 set; using host networking compose file${NC}"
-	fi
+	    subsection "Starting compose services"
+	    # Build compose file list: always include base, optionally hostnet and nopublish override
+	    COMPOSE_FILES=(-f docker-compose.yml)
+        COMPOSE_UP_FLAGS=(up -d --build)
+	    if [[ "${HOST_NETWORK:-0}" == "1" ]]; then
+	      COMPOSE_FILES+=(-f docker-compose.hostnet.yml)
+	      echo -e "${CYAN}ℹ HOST_NETWORK=1 set; including host networking overrides${NC}"
+	    fi
+	    # If host GUI is using 8787, avoid publishing hydreq port by adding nopublish override
+	    if (echo > /dev/tcp/127.0.0.1/8787) >/dev/null 2>&1; then
+	      echo -e "${YELLOW}ℹ Detected listener on localhost:8787; not publishing hydreq port${NC}"
+	      COMPOSE_FILES+=(-f docker-compose.override.nopublish.yml)
+          # Force recreate to ensure port mapping changes take effect on existing containers
+          COMPOSE_UP_FLAGS=(up -d --build --force-recreate)
+	    fi
 	set +e
-		# Use CI override to avoid binding hydreq 8787 on host when not using host networking
-		if [[ "${HOST_NETWORK:-0}" == "1" ]]; then
-			"${COMPOSE[@]}" "${COMPOSE_FILE_ARG[@]}" up -d httpbin postgres mssql
-		else
-			# docker-compose.yml plus override; start only required services to avoid hydreq port binding
-			"${COMPOSE[@]}" -f docker-compose.yml -f docker-compose.override.ci.yml up -d httpbin postgres mssql
-		fi
+		    # Bring up all core services at once (httpbin, postgres, mssql, hydreq, playwright)
+		    # Force rebuild to ensure hydreq binary embeds latest UI/assets
+		    "${COMPOSE[@]}" "${COMPOSE_FILES[@]}" "${COMPOSE_UP_FLAGS[@]}" httpbin postgres mssql hydreq playwright
 	up_rc=$?
 	set -e
 	if [[ $up_rc -ne 0 ]]; then
@@ -159,26 +166,108 @@ elif [[ ${#COMPOSE[@]} -gt 0 ]]; then
 		subsection "Running example test suites"
 		ENABLE_DEMO_AUTH="${ENABLE_DEMO_AUTH:-1}" HTTPBIN_BASE_URL="$HTTPBIN_BASE_URL" PG_DSN="$PG_DSN" MSSQL_DSN="$MSSQL_DSN" ./scripts/run-examples.sh || true
 
-		echo -e "\n${BOLD}${BLUE}========================================${NC}"
-		echo -e "${BOLD}${CYAN}Running Playwright E2E tests${NC}"
-		echo -e "${BOLD}${BLUE}========================================${NC}\n"
-		# Run Playwright tests (use CI-friendly compose when HOST_NETWORK=0)
-		if [[ "${HOST_NETWORK:-0}" == "1" ]]; then
-			"${COMPOSE[@]}" "${COMPOSE_FILE_ARG[@]}" run --rm playwright || true
-		else
-			# Fall back to CI compose which uses service names inside the network
-			if [[ -f docker-compose.playwright.ci.yml ]]; then
-			"${COMPOSE[@]}" -f docker-compose.playwright.ci.yml up --build --abort-on-container-exit --exit-code-from playwright || true
-				# Ensure teardown
-				"${COMPOSE[@]}" -f docker-compose.playwright.ci.yml down --remove-orphans || true
-			else
-				"${COMPOSE[@]}" "${COMPOSE_FILE_ARG[@]}" run --rm playwright || true
-			fi
-		fi
+				echo -e "\n${BOLD}${BLUE}========================================${NC}"
+				echo -e "${BOLD}${CYAN}Running Playwright E2E tests${NC}"
+				echo -e "${BOLD}${BLUE}========================================${NC}\n"
+				E2E_FLAGS=""
+				if [[ "${UPDATE_SNAPSHOTS:-0}" == "1" ]]; then
+						E2E_FLAGS="--update-snapshots=all"
+				fi
+				set +e
+				# Always refresh baselines with a full run (line reporter)
+				"${COMPOSE[@]}" "${COMPOSE_FILES[@]}" exec playwright sh -lc "\
+					set -e; \
+					cd /work/test/e2e; \
+					if [ ! -d node_modules ]; then npm ci >/dev/null 2>&1 || npm install >/dev/null 2>&1; fi; \
+					npx playwright install --with-deps >/dev/null 2>&1 || true; \
+					echo '▶ Running Playwright full suite...'; \
+					npx playwright test ${E2E_FLAGS} --reporter=line --reporter=html || true; \
+				"
+				set -e
+						# Run tests inside the already-running playwright container
+						# Install deps once per container lifetime with visible progress markers
+						if [[ "${DEMO:-0}" == "1" ]]; then
+							set +e
+							"${COMPOSE[@]}" "${COMPOSE_FILES[@]}" exec -e DEMO=1 playwright sh -lc "\
+								set -e; \
+								cd /work/test/e2e; \
+								# Prepare quietly on first run; suppress install noise\n\
+								if [ ! -d node_modules ]; then npm ci >/dev/null 2>&1 || npm install >/dev/null 2>&1; fi; \
+								npx playwright install --with-deps >/dev/null 2>&1 || true; \
+								# Ensure fresh artifacts (avoid picking up stale test-results)
+								rm -rf test-results 2>/dev/null || true; \
+								echo '▶ Running Playwright DEMO...'; \
+								DEMO=1 npx playwright test ${E2E_FLAGS} tests/demo-showcase.spec.ts --project=demo --reporter=list --reporter=html; \
+								echo '▶ Last run:'; \
+								ls -l test-results | tail -n +1 || true; \
+								if [ -f test-results/.last-run.json ]; then head -c 2000 test-results/.last-run.json; fi; \
+							"
+						PLAY_RC=$?
+						set -e
+						echo -e "${CYAN}▶ Playwright demo exit code: ${PLAY_RC}${NC}"
+						else
+						"${COMPOSE[@]}" "${COMPOSE_FILES[@]}" exec playwright sh -lc "\
+								set -e; \
+								cd /work/test/e2e; \
+								# Prepare quietly on first run; suppress install noise\n\
+								if [ ! -d node_modules ]; then npm ci >/dev/null 2>&1 || npm install >/dev/null 2>&1; fi; \
+								npx playwright install --with-deps >/dev/null 2>&1 || true; \
+								echo '▶ Running Playwright tests...'; \
+								npx playwright test ${E2E_FLAGS} --reporter=line --reporter=html || true \
+							"
+						fi
+					set +e
+					echo -e "${CYAN}Extracting latest demo artifacts from container...${NC}"
+				CONT_ID=$(docker ps -qf name=playwright)
+					VIDEO_SRC=""
+					if [ -n "$CONT_ID" ]; then
+					VIDEO_SRC=$(docker exec "$CONT_ID" sh -lc 'cd /work/test/e2e && ls -1t test-results/**/video.* 2>/dev/null | head -n1')
+					fi
+					set -e
+					mkdir -p docs/screenshots
+					if [[ -n "${VIDEO_SRC:-}" ]]; then
+						# Clean previous demo outputs to avoid confusion
+						rm -f docs/screenshots/demo.webm docs/screenshots/demo.gif || true
+						# Copy video
+						docker cp "$CONT_ID:/work/test/e2e/$VIDEO_SRC" docs/screenshots/demo.webm
+						echo -e "${GREEN}✓ Pulled demo video from container: $VIDEO_SRC${NC}"
+						# Also copy sibling screenshots from the same test-result dir
+						RESULT_DIR=$(dirname "$VIDEO_SRC")
+						LATEST_DIR="docs/screenshots/latest_demo"
+						rm -rf "$LATEST_DIR" || true
+						mkdir -p "$LATEST_DIR"
+						docker cp "$CONT_ID:/work/test/e2e/$RESULT_DIR/." "$LATEST_DIR" || true
+						# Promote any PNG screenshots to top-level for convenience
+					find "$LATEST_DIR" -maxdepth 1 -type f -name "*.png" -exec cp -f {} docs/screenshots/ \; 2>/dev/null || true
+					else
+						# Fallback to host-mounted path if container copy failed
+						set +e
+						VIDEO_FILE=$(find test/e2e/test-results -type f \( -name 'video.*' -o -name '*video.*' \) -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | awk '{ $1=""; sub(/^ /, ""); print }')
+						set -e
+						if [[ -n "${VIDEO_FILE:-}" && -f "$VIDEO_FILE" ]]; then
+							# Clean previous demo outputs
+							rm -f docs/screenshots/demo.webm docs/screenshots/demo.gif || true
+							cp -f "$VIDEO_FILE" docs/screenshots/demo.webm || true
+							echo -e "${GREEN}✓ Copied demo video from host: $VIDEO_FILE${NC}"
+							# Copy screenshots from the same result folder
+							RESULT_DIR=$(dirname "$VIDEO_FILE")
+							LATEST_DIR="docs/screenshots/latest_demo"
+							rm -rf "$LATEST_DIR" || true
+							mkdir -p "$LATEST_DIR"
+							cp -a "$RESULT_DIR/." "$LATEST_DIR" 2>/dev/null || true
+						find "$LATEST_DIR" -maxdepth 1 -type f -name "*.png" -exec cp -f {} docs/screenshots/ \; 2>/dev/null || true
+						else
+							echo -e "${YELLOW}⚠ WARN: No demo video found to copy (container or host).${NC}"
+						fi
+					fi
+					if [[ -f docs/screenshots/demo.webm && "${DO_GIF:-0}" == "1" ]]; then
+						echo -e "${CYAN}Converting demo.webm to demo.gif...${NC}"
+						./scripts/make-demo.sh docs/screenshots/demo.webm docs/screenshots/demo.gif || true
+					fi
 		# Tear down compose (unless KEEP_SERVICES=1)
 		if [[ "${KEEP_SERVICES:-0}" != "1" ]]; then
 			subsection "Shutting down compose services"
-			"${COMPOSE[@]}" "${COMPOSE_FILE_ARG[@]}" down --remove-orphans || true
+					"${COMPOSE[@]}" "${COMPOSE_FILES[@]}" down --remove-orphans || true
 		fi
 	fi
 else

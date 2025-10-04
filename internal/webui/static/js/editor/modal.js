@@ -332,6 +332,12 @@
       details.appendChild(el('div', { id: 'ed_quickrun', class: 'log ed-scroll' }));
       return details;
     })();
+    const suiteResults = (function(){
+      const details = el('details', { id: 'ed_suiteresults_box', class: 'ed-section', open: true });
+      details.appendChild(el('summary', { text: 'Suite results' }));
+      details.appendChild(el('div', { id: 'ed_suiteresults', class: 'ed-scroll' }));
+      return details;
+    })();
     const validation = (function(){
       const details = el('details', { id: 'ed_validation_box', class: 'ed-section', open: true });
       const sum = el('summary', { class: 'ed-row-8 ed-ai-center ed-justify-between' });
@@ -341,7 +347,7 @@
       details.appendChild(el('div', { id: 'ed_issues', class: 'ed-scroll' }));
       return details;
     })();
-    const preview = el('div', { id: 'ed_preview', class: 'ed-preview' }, [ quickRun, validation ]);
+    const preview = el('div', { id: 'ed_preview', class: 'ed-preview' }, [ quickRun, suiteResults, validation ]);
     const content = el('div', { class: 'ed-col-content' }, [ preview ]);
     return el('div', { id: 'col-results', class: 'ed-col' }, [ header, content ]);
   }

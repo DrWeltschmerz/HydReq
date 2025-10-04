@@ -41,6 +41,10 @@ services:
     environment:
       ENABLE_DEMO_AUTH: "1"
       HYDREQ_GUI_ADDR: "0.0.0.0:8787"
+      HTTPBIN_BASE_URL: "http://httpbin:80"
+      HYDREQ_SSE_READY_WAIT_MS: "3000"
+    volumes:
+      - ./:/work
     depends_on:
       - httpbin
       - postgres
@@ -49,6 +53,8 @@ services:
   playwright:
     image: mcr.microsoft.com/playwright:v1.50.0-noble
     user: "root"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       CI: "true"
       HYDREQ_E2E_URL: "http://hydreq:8787/"
@@ -63,15 +69,5 @@ services:
       - httpbin
       - postgres
       - mssql
-    entrypoint: /bin/bash
-    command: 
-      - -c
-      - |
-        printf '\033[1;32mStarting Playwright\033[0m\n'
-        cd /work/test/e2e
-        printf '\033[1;33mIn dir: %s\033[0m\n' "$(pwd)"
-        npm install > /dev/null 2>&1
-        printf '\033[1;32mnpm install done\033[0m\n'
-        npx playwright install --with-deps > /dev/null 2>&1
-        printf '\033[1;32minstall deps done\033[0m\n'
-        npx playwright test --reporter=list --reporter=html
+    entrypoint: /bin/sh
+    command: ["-lc", "sleep infinity"]

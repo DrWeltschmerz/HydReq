@@ -66,7 +66,7 @@ function initApp(){
   (function initEnvKV(){
     if (!envKVList) return;
     const root = envKVList;
-  while (root.firstChild) root.removeChild(root.firstChild);
+  root.replaceChildren();
   const head = document.createElement('div'); head.className='row';
   const headLabel = document.createElement('div'); headLabel.className='fw-600'; headLabel.textContent='Overrides';
   const headSpacer = document.createElement('div'); headSpacer.className='flex-1';
@@ -170,7 +170,7 @@ function initApp(){
     }
     function renderActiveTags(){
       if (!tagsActive) return;
-  while (tagsActive.firstChild) tagsActive.removeChild(tagsActive.firstChild);
+  tagsActive.replaceChildren();
       try{
         const sel = readTagState().selected;
         sel.forEach(v=>{ const b=document.createElement('span'); b.className='pill tag-chip selected'; b.textContent='#'+v; b.dataset.tag=v; b.title='Click to unselect';
@@ -178,7 +178,7 @@ function initApp(){
           tagsActive.appendChild(b); 
         });
         if (activeTagsTop){
-          while (activeTagsTop.firstChild) activeTagsTop.removeChild(activeTagsTop.firstChild);
+          activeTagsTop.replaceChildren();
           sel.forEach(v=>{ const b=document.createElement('span'); b.className='pill tag-chip selected'; b.textContent='#'+v; b.dataset.tag=v; b.title='Click to unselect'; b.addEventListener('click', ()=> window.toggleSelectedTag(v)); activeTagsTop.appendChild(b); });
         }
   if (activeTagsTopWrap){ activeTagsTopWrap.classList.toggle('invisible', sel.length === 0); }
@@ -189,7 +189,7 @@ function initApp(){
       // rebuild rows to reflect any external changes
       const current = Array.from(list.children).map(r=> ({ cb: r.querySelector('input[type="checkbox"]'), ti: r.querySelector('input[type="text"]') }));
       // Simple approach: clear and rebuild
-  while (list.firstChild) list.removeChild(list.firstChild);
+  list.replaceChildren();
       st.list.forEach(tag=> addRow(tag, st.selected.includes(tag)));
     }
     // preload
