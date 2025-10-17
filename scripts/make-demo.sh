@@ -43,12 +43,12 @@ PALETTE="docs/screenshots/palette.png"
 
 # Use dockerized ffmpeg to avoid local install
 docker run --rm -v "$PWD:/work" jrottenberg/ffmpeg:4.4-alpine \
-  -y -i "/work/$INPUT_WEBM" -vf "fps=12,scale=960:-1:flags=lanczos,palettegen" \
+  -y -i "/work/$INPUT_WEBM" -vf "fps=24,scale=960:-1:flags=lanczos,palettegen" \
   "/work/$PALETTE"
 
 docker run --rm -v "$PWD:/work" jrottenberg/ffmpeg:4.4-alpine \
   -y -i "/work/$INPUT_WEBM" -i "/work/$PALETTE" \
-  -filter_complex "fps=12,scale=960:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=sierra2_4a" \
+  -filter_complex "fps=24,scale=960:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=sierra2_4a" \
   "/work/$OUTPUT_GIF"
 
 GIF_SIZE=$(stat -c %s "$OUTPUT_GIF" 2>/dev/null || stat -f %z "$OUTPUT_GIF" 2>/dev/null || echo 0)

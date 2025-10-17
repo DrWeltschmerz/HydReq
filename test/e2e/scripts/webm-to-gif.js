@@ -5,9 +5,9 @@ const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 
 const DEFAULTS = {
-  fps: 10,
-  scale: '960:-1',
-  start: 2.4,
+  fps: 24,
+  scale: '1400:-1',
+  start: 12.5,
   duration: null
 };
 
