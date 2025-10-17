@@ -1,5 +1,6 @@
 # Reports
 
+> Overview of reports (JSON/JUnit/HTML) is summarized in [USER_GUIDE](./USER_GUIDE.md). This page contains detailed fields and layouts.
 HydReq can emit detailed results and theme-aware HTML pages you can share in CI artifacts.
 
 - JSON report: summary + per-test entries (name, status, durationMs, messages)

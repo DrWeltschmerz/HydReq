@@ -1,0 +1,11 @@
+{
+  "name": "hydreq-e2e",
+  "private": true,
+  "devDependencies": {
+  "@playwright/test": "1.55.1"
+  },
+  "scripts": {
+    "test": "playwright test --reporter=list",
+    "demo": "DEMO=1 playwright test --reporter=html"
+  }
+}

@@ -6,7 +6,7 @@ try{
   console.log('HYDREQ-INIT: script start');
   try{ window.__HYDREQ_INIT = (window.__HYDREQ_INIT || 0) + 1; }catch(e){}
   // If #results exists append a small marker so Playwright can snapshot it
-  (function(){ try{ const r=document.getElementById('results'); if (r){ const d=document.createElement('div'); d.textContent='HYDREQ-INIT: script start'; d.style.opacity='0.6'; d.style.fontSize='12px'; r.appendChild(d); } }catch(e){} })();
+  (function(){ try{ const r=document.getElementById('results'); if (r){ const d=document.createElement('div'); d.textContent='HYDREQ-INIT: script start'; d.className='opacity-50 text-xs'; r.appendChild(d); } }catch(e){} })();
 }catch(e){ /* ignore */ }
 
 // Global variables
@@ -66,14 +66,18 @@ function initApp(){
   (function initEnvKV(){
     if (!envKVList) return;
     const root = envKVList;
-    root.innerHTML = '';
-    const head = document.createElement('div'); head.className='row'; head.innerHTML='<div class="fw-600">Overrides</div><div style="flex:1"></div><button id="env_add" class="btn btn-xs">+ Add</button>';
+  root.replaceChildren();
+  const head = document.createElement('div'); head.className='row';
+  const headLabel = document.createElement('div'); headLabel.className='fw-600'; headLabel.textContent='Overrides';
+  const headSpacer = document.createElement('div'); headSpacer.className='flex-1';
+  const headBtn = document.createElement('button'); headBtn.id='env_add'; headBtn.className='btn btn-xs'; headBtn.textContent='+ Add';
+  head.appendChild(headLabel); head.appendChild(headSpacer); head.appendChild(headBtn);
     root.appendChild(head);
     const list = document.createElement('div'); list.className='col'; root.appendChild(list);
     function addRow(k='', v=''){
-      const row = document.createElement('div'); row.className='env-row row'; row.style.gap='6px';
-      const ki = document.createElement('input'); ki.className='env-k'; ki.placeholder='KEY'; ki.value=k; ki.style.width='40%';
-      const vi = document.createElement('input'); vi.className='env-v'; vi.placeholder='value'; vi.value=v; vi.style.flex='1';
+  const row = document.createElement('div'); row.className='env-row row gap-6';
+  const ki = document.createElement('input'); ki.className='env-k w-40p'; ki.placeholder='KEY'; ki.value=k;
+  const vi = document.createElement('input'); vi.className='env-v flex-1'; vi.placeholder='value'; vi.value=v;
       const del = document.createElement('button'); del.className='btn btn-xs'; del.textContent='×'; del.title='Remove'; del.onclick = ()=>{ row.remove(); renderActiveEnv(parseEnv()); };
       [ki,vi].forEach(el=> el.addEventListener('input', ()=> renderActiveEnv(parseEnv())));
       row.appendChild(ki); row.appendChild(vi); row.appendChild(del); list.appendChild(row);
@@ -115,8 +119,8 @@ function initApp(){
     // Broadcast to any listeners (suites/test chips)
     try{ document.dispatchEvent(new CustomEvent('hydreq:tags-changed')); }catch{}
   }
-  window.getSelectedTags = function(){ return readTagState().selected; };
-  window.setSelectedTags = function(arr){
+  if (!window.getSelectedTags) window.getSelectedTags = function(){ return readTagState().selected; };
+  if (!window.setSelectedTags) window.setSelectedTags = function(arr){
     const st = readTagState();
     const uniq = Array.from(new Set((arr||[]).filter(Boolean)));
     writeTagState(st.list, uniq);
@@ -125,7 +129,7 @@ function initApp(){
     // Rebuild rows/checkboxes if the helper is available
     try{ typeof __hydreq_syncTagRows === 'function' ? __hydreq_syncTagRows() : (window.__hydreq_syncTagRows && window.__hydreq_syncTagRows()); }catch{}
   };
-  window.toggleSelectedTag = function(tag){
+  if (!window.toggleSelectedTag) window.toggleSelectedTag = function(tag){
     if (!tag) return;
     const st = readTagState();
     const s = new Set(st.selected);
@@ -141,14 +145,18 @@ function initApp(){
   (function initTagsUI(){
     if (!tagsKVList) return;
     const root = tagsKVList;
-    root.innerHTML = '';
-    const head = document.createElement('div'); head.className='row'; head.innerHTML='<div class="fw-600">Tags</div><div style="flex:1"></div><button id="tag_add" class="btn btn-xs">+ Add</button>';
+  while (root.firstChild) root.removeChild(root.firstChild);
+  const head = document.createElement('div'); head.className='row';
+  const headLabel = document.createElement('div'); headLabel.className='fw-600'; headLabel.textContent='Tags';
+  const headSpacer = document.createElement('div'); headSpacer.className='flex-1';
+  const headBtn = document.createElement('button'); headBtn.id='tag_add'; headBtn.className='btn btn-xs'; headBtn.textContent='+ Add';
+  head.appendChild(headLabel); head.appendChild(headSpacer); head.appendChild(headBtn);
     root.appendChild(head);
     const list = document.createElement('div'); list.className='col'; root.appendChild(list);
     function addRow(tag='', checked=false){
-      const row = document.createElement('div'); row.className='row'; row.style.gap='6px'; row.style.marginBottom='6px';
+  const row = document.createElement('div'); row.className='row gap-6 mb-6';
       const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = !!checked; cb.title='Include this tag in filter';
-      const ti = document.createElement('input'); ti.type='text'; ti.placeholder='tag'; ti.value=tag; ti.style.flex='1';
+  const ti = document.createElement('input'); ti.type='text'; ti.placeholder='tag'; ti.value=tag; ti.className='flex-1';
       const del = document.createElement('button'); del.className='btn btn-xs'; del.textContent='×'; del.title='Remove';
       del.onclick = ()=>{ row.remove(); persistTags(); renderActiveTags(); };
       [cb, ti].forEach(el=> el.addEventListener('input', ()=>{ persistTags(); renderActiveTags(); }));
@@ -162,7 +170,7 @@ function initApp(){
     }
     function renderActiveTags(){
       if (!tagsActive) return;
-      tagsActive.innerHTML='';
+  tagsActive.replaceChildren();
       try{
         const sel = readTagState().selected;
         sel.forEach(v=>{ const b=document.createElement('span'); b.className='pill tag-chip selected'; b.textContent='#'+v; b.dataset.tag=v; b.title='Click to unselect';
@@ -170,7 +178,7 @@ function initApp(){
           tagsActive.appendChild(b); 
         });
         if (activeTagsTop){
-          activeTagsTop.innerHTML = '';
+          activeTagsTop.replaceChildren();
           sel.forEach(v=>{ const b=document.createElement('span'); b.className='pill tag-chip selected'; b.textContent='#'+v; b.dataset.tag=v; b.title='Click to unselect'; b.addEventListener('click', ()=> window.toggleSelectedTag(v)); activeTagsTop.appendChild(b); });
         }
   if (activeTagsTopWrap){ activeTagsTopWrap.classList.toggle('invisible', sel.length === 0); }
@@ -181,7 +189,7 @@ function initApp(){
       // rebuild rows to reflect any external changes
       const current = Array.from(list.children).map(r=> ({ cb: r.querySelector('input[type="checkbox"]'), ti: r.querySelector('input[type="text"]') }));
       // Simple approach: clear and rebuild
-      list.innerHTML='';
+  list.replaceChildren();
       st.list.forEach(tag=> addRow(tag, st.selected.includes(tag)));
     }
     // preload
@@ -313,7 +321,7 @@ function initApp(){
         console.log('HYDREQ: post-load check 1, __HYDREQ_REFRESH=', window.__HYDREQ_REFRESH); 
         const count = document.querySelectorAll('#suites li').length; 
         console.log('HYDREQ: post-load check 1, suites li count=', count); 
-        try{ if (results) { const d=document.createElement('div'); d.textContent = 'HYDREQ-DBG: post-load-1 count=' + count; results.appendChild(d); } }catch(e){} 
+        try{ if (results) { const d=document.createElement('div'); d.textContent = 'HYDREQ-DBG: post-load-1 count=' + count; d.className='opacity-50 text-xs'; results.appendChild(d); } }catch(e){} 
       }catch(e){ console.error('HYDREQ: post-load check 1 failed', e); } 
     }, 800);
     
@@ -322,7 +330,7 @@ function initApp(){
         console.log('HYDREQ: post-load check 2, __HYDREQ_REFRESH=', window.__HYDREQ_REFRESH); 
         const count = document.querySelectorAll('#suites li').length; 
         console.log('HYDREQ: post-load check 2, suites li count=', count); 
-        try{ if (results) { const d=document.createElement('div'); d.textContent = 'HYDREQ-DBG: post-load-2 count=' + count; results.appendChild(d); } }catch(e){} 
+  try{ if (results) { const d=document.createElement('div'); d.textContent = 'HYDREQ-DBG: post-load-2 count=' + count; d.className='opacity-50 text-xs'; results.appendChild(d); } }catch(e){} 
       }catch(e){ console.error('HYDREQ: post-load check 2 failed', e); } 
     }, 2500);
     
@@ -331,7 +339,7 @@ function initApp(){
         const probe = window.__HYDREQ_REFRESH || {}; 
         const info = 'HYDREQ-FINAL: status=' + (probe.status||'') + ' len=' + (probe.len||0) + ' err=' + (probe.err||''); 
         console.log(info); 
-        try{ if (results) { const d=document.createElement('div'); d.textContent = info; results.appendChild(d); } }catch(e){} 
+  try{ if (results) { const d=document.createElement('div'); d.textContent = info; d.className='opacity-50 text-xs'; results.appendChild(d); } }catch(e){} 
       }catch(e){ console.error('HYDREQ: final probe failed', e); } 
     }, 3500);
   }catch(e){}

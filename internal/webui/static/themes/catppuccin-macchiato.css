@@ -1,0 +1,26 @@
+/* Catppuccin Macchiato (dark) */
+body.catppuccin-macchiato {
+  --hdr-bg: #24273a;
+  --hdr-fg: #cad3f5;
+  --bd: #363a4f;
+  --li-hov: #1e2030;
+  --li-sel: #181926;
+  --pill: #181926;
+  --pg-bg: #181926;
+  --txt: #cad3f5;
+  --bg: #1e2030;
+  --btn-bg: #24273a;
+  --btn-bd: #363a4f;
+  --btn-hov: #1e2030;
+  --link: #8aadf4;
+  --input-bg: #1e2030;
+  --input-bd: #363a4f;
+  --input-fg: #cad3f5;
+  --input-focus: #8aadf4;
+  --success: #a6da95;
+  --error: #ed8796;
+  --warning: #eed49f;
+  --info: #8aadf4;
+  --grad1: #8aadf4;
+  --grad2: #a6da95;
+}

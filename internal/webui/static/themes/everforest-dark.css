@@ -1,0 +1,26 @@
+/* Everforest Dark (dark) */
+body.everforest-dark {
+  --hdr-bg: #2d353b;
+  --hdr-fg: #d3c6aa;
+  --bd: #475258;
+  --li-hov: #374145;
+  --li-sel: #4f5b58;
+  --pill: #4f5b58;
+  --pg-bg: #4f5b58;
+  --txt: #d3c6aa;
+  --bg: #2b3339;
+  --btn-bg: #374145;
+  --btn-bd: #475258;
+  --btn-hov: #4f5b58;
+  --link: #7fbbb3;
+  --input-bg: #374145;
+  --input-bd: #475258;
+  --input-fg: #d3c6aa;
+  --input-focus: #7fbbb3;
+  --success: #a7c080;
+  --error: #e67e80;
+  --warning: #dbbc7f;
+  --info: #7fbbb3;
+  --grad1: #7fbbb3;
+  --grad2: #a7c080;
+}

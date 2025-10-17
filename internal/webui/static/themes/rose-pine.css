@@ -1,0 +1,26 @@
+/* Rose Pine (dark) */
+body.rose-pine {
+  --hdr-bg: #191724;
+  --hdr-fg: #e0def4;
+  --bd: #26233a;
+  --li-hov: #1f1d2e;
+  --li-sel: #2a2839;
+  --pill: #2a2839;
+  --pg-bg: #2a2839;
+  --txt: #e0def4;
+  --bg: #191724;
+  --btn-bg: #1f1d2e;
+  --btn-bd: #26233a;
+  --btn-hov: #2a2839;
+  --link: #c4a7e7;
+  --input-bg: #1f1d2e;
+  --input-bd: #26233a;
+  --input-fg: #e0def4;
+  --input-focus: #c4a7e7;
+  --success: #9ccfd8;
+  --error: #eb6f92;
+  --warning: #f6c177;
+  --info: #c4a7e7;
+  --grad1: #c4a7e7;
+  --grad2: #9ccfd8;
+}

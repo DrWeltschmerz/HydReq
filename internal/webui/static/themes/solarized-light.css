@@ -1,0 +1,26 @@
+/* Solarized Light (light) */
+body.solarized-light {
+  --hdr-bg: #fdf6e3;
+  --hdr-fg: #586e75;
+  --bd: #93a1a1;
+  --li-hov: #eee8d5;
+  --li-sel: #dcd4c4;
+  --pill: #dcd4c4;
+  --pg-bg: #dcd4c4;
+  --txt: #586e75;
+  --bg: #fdf6e3;
+  --btn-bg: #eee8d5;
+  --btn-bd: #93a1a1;
+  --btn-hov: #dcd4c4;
+  --link: #2aa198;
+  --input-bg: #eee8d5;
+  --input-bd: #93a1a1;
+  --input-fg: #586e75;
+  --input-focus: #2aa198;
+  --success: #859900;
+  --error: #dc322f;
+  --warning: #b58900;
+  --info: #2aa198;
+  --grad1: #2aa198;
+  --grad2: #859900;
+}

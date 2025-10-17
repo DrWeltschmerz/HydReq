@@ -1,9 +1,10 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HydReq GUI</title>
+  <link rel="icon" type="image/svg+xml" href="/logo_notext.svg">
   <!-- DaisyUI (includes Tailwind CSS precompiled) for better components/spacing -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css">
   <!-- CodeMirror for YAML editing -->
@@ -21,84 +22,66 @@
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/yaml/yaml.min.js"></script>
   <!-- Custom JavaScript modules -->
+  <!-- Phase 1 scaffolding: state and run wrappers -->
+  <script src="js/state/store.js"></script>
+  <script src="js/state/tags.js"></script>
+  <script src="js/state/env.js"></script>
+  <script src="js/run.js"></script>
+  <script src="js/run-listener.js"></script>
+  <script src="js/suites-view.js"></script>
+  <script src="js/suites-actions.js"></script>
+  <script src="js/suites-state.js"></script>
+  <script src="js/suites-dom.js"></script>
+  <script src="js/suites-sse.js"></script>
+  <script src="js/suites-api.js"></script>
   <script src="js/utils.js"></script>
-  <script src="js/suites.js"></script>
+  <!-- Phase 2: editor scaffolding modules -->
+  <script src="js/editor/modal.js"></script>
+  <script src="js/editor/utils.js"></script>
+  <script src="js/editor/init-helpers.js"></script>
+  <script src="js/editor/state.js"></script>
+  <script src="js/editor/yaml.js"></script>
+  <script src="js/editor/serialize.js"></script>
+  <script src="js/editor/yaml-control.js"></script>
+  <script src="js/editor/normalize.js"></script>
+  <script src="js/editor/collect.js"></script>
+  <script src="js/editor/render-form.js"></script>
+  <script src="js/editor/collapse.js"></script>
+  <script src="js/editor/tables.js"></script>
+  <script src="js/editor/forms/hooks.js"></script>
+  <script src="js/editor/forms/request.js"></script>
+  <script src="js/editor/forms/assert.js"></script>
+  <script src="js/editor/forms/retry.js"></script>
+  <script src="js/editor/forms/testmeta.js"></script>
+  <script src="js/editor/forms/openapi.js"></script>
+  <script src="js/editor/forms/matrix.js"></script>
+  <script src="js/editor/forms/suite.js"></script>
+  <script src="js/editor/issues.js"></script>
+  <script src="js/editor/tests-list.js"></script>
+    <script src="js/editor/validation.js"></script>
+  <script src="js/editor/run-ui.js"></script>
+  <script src="js/editor/run-records.js"></script>
+    <script src="js/editor/run.js"></script>
+    <script src="js/editor/controls.js"></script>
+    <script src="js/suites.js"></script>
   <script src="js/editor.js"></script>
   <script src="js/app.js"></script>
-
-  <!-- Make toolbar buttons stretch to fill the toolbar container -->
-  <style>
-    /* Target the toolbar row and ensure flex layout with gaps */
-    .toolbar.row {
-      display: flex;          /* ensure flex behavior */
-      gap: 8px;               /* consistent spacing between buttons */
-      flex-wrap: wrap;        /* allow buttons to wrap on small screens */
-      align-items: center;
-    }
-
-    /* Make each button take equal share of available width */
-    .toolbar.row > .btn {
-      flex: 1 1 0%;           /* grow/shrink equally, base 0 to distribute evenly */
-      min-width: 0;           /* prevent overflow when contents are long */
-    }
-
-    /* Keep a sensible minimum on very small screens: stack buttons */
-    @media (max-width: 480px) {
-      .toolbar.row > .btn {
-        flex-basis: 100%;     /* each button becomes full width on small devices */
-      }
-    }
-
-    /* Make the workers/tags/timeout labels spread evenly across the container */
-    .full-width-labels {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      width: 100%;
-    }
-
-    /* Each label becomes a flex item that takes equal space */
-    .full-width-labels > label {
-      flex: 1 1 0%;
-      min-width: 0; /* prevent overflow of long contents */
-      display: flex;
-      align-items: center;
-      justify-content: space-between; /* keep label text left and input right */
-      gap: 8px;
-    }
-
-    /* Keep the inputs from stretching awkwardly; they retain their intended widths */
-    .full-width-labels > label input {
-      flex: 0 0 auto;
-      min-width: 0;
-    }
-
-    /* On very small screens, stack the labels for readability */
-    @media (max-width: 480px) {
-      .full-width-labels {
-        flex-direction: column;
-        gap: 6px;
-      }
-      .full-width-labels > label {
-        width: 100%;
-      }
-    }
-  </style>
+  
 </head>
 <body>
   <header>
-    <div style="display:flex; align-items:center; gap:12px">
-      <img id="hydreq_logo" src="/logo_notext.svg" alt="HydReq" style="height:36px; width:36px; display:block;"/>
+    <div class="row m-0 gap-12">
+      <img id="hydreq_logo" src="/logo_notext.svg" alt="HydReq" class="h-36px w-36px d-block"/>
       <div>HydReq — Hydra Request</div>
     </div>
     <div class="row m-0">
-              <label class="row m-0" style="gap:6px; align-items:center;">
+              <label class="row m-0 ed-row-6 ed-ai-center">
           <input id="autoRefreshSuites" type="checkbox"/>
           Auto-refresh
         </label>
   <label class="row m-0"><input id="onlyFailed" type="checkbox"/> Only failed</label>
   <label class="row m-0"><input id="autoScroll" type="checkbox"/> Auto-scroll</label>
-  <label class="row m-0" title="Theme"><span style="margin-right:6px">Theme</span>
+  <label class="row m-0" title="Theme"><span class="mr-6">Theme</span>
     <select id="themeSelect">
       <option value="light">Light</option>
       <option value="dark">Dark</option>
@@ -106,6 +89,22 @@
       <option value="hack">Hack</option>
       <option value="catppuccin-mocha">Catppuccin Mocha</option>
       <option value="catppuccin-latte">Catppuccin Latte</option>
+      <option value="catppuccin-frappe">Catppuccin Frappé</option>
+      <option value="catppuccin-macchiato">Catppuccin Macchiato</option>
+      <option value="nord">Nord</option>
+      <option value="dracula">Dracula</option>
+      <option value="monokai">Monokai</option>
+      <option value="gruvbox-dark">Gruvbox Dark</option>
+      <option value="gruvbox-light">Gruvbox Light</option>
+      <option value="solarized-dark">Solarized Dark</option>
+      <option value="solarized-light">Solarized Light</option>
+      <option value="tokyo-night">Tokyo Night</option>
+      <option value="one-dark-pro">One Dark Pro</option>
+      <option value="palenight">Palenight</option>
+      <option value="rose-pine">Rose Pine</option>
+      <option value="everforest-dark">Everforest Dark</option>
+      <option value="everforest-light">Everforest Light</option>
+      <option value="ayu-dark">Ayu Dark</option>
     </select>
   </label>
   <button id="run" class="btn btn-sm btn-primary" title="Run selected test suites">Run Selected</button>
@@ -182,8 +181,8 @@
   <div class="row"><div class="flex-1">Suite progress — <span id="currentSuite">(none)</span></div><div class="pill" id="suiteText">0/0</div></div>
       <div class="progress"><div id="suiteBar"></div></div>
       <div id="stages"></div>
-  <div class="row" style="justify-content:space-between;align-items:center">
-    <div class="row ed-row-6 ed-ai-center"><h3 style="margin:0">Results</h3><span class="dim" title="For CI artifacts use CLI flags --report-json / --report-junit">(Reports via CLI)</span></div>
+  <div class="row ed-justify-between ed-ai-center">
+    <div class="row ed-row-6 ed-ai-center"><h3 class="m-0">Results</h3><span class="dim" title="For CI artifacts use CLI flags --report-json / --report-junit">(Reports via CLI)</span></div>
     <div class="row ed-row-6 ed-ai-center">
       <button id="downloadRunJSON" class="btn btn-sm" title="Download run JSON">Download Run JSON</button>
       <button id="downloadRunJUnit" class="btn btn-sm" title="Download run JUnit">Download Run JUnit</button>

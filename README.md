@@ -15,6 +15,7 @@
       <a href="https://goreportcard.com/report/github.com/DrWeltschmerz/HydReq"><img src="https://goreportcard.com/badge/github.com/DrWeltschmerz/HydReq" alt="Go Report Card" height="20"></a>
     </td>
     <td width="20%" valign="middle" align="right">
+    <a href="https://deepwiki.com/DrWeltschmerz/HydReq" alt="Ask DeepWiki"><img src="https://deepwiki.com/badge.svg"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License" height="20"></a>
     <a href="https://github.com/DrWeltschmerz/HydReq/stargazers"><img src="https://img.shields.io/github/stars/DrWeltschmerz/HydReq?style=social" alt="Stars" height="20"></a>
     </td>
@@ -30,7 +31,8 @@
     </td>
     <td valign="top" align="right" width="20%">
       <p style="text-align:right; margin:0;">
-        <a href="docs/README.md">📖 Full Docs</a><br>
+  <a href="docs/USER_GUIDE.md">📖 User Guide (UI & CLI)</a><br>
+  <a href="docs/README.md">� Full Docs Index</a><br>
         <a href="docs/getting-started.md">🚀 Quick Start</a><br>
         <a href="docs/examples.md">🧪 Examples</a><br>
         <a href="#copilot-and-editor-support">🤖 Copilot Setup</a></br>
@@ -40,6 +42,8 @@
     </td>
   </tr>
 </table>
+
+<img src="docs/screenshots/demo.gif" width="960" alt="HydReq demo"/>
 
 ## Documentation
 
@@ -60,6 +64,8 @@
   - [Docker usage](#docker-usage)
   - [Adapters (import)](#adapters-import)
   - [Reports](#reports)
+  - [Screenshots & E2E demo](#screenshots--e2e-demo)
+  - [User Guide](#user-guide)
   - [Batch run and summaries](#batch-run-and-summaries)
   - [Example suites (at a glance)](#example-suites-at-a-glance)
 - [Contributing & development](#contributing--development)
@@ -122,6 +128,10 @@
 - Editor: Click “Edit” next to a suite for a Visual + YAML editor with validation, Quick Run (with deps), hook editing (HTTP/SQL), and Save vs Save & Close.
   - Tip: For CI artifacts (JSON/JUnit/HTML), prefer the CLI flags `--report-json` / `--report-junit` / `--report-html`.
   - Extras: Live two‑way sync between YAML and Visual; malformed YAML keeps YAML editable and temporarily disables Visual; tabs are converted to spaces automatically; dark theme by default; density toggle; resizable preview; SQL DSN helper templates and show/hide for DSNs.
+
+Refactor notes
+- The Web UI is currently being refactored to smaller modules with a store‑first state and stable public helpers.
+- See: [docs/web-ui.md](docs/web-ui.md) for architecture notes and [docs/ui-refactor-plan.md](docs/ui-refactor-plan.md) for the phased plan.
 
 ### Using the CLI
 
@@ -333,6 +343,15 @@ hydreq import newman path/to/collection.json --env path/to/environment.json > su
 
 - JSON, JUnit, and HTML detailed reports include per-test entries and suite summaries. HTML reports are theme-aware (same palette as the Web UI) and include donut charts, filters, and sticky headers.
 - Using `--report-dir` generates timestamped per-suite artifacts and run-level (batch) artifacts: `run-<timestamp>.{json,xml,html}`.
+
+
+### User Guide
+
+Prefer a single, robust guide to all features? Start here:
+
+- docs/USER_GUIDE.md — UI + CLI in one place, with links to screenshots and the detailed Visual Editor guide.
+
+Maintenance note: Prefer updating the single User Guide and Visual Editor guide when features change, and prune overlapping sections in other docs over time to reduce duplication.
 
 ### Batch run and summaries
 

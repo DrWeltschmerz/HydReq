@@ -1,0 +1,26 @@
+/* Solarized Dark (dark) */
+body.solarized-dark {
+  --hdr-bg: #002b36;
+  --hdr-fg: #93a1a1;
+  --bd: #586e75;
+  --li-hov: #073642;
+  --li-sel: #094c5a;
+  --pill: #094c5a;
+  --pg-bg: #094c5a;
+  --txt: #93a1a1;
+  --bg: #002b36;
+  --btn-bg: #073642;
+  --btn-bd: #586e75;
+  --btn-hov: #094c5a;
+  --link: #268bd2;
+  --input-bg: #073642;
+  --input-bd: #586e75;
+  --input-fg: #93a1a1;
+  --input-focus: #268bd2;
+  --success: #859900;
+  --error: #dc322f;
+  --warning: #b58900;
+  --info: #268bd2;
+  --grad1: #268bd2;
+  --grad2: #859900;
+}

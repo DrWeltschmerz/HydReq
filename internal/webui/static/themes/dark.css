@@ -1,0 +1,8 @@
+/* Dark theme variables */
+body.dark {
+  --hdr-bg:#0b0e17; --hdr-fg:#d6e0ff; --bd:#222; --li-hov:#1a2230; --li-sel:#10213a; --pill:#1f2937; --pg-bg:#1f2937; --txt:#e5e7eb; --bg:#0b0e17;
+  --btn-bg:#111827; --btn-bd:#374151; --btn-hov:#1f2937; --link:#60a5fa;
+  --input-bg:#0f172a; --input-bd:#374151; --input-fg:#e5e7eb; --input-focus:#7aa2ff;
+  --success:#10b981; --error:#ef4444; --warning:#f59e0b; --info:#60a5fa;
+  --grad1:#22d3ee; --grad2:#4ade80;
+}

@@ -1,13 +1,23 @@
 /* Compact fields: narrow numeric inputs */
-#ed_stage, #ed_timeout, #ed_assert_status, #ed_assert_maxDuration,
-#ed_retry_max, #ed_retry_backoff, #ed_retry_jitter { max-width: 160px; }
+#editorModal #ed_stage,
+#editorModal #ed_timeout,
+#editorModal #ed_assert_status,
+#editorModal #ed_assert_maxDuration,
+#editorModal #ed_retry_max,
+#editorModal #ed_retry_backoff,
+#editorModal #ed_retry_jitter { max-width: 160px; }
 /* Align checkboxes toward the left edge of their column */
-#ed_skip, #ed_only, #ed_retry_enable { margin-left: 0; justify-self: start; }
+#editorModal #ed_skip, #editorModal #ed_only, #editorModal #ed_retry_enable { margin-left: 0; justify-self: start; }
 /* Densify grids and sections */
-#ed_suite_form, #ed_req_form, #ed_assert_form, #ed_flow_form, #ed_retry_form, #ed_oapi_form { gap: 6px !important; }
-#pane_visual details > summary { padding: 6px !important; }
-#pane_visual details > div { padding: 6px !important; }
-#ed_preview { gap: 6px !important; }
+#editorModal #ed_suite_form,
+#editorModal #ed_req_form,
+#editorModal #ed_assert_form,
+#editorModal #ed_flow_form,
+#editorModal #ed_retry_form,
+#editorModal #ed_oapi_form { gap: 6px !important; }
+#editorModal #pane_visual details > summary { padding: 6px !important; }
+#editorModal #pane_visual details > div { padding: 6px !important; }
+#editorModal #ed_preview { gap: 6px !important; }
 /* Editor compact sizing for numeric fields */
 #ed_stage, #ed_timeout, #ed_assert_status, #ed_assert_maxDuration,
 #ed_retry_max, #ed_retry_backoff, #ed_retry_jitter {
@@ -25,6 +35,44 @@ body.modal-open { overflow: hidden; }
 /* Ensure the embedded code editor fills its pane */
 .CodeMirror { height: 100%; width: 100%; border: 1px solid var(--bd); border-radius: 6px; }
 body.dark .CodeMirror { background: #0f172a; color: #e5e7eb; }
+/* Token colors for CodeMirror using theme variables; themes can override these vars */
+:root, body {
+  --cm-bg: var(--bg);
+  --cm-fg: var(--txt);
+  --cm-line: var(--pill);
+  --cm-cursor: var(--txt);
+  --cm-keyword: var(--info);
+  --cm-string: var(--warning);
+  --cm-number: var(--error);
+  --cm-atom: var(--info);
+  --cm-bool: var(--info);
+  --cm-def: var(--success);
+  --cm-variable: var(--txt);
+  --cm-variable-2: var(--grad1);
+  --cm-comment: var(--txt);
+  --cm-meta: var(--grad2);
+  --cm-link: var(--link);
+  --cm-operator: var(--info);
+}
+#editorModal .CodeMirror {
+  background: var(--cm-bg);
+  color: var(--cm-fg);
+}
+#editorModal .CodeMirror .CodeMirror-cursor { border-left: 1px solid var(--cm-cursor); }
+#editorModal .CodeMirror .CodeMirror-selected { background: color-mix(in srgb, var(--link) 22%, transparent); }
+#editorModal .CodeMirror .CodeMirror-linenumber { color: var(--cm-fg); opacity: 0.65; }
+#editorModal .CodeMirror .CodeMirror-activeline-background { background: var(--cm-line); opacity: 0.6; }
+#editorModal .CodeMirror .cm-keyword { color: var(--cm-keyword); }
+#editorModal .CodeMirror .cm-string { color: var(--cm-string); }
+#editorModal .CodeMirror .cm-number { color: var(--cm-number); }
+#editorModal .CodeMirror .cm-atom { color: var(--cm-atom); }
+#editorModal .CodeMirror .cm-bool { color: var(--cm-bool); }
+#editorModal .CodeMirror .cm-def { color: var(--cm-def); }
+#editorModal .CodeMirror .cm-variable { color: var(--cm-variable); }
+#editorModal .CodeMirror .cm-variable-2 { color: var(--cm-variable-2); }
+#editorModal .CodeMirror .cm-comment { color: var(--cm-comment); opacity: 0.7; font-style: italic; }
+#editorModal .CodeMirror .cm-meta { color: var(--cm-meta); }
+#editorModal .CodeMirror a { color: var(--cm-link); }
 /* Inputs/selects themed via variables */
 #editorModal input[type="text"],
 #editorModal input[type="number"],
@@ -63,24 +111,32 @@ a { color: var(--link); }
 #editorModal .editor-root.comfortable #ed_retry_form,
 #editorModal .editor-root.comfortable #ed_oapi_form { gap: 10px !important; }
 /* Overlay and modal layout classes */
-#editorModal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; }
-.editor-root { background: var(--bg); color: var(--txt); position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 90vw; height: 88vh; border: 1px solid var(--bd); border-radius: 8px; display: flex; flex-direction: column; min-height: 0; }
+#editorModal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; overflow: hidden; }
+.editor-root { background: var(--bg); color: var(--txt); position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 98vw; height: 92vh; border: 1px solid var(--bd); border-radius: 8px; display: flex; flex-direction: column; min-height: 0; box-sizing: border-box; }
 .ed-header { padding: 8px 12px; border-bottom: 1px solid var(--bd); display: flex; gap: 12px; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--bg); z-index: 2; }
 .ed-header-left { display: flex; align-items: center; gap: 12px; }
 .ed-actions { display: flex; gap: 8px; align-items: center; }
-.ed-main { display: flex; gap: 8px; flex: 1; overflow: hidden; min-height: 0; }
-.ed-pane { display: flex; flex-direction: row; flex: 1 1 auto; gap: 8px; overflow: auto; padding: 8px; min-width: 0; min-height: 0; }
+.ed-main { display: flex; gap: 8px; flex: 1; overflow: hidden; min-height: 0; align-items: stretch; }
+.ed-pane { display: flex; flex-direction: row; flex: 1 1 auto; gap: 8px; overflow: auto; padding: 8px; min-width: 0; min-height: 0; box-sizing: border-box; }
+.ed-test-container {
+  border-bottom: 1px solid var(--bd);
+}
+
+.ed-test-details {
+  margin-bottom: 5px;
+}
+
 .ed-tests-panel { 
-  flex: 0 0 280px; 
-  border: 1px solid var(--bd); 
+  flex: 1 1 auto; 
+  border: 1px solid var(--bd);
   border-radius: 6px; 
   display: flex; 
   flex-direction: column; 
   overflow: hidden; 
   min-height: 0; 
   background: var(--bg);
-  height: fit-content;
-  max-height: 100%;
+  /* fill the available vertical space */
+  height: 100%;
   transition: flex-basis 0.3s ease, min-width 0.3s ease;
 }
 .ed-tests-header { 
@@ -95,23 +151,23 @@ a { color: var(--link); }
   top: 0; 
   z-index: 1; 
 }
-.ed-tests-list { 
-  flex: 1; 
-  overflow-y: auto; 
-  overflow-x: hidden; 
-  min-height: 0; 
-  max-height: 400px;
+.ed-tests-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
 }
 .ed-center { 
   flex: 1 1 auto; 
   display: flex; 
   flex-direction: column; 
-  gap: 8px; 
+  gap: 6px; 
   overflow-y: auto; 
   overflow-x: hidden; 
   min-height: 0; 
-  min-width: 640px; 
-  padding-left: 8px;
+  min-width: 520px; 
+  padding: 4px 8px 8px 4px; /* ensure right-side breathing room */
+  box-sizing: border-box;
 }
 .ed-panel { border: 1px solid var(--bd); border-radius: 6px; overflow: visible; }
 .ed-panel.tight { overflow: hidden; }
@@ -123,7 +179,7 @@ a { color: var(--link); }
 .ed-spacer-8 { height: 8px; }
 .ed-subhead { font-weight: 600; margin-bottom: 6px; }
 .ed-splitter { flex: 0 0 6px; cursor: col-resize; background: var(--bd); border-radius: 4px; align-self: stretch; }
-.ed-right { flex: 0 1 30%; margin: 8px; border: 1px solid var(--bd); border-radius: 6px; display: flex; flex-direction: column; min-width: 340px; max-width: 50%; resize: horizontal; overflow: auto; min-height: 0; }
+.ed-right { flex: 0 1 30%; margin: 8px; border: 1px solid var(--bd); border-radius: 6px; display: flex; flex-direction: column; min-width: 340px; max-width: 50%; resize: horizontal; overflow: auto; min-height: 0; box-sizing: border-box; }
 .ed-right-title { padding: 8px; border-bottom: 1px solid var(--bd); font-weight: 600; position: sticky; top: 0; background: var(--bg); z-index: 1; }
 .ed-preview { padding: 8px; overflow: auto; display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; }
 .ed-section { border: 1px solid var(--bd); border-radius: 6px; overflow: auto; display: flex; flex-direction: column; min-height: 0; }
@@ -136,10 +192,15 @@ a { color: var(--link); }
 .ed-row-6 { display: flex; gap: 6px; }
 .ed-row-8 { display: flex; gap: 8px; }
 
+/* Unified message block styling (used in editor and suites) */
+.message-block { margin: 4px 0 0; padding: 8px; border-radius: 6px; background: var(--bg-subtle); color: inherit; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; border: 1px solid var(--bd); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 1.4; }
+.message-block.fail { background: rgba(239,68,68,0.08); color: var(--error); border-color: rgba(239,68,68,0.28); }
+.message-block.ok { background: rgba(16,185,129,0.08); color: var(--success); border-color: rgba(16,185,129,0.28); }
+.message-block.skip { background: rgba(245,158,11,0.08); color: var(--warning); border-color: rgba(245,158,11,0.28); }
+
 /* Test list item styles */
 .ed-test-item {
   padding: 8px;
-  border-bottom: 1px solid var(--bd);
   cursor: pointer;
   display: flex;
   justify-content: space-between;
@@ -150,8 +211,9 @@ a { color: var(--link); }
   background: var(--pill);
 }
 .ed-test-item.selected {
-  background: var(--primary);
-  color: var(--primary-content);
+  background: var(--li-sel);
+  color: var(--txt);
+  border: 1px solid var(--bd);
 }
 .ed-test-name {
   flex: 1;
@@ -160,6 +222,24 @@ a { color: var(--link); }
 .ed-test-status {
   margin-left: 8px;
 }
+
+/* Selection emphasis */
+.ed-test-item.selected {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bd) 40%, transparent);
+  position: relative;
+  outline: 1px solid var(--link);
+  outline-offset: -1px;
+}
+.ed-test-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--link);
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+.ed-test-item.selected .ed-test-name { font-weight: 600; }
 
 /* Matrix editor styles */
 .ed-matrix-table {
@@ -181,17 +261,16 @@ a { color: var(--link); }
   font-weight: 500;
 }
 
-/* Debug styles - ensure proper layout */
-#pane_visual {
-  display: flex !important;
-  flex-direction: row !important;
-}
-.ed-tests-panel {
-  order: 1;
-}
-.ed-center {
-  order: 2;
-}
+/* Hook card utilities */
+.hk-card { border: 1px solid var(--bd); border-radius: 6px; margin-bottom: 8px; }
+.hk-header { padding: 6px 8px; background: var(--pill); border-bottom: 1px solid var(--bd); }
+.p-8 { padding: 8px; }
+.mt-8 { margin-top: 8px; }
+.w-24px { width: 24px; }
+.ed-grid-1 { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.ed-grid-2-110 { display: grid; grid-template-columns: 110px 1fr; gap: 6px; }
+
+/* (removed debug styles that forced layout overrides) */
 
 /* YAML panel styles */
 .ed-yaml-panel {
@@ -206,3 +285,96 @@ a { color: var(--link); }
   font-weight: 600;
   background: var(--pill);
 }
+
+/* Four-column editor layout (moved from inline JS) */
+.ed-col {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--bd);
+  box-sizing: border-box;
+  min-width: 240px;
+  min-height: 0;
+  max-width: none;
+  transition: width 0.2s ease, flex-basis 0.2s ease;
+  overflow: hidden;
+}
+.ed-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  border-bottom: 1px solid var(--bd);
+  background-color: var(--surface);
+  box-sizing: border-box;
+}
+.ed-col-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden; /* child regions (like tests list) handle scrolling */
+  box-sizing: border-box;
+}
+.ed-col.collapsed {
+  flex: 0 0 40px !important;
+  min-width: 40px;
+  max-width: 40px;
+}
+.ed-col.collapsed .ed-col-header {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-bottom: none;
+  height: 100%;
+  padding: 6px 4px;
+  cursor: default;
+}
+.ed-col.collapsed .ed-col-header .btn {
+  padding: 2px 4px;
+}
+.ed-col.collapsed .ed-col-header .fw-600 {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  text-align: center;
+}
+.ed-col.collapsed .ed-col-header .ed-row-6 > :not(.ed-collapse-btn) {
+  display: none;
+}
+.ed-col.collapsed .ed-col-header .ed-row-6 .ed-collapse-btn {
+  display: inline-flex;
+}
+.ed-col.collapsed .ed-col-content {
+  display: none;
+}
+
+/* Column sizing: adjust proportions per UX request
+  - Tests: ~50% wider (from 280px to 420px base)
+  - Visual: ~10% narrower
+  - Results: ~30% narrower
+  - YAML: receives the remainder for better editing space
+*/
+#col-tests { flex: 0 0 336px; min-width: 280px; }
+#col-visual { flex: 1.5 1 534px; min-width: 0; }
+#col-yaml { flex: 2 1 520px; min-width: 0; }
+#col-results { flex: 0.8 1 300px; min-width: 260px; }
+
+/* When tests column is collapsed, override width */
+#col-tests.collapsed {
+  flex: 0 0 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+}
+
+/* YAML editor sizing */
+#col-yaml .ed-col-content { overflow: hidden; }
+#ed_yaml_editor, #pane_yaml { height: 100%; }
+.CodeMirror { height: 100%; min-height: 180px; }
+
+/* Avoid horizontal overflow causing right-side gutters */
+.editor-root, .ed-main, .ed-pane, .ed-center, .ed-right, .ed-tests-list, .ed-preview, .ed-section, .ed-col-content {
+  max-width: 100%;
+}
+
+/* Note: Avoid global scrollbar-gutter for broader browser compatibility. */

@@ -32,7 +32,10 @@ function parseEnv() {
 }
 
 function renderActiveEnv(env) {
-  envActive.innerHTML = '';
+  // Clear existing children without using innerHTML to comply with hygiene rules
+  while (envActive.firstChild) {
+    envActive.removeChild(envActive.firstChild);
+  }
   Object.keys(env).forEach(k => {
     const b = document.createElement('span');
     b.className = 'pill';

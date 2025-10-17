@@ -1,0 +1,26 @@
+/* Monokai (dark) */
+body.monokai {
+  --hdr-bg: #272822;
+  --hdr-fg: #f8f8f2;
+  --bd: #49483e;
+  --li-hov: #49483e;
+  --li-sel: #75715e;
+  --pill: #75715e;
+  --pg-bg: #75715e;
+  --txt: #f8f8f2;
+  --bg: #272822;
+  --btn-bg: #49483e;
+  --btn-bd: #75715e;
+  --btn-hov: #75715e;
+  --link: #66d9ef;
+  --input-bg: #49483e;
+  --input-bd: #75715e;
+  --input-fg: #f8f8f2;
+  --input-focus: #66d9ef;
+  --success: #a6e22e;
+  --error: #f92672;
+  --warning: #fd971f;
+  --info: #66d9ef;
+  --grad1: #ae81ff;
+  --grad2: #a6e22e;
+}

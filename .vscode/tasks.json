@@ -1,26 +1,71 @@
 {
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "build: hydreq",
-      "type": "shell",
-      "command": "go build -o ./bin/hydreq ./cmd/hydreq",
-      "problemMatcher": ["$go"],
-      "group": { "kind": "build", "isDefault": true }
-    },
-    {
-      "label": "test: all",
-      "type": "shell",
-      "command": "go test -race ./...",
-      "problemMatcher": ["$go"],
-      "group": { "kind": "test", "isDefault": true }
-    },
-    {
-      "label": "hydreq: Run current suite",
-      "type": "shell",
-      "command": "[ -x \"${workspaceFolder}/bin/hydreq\" ] && ${workspaceFolder}/bin/hydreq run -f ${file} || (echo 'Error: hydreq binary not found or not executable. Please build first.' >&2; exit 1)",
-      "dependsOn": "build: hydreq",
-      "problemMatcher": []
-    }
-  ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build: hydreq",
+			"type": "shell",
+			"command": "go build -o ./bin/hydreq ./cmd/hydreq",
+			"problemMatcher": [
+				"$go"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "test: all",
+			"type": "shell",
+			"command": "go test -race ./... && npx mocha --timeout 5000 \"internal/webui/static/test/**/*.spec.js\"",
+			"problemMatcher": [
+				"$go"
+			],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "hydreq: Run current suite",
+			"type": "shell",
+			"command": "[ -x \"${workspaceFolder}/bin/hydreq\" ] && ${workspaceFolder}/bin/hydreq run -f ${file} || (echo 'Error: hydreq binary not found or not executable. Please build first.' >&2; exit 1)",
+			"dependsOn": "build: hydreq",
+			"problemMatcher": []
+		},
+		{
+			"label": "test: all (ad-hoc)",
+			"type": "shell",
+			"command": "go test -race ./...",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "test: all (ad-hoc) 2",
+			"type": "shell",
+			"command": "go test -race ./...",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "test: all (ad-hoc) 3",
+			"type": "shell",
+			"command": "go test -race ./...",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "test: all (ad-hoc) 4",
+			"type": "shell",
+			"command": "go test -race ./...",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "test: all (ad-hoc) 4b",
+			"type": "shell",
+			"command": "go test -race ./...",
+			"isBackground": false,
+			"group": "test"
+		}
+	]
 }
