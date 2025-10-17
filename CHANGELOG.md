@@ -9,6 +9,7 @@ Features
   - Runs as non-root user for security
   - Automated builds via GitHub Actions on push to main and release tags
   - Semantic versioning tags (latest, v1, v1.2, v1.2.3)
+- ** Web UI refactor**: Updated UI, refactored into smaller parts, extracted styles from general style file.
 
 Documentation
 - Added comprehensive Docker documentation (`docs/docker.md`) with quick start, configuration, CI/CD integration examples (GitHub Actions, GitLab CI, Jenkins), and troubleshooting
@@ -25,6 +26,8 @@ Technical
 - Added `.github/workflows/docker.yml` for automated multi-architecture Docker builds and publishing
 - Added `PathToFileURL` helper function in `internal/validate` package to handle cross-platform file URL conversion following RFC 8089.
 - Updated schema compilation in `internal/webui`, `cmd/validate`, and `cmd/hydreq` to use the new helper function.
+- Migrated inline toolbar/labels styling from `internal/webui/static/index.html` into `internal/webui/static/css/app.css` and centralized theme tokens via `internal/webui/static/themes.css` imports.
+- Deprecated legacy `internal/webui/static/static/suites.js` and `internal/webui/static/js/helpers.js` stubs in favor of the modular `js/suites.js`/`js/utils.js` stack wiring the new view/state helpers.
 
 ## v0.3.6-beta (2025-10-02)
 
