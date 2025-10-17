@@ -51,7 +51,7 @@ services:
       - mssql
 
   playwright:
-    image: mcr.microsoft.com/playwright:v1.50.0-noble
+    image: mcr.microsoft.com/playwright:v1.55.1-noble
     user: "root"
     extra_hosts:
       - "host.docker.internal:host-gateway"

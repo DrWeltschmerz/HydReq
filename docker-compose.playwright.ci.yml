@@ -22,7 +22,7 @@ services:
       - httpbin
 
   playwright:
-    image: mcr.microsoft.com/playwright:v1.50.0-noble
+    image: mcr.microsoft.com/playwright:v1.55.1-noble
     user: "root"
     environment:
       CI: "true"

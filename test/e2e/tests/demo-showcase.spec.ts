@@ -96,26 +96,34 @@ const shouldRun = process.env.DEMO === "1";
       });
       await page.waitForSelector("#suites", { state: "visible" });
       // Additionally poll backend suites endpoint until it responds OK
-      await page.waitForFunction(
-        async () => {
-          try {
-            const res = await fetch('/api/editor/suites', { cache: 'no-store' });
-            if (!res.ok) return false;
-            const data = await res.json();
-            return Array.isArray(data) && data.length > 0;
-          } catch { return false; }
-        },
-        { timeout: 15000 }
-      ).catch(() => {});
+      await page
+        .waitForFunction(
+          async () => {
+            try {
+              const res = await fetch("/api/editor/suites", {
+                cache: "no-store",
+              });
+              if (!res.ok) return false;
+              const data = await res.json();
+              return Array.isArray(data) && data.length > 0;
+            } catch {
+              return false;
+            }
+          },
+          { timeout: 15000 }
+        )
+        .catch(() => {});
       // Wait for backend/frontend handshake to finish (avoid transient connection errors)
       await page.waitForSelector("#results", { state: "visible" });
-      await page.waitForFunction(
-        () => {
-          const el = document.getElementById("results");
-          return !!el && /HYDREQ[-: ]FINAL/i.test(el.textContent || "");
-        },
-        { timeout: 10000 }
-      ).catch(() => {});
+      await page
+        .waitForFunction(
+          () => {
+            const el = document.getElementById("results");
+            return !!el && /HYDREQ[-: ]FINAL/i.test(el.textContent || "");
+          },
+          { timeout: 10000 }
+        )
+        .catch(() => {});
 
       // Select a specific suite to show stages clearly: httpbin smoke (testdata/example.yaml)
       const httpbinSuite = page.locator('#suites li:has-text("httpbin smoke")');

@@ -143,7 +143,6 @@ function openEditor(path, data){
       document.body.appendChild(modal);
     }
     // Global modal UX hooks
-  document.body.classList.add('modal-open');
     modal.addEventListener('wheel', (e)=>{ e.stopPropagation(); }, { passive: true });
     modal.addEventListener('touchmove', (e)=>{ e.stopPropagation(); }, { passive: true });
     modal.addEventListener('click', (e)=>{ if (e.target === modal) attemptClose(); });
@@ -241,7 +240,18 @@ function openEditor(path, data){
   let lastSuiteRun = null;
   function markDirty(){ try{ yamlCtl && yamlCtl.markDirty ? yamlCtl.markDirty() : null; }catch{} }
   function isDirty(){ try{ return (window.hydreqEditorState && typeof window.hydreqEditorState.isDirty==='function') ? !!window.hydreqEditorState.isDirty() : false; }catch{ return false; } }
-  function attemptClose(){ if (isDirty() && !confirm('Discard unsaved changes?')) return; modal.remove(); document.body.classList.remove('modal-open'); }
+  function attemptClose(){
+    if (isDirty() && !confirm('Discard unsaved changes?')) return;
+    try {
+      if (window.hydreqEditorModal && typeof window.hydreqEditorModal.close === 'function') {
+        window.hydreqEditorModal.close();
+      } else if (modal) {
+        modal.remove();
+      }
+    } finally {
+      modal = null;
+    }
+  }
   async function serializeWorkingToYamlImmediate(){ 
     try{ 
       if (window.hydreqEditorSerialize && window.hydreqEditorSerialize.toYaml) return window.hydreqEditorSerialize.toYaml(working);
@@ -567,13 +577,7 @@ function openEditor(path, data){
   // Save and Save & Close now delegated via controls (see wiring above)
   
   // Prefer modal close() if available; otherwise fallback
-  modal.querySelector('#ed_close').onclick = ()=> {
-    try{
-      if (isDirty() && !confirm('Discard unsaved changes?')) return;
-      if (window.hydreqEditorModal && typeof window.hydreqEditorModal.close === 'function') window.hydreqEditorModal.close();
-      else attemptClose();
-    }catch{}
-  };
+  modal.querySelector('#ed_close').onclick = ()=> attemptClose();
   function syncEditorTheme(){ try{ if (window.hydreqEditorYAML && window.hydreqEditorYAML.syncTheme) window.hydreqEditorYAML.syncTheme(); else if (yamlEditor){ yamlEditor.setOption('theme', isDocDark() ? 'material-darker' : 'default'); yamlEditor.refresh && yamlEditor.refresh(); } }catch{} }
   const lastTab = (function(){ try{ return localStorage.getItem('hydreq.editor.tab') }catch{ return null } })() || 'yaml';
   switchTab(lastTab === 'visual' ? 'visual' : 'yaml');

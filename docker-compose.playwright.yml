@@ -26,13 +26,15 @@ services:
       - httpbin
 
   playwright:
-    image: mcr.microsoft.com/playwright:v1.50.0-noble
+    build:
+      context: .
+      dockerfile: Dockerfile.playwright.runner
+    image: hydreq/playwright-runner:latest
     user: "root"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
       CI: "true"
-      # Default to internal service names; local-ci may override these when using host GUI
       HYDREQ_E2E_URL: "http://hydreq:8787/"
       HTTPBIN_BASE_URL: "http://httpbin"
     volumes:
@@ -46,5 +48,4 @@ services:
       - -c
       - |
         npm install > /dev/null 2>&1
-        npx playwright install --with-deps > /dev/null 2>&1
         npx playwright test --reporter=list --reporter=html

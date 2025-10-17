@@ -219,7 +219,7 @@ jobs:
       - name: Bring up services (httpbin, postgres, mssql, hydreq, playwright)
         run: |
           docker compose -f docker-compose.yml up -d httpbin postgres mssql hydreq playwright
-  - name: Run Playwright tests inside playwright container
+      - name: Run Playwright tests inside playwright container
         env:
           UPDATE_SNAPSHOTS: "0"
         run: |

@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+declare const process: any;
+
 const baseURL = process.env.HYDREQ_E2E_URL || "http://localhost:8787/";
 
 const projects: any[] = [
@@ -12,19 +14,56 @@ const projects: any[] = [
   },
 ];
 
-// Optional demo project (runs only when DEMO=1), records video/screenshots and uses slowMo
+// Optional demo projects (run only when DEMO=1), records video/screenshots using full browsers.
 if (process.env.DEMO === "1") {
-  projects.push({
-    name: "demo",
-    use: {
-      ...devices["Desktop Chrome"],
-      viewport: { width: 1920, height: 1080 },
-      video: "on",
-      screenshot: "on",
-      trace: "on",
-      colorScheme: "dark",
-      launchOptions: { slowMo: 250 },
-    },
+  const rawList = (process.env.DEMO_PROJECTS || "demo-chrome")
+    .split(",")
+    .map((item: string) => item.trim())
+    .filter(Boolean);
+  const demoNames = rawList.length > 0 ? rawList : ["demo-chrome"];
+
+  demoNames.forEach((name: string) => {
+    switch (name) {
+      case "demo-chrome":
+        projects.push({
+          name,
+          use: {
+            ...devices["Desktop Chrome"],
+            viewport: { width: 1920, height: 1080 },
+            channel: "chrome",
+            video: "on",
+            screenshot: "on",
+            trace: "on",
+            colorScheme: "dark",
+            headless: false,
+            launchOptions: {
+              slowMo: 200,
+              args: ["--window-size=1920,1080"],
+            },
+          },
+        });
+        break;
+      case "demo-firefox":
+        projects.push({
+          name,
+          use: {
+            ...devices["Desktop Firefox"],
+            viewport: { width: 1920, height: 1080 },
+            channel: "firefox",
+            video: "on",
+            screenshot: "on",
+            trace: "on",
+            colorScheme: "dark",
+            headless: false,
+            launchOptions: {
+              slowMo: 200,
+            },
+          },
+        });
+        break;
+      default:
+        console.warn(`Unknown demo project "${name}"; skipping.`);
+    }
   });
 }
 

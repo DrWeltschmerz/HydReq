@@ -1,5 +1,72 @@
 // editor/modal.js — modal shell: open/close, title, density, create banner
 (function(){
+  let scrollLockDepth = 0;
+
+  function lockScroll(){
+    const body = document.body;
+    if (!body) return;
+    if (scrollLockDepth === 0){
+      try {
+        const computed = window.getComputedStyle(body);
+        const bgColor = computed.backgroundColor || '';
+        const root = document.documentElement;
+        body.dataset.modalPrevRootBg = root.style.backgroundColor || '';
+        if (bgColor) root.style.backgroundColor = bgColor;
+
+        const supportsGutter = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('scrollbar-gutter: stable both-edges');
+        if (supportsGutter) {
+          body.dataset.modalPadMode = 'gutter';
+          body.dataset.modalPrevGutter = body.style.scrollbarGutter || '';
+          body.style.scrollbarGutter = 'stable both-edges';
+        } else {
+          const currentPad = parseFloat(computed.paddingRight || '0') || 0;
+          const sbw = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+          body.dataset.modalPadInline = body.style.paddingRight || '';
+          if (sbw > 0) {
+            body.style.paddingRight = `${currentPad + sbw}px`;
+            body.dataset.modalPadMode = 'pad';
+          } else {
+            body.dataset.modalPadMode = 'none';
+          }
+        }
+        body.classList.add('modal-open');
+      } catch (err) {
+        body.dataset.modalPadMode = 'none';
+        body.classList.add('modal-open');
+      }
+    }
+    scrollLockDepth++;
+  }
+
+  function unlockScroll(){
+    const body = document.body;
+    if (!body) return;
+    if (scrollLockDepth > 0) scrollLockDepth--;
+    if (scrollLockDepth === 0){
+      try {
+        const mode = body.dataset.modalPadMode;
+        if (mode === 'pad') {
+          const inline = body.dataset.modalPadInline || '';
+          if (inline) body.style.paddingRight = inline;
+          else body.style.removeProperty('padding-right');
+        } else if (mode === 'gutter') {
+          const prev = body.dataset.modalPrevGutter || '';
+          if (prev) body.style.scrollbarGutter = prev;
+          else body.style.removeProperty('scrollbar-gutter');
+        }
+        delete body.dataset.modalPadMode;
+        delete body.dataset.modalPadInline;
+        delete body.dataset.modalPrevGutter;
+
+        const prevBg = body.dataset.modalPrevRootBg;
+        const root = document.documentElement;
+        if (prevBg) root.style.backgroundColor = prevBg;
+        else root.style.removeProperty('background-color');
+        delete body.dataset.modalPrevRootBg;
+      } catch {}
+      body.classList.remove('modal-open');
+    }
+  }
   function el(tag, attrs, children){
     const node = document.createElement(tag);
     if (attrs) {
@@ -366,6 +433,7 @@
     ]);
     root.appendChild(main);
     modal.appendChild(root);
+    lockScroll();
 
     const closeBtn = modal.querySelector('#ed_close');
     if (closeBtn) closeBtn.onclick = () => close();
@@ -380,6 +448,7 @@
   function close(){
     const modal = document.getElementById('editorModal');
     if (modal && modal.parentNode) modal.parentNode.removeChild(modal);
+    unlockScroll();
   }
 
   window.hydreqEditorModal = window.hydreqEditorModal || { open, setTitle, close };
