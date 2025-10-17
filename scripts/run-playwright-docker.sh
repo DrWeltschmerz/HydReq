@@ -130,7 +130,7 @@ docker compose -f "$COMPOSE_FILE" run --rm \
   fi
   echo "Executing: ${cmd[*]}"
   set +e
-  DEMO=1 UPDATE_SNAPSHOTS=${UPDATE_SNAPSHOTS:-0} HYDREQ_E2E_URL=${HYDREQ_E2E_URL:-http://hydreq:8787/} HTTPBIN_BASE_URL=${HTTPBIN_BASE_URL:-http://httpbin} \
+  DEMO=1 UPDATE_SNAPSHOTS=${UPDATE_SNAPSHOTS:-0} REGEX=${REGEX:-} HYDREQ_E2E_URL=${HYDREQ_E2E_URL:-http://hydreq:8787/} HTTPBIN_BASE_URL=${HTTPBIN_BASE_URL:-http://httpbin} \
     DEBUG="${DEBUG:-}" PWDEBUG="${PWDEBUG:-}" \
     "${cmd[@]}"
   status=$?
