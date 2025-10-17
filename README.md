@@ -43,6 +43,8 @@
   </tr>
 </table>
 
+<img src="docs/screenshots/demo.gif" width="960" alt="HydReq demo"/>
+
 ## Documentation
 
 - Full docs: `docs/README.md`
@@ -342,24 +344,6 @@ hydreq import newman path/to/collection.json --env path/to/environment.json > su
 - JSON, JUnit, and HTML detailed reports include per-test entries and suite summaries. HTML reports are theme-aware (same palette as the Web UI) and include donut charts, filters, and sticky headers.
 - Using `--report-dir` generates timestamped per-suite artifacts and run-level (batch) artifacts: `run-<timestamp>.{json,xml,html}`.
 
-### Screenshots & E2E demo
-
-- CI publishes a Playwright HTML report for each run (Actions → CI → Artifacts → playwright-report).
-- Locally, run Playwright from `test/e2e` to exercise the Web UI; screenshots/videos are retained on failure. You can open `test/e2e/playwright-report/index.html` after a run.
-
-To record a short demo run (Full HD viewport):
-
-```bash
-cd test/e2e
-npm install
-npx playwright install --with-deps
-DEMO=1 npm run demo
-# Open report: test/e2e/playwright-report/index.html
-```
-
-This captures video/screenshots and runs the browser in slow motion for smoother demos.
-
-<img src="docs/screenshots/demo.gif" width="960" alt="HydReq demo"/>
 
 ### User Guide
 
