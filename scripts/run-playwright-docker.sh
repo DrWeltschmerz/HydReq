@@ -110,23 +110,37 @@ docker compose -f "$COMPOSE_FILE" run --rm \
   if [ ${#extra_flags[@]} -gt 0 ]; then
     cmd+=("${extra_flags[@]}")
   fi
-  declare -a runner=()
+  XVFB_PID=""
   if [[ ${PLAYWRIGHT_DISABLE_XVFB:-0} != 1 ]]; then
     echo "Launching Xvfb..."
-    runner=(Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp)
-    "${runner[@]}" &
+    XVFB_ARGS=(Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp)
+    if [ -n "${PLAYWRIGHT_XVFB_SERVER_ARGS:-}" ]; then
+      read -r -a XVFB_EXTRA <<<"${PLAYWRIGHT_XVFB_SERVER_ARGS}"
+      XVFB_ARGS+=("${XVFB_EXTRA[@]}")
+    fi
+    "${XVFB_ARGS[@]}" &
     XVFB_PID=$!
-    trap 'kill $XVFB_PID >/dev/null 2>&1 || true' EXIT
+    trap "if [[ -n \"\${XVFB_PID:-}\" ]]; then kill \"$XVFB_PID\" >/dev/null 2>&1 || true; fi" EXIT
     sleep 1
     export DISPLAY=:99
     echo "DISPLAY set to $DISPLAY"
   else
-    echo "Xvfb disabled; using host display"
+    echo "Xvfb disabled; using container defaults"
+    unset DISPLAY || true
   fi
   echo "Executing: ${cmd[*]}"
+  set +e
   DEMO=1 UPDATE_SNAPSHOTS=${UPDATE_SNAPSHOTS:-0} HYDREQ_E2E_URL=${HYDREQ_E2E_URL:-http://hydreq:8787/} HTTPBIN_BASE_URL=${HTTPBIN_BASE_URL:-http://httpbin} \
     DEBUG="${DEBUG:-}" PWDEBUG="${PWDEBUG:-}" \
     "${cmd[@]}"
+  status=$?
+  set -e
+  if [[ -n "${XVFB_PID:-}" ]]; then
+    kill "$XVFB_PID" >/dev/null 2>&1 || true
+    wait "$XVFB_PID" 2>/dev/null || true
+    trap - EXIT
+  fi
+  exit $status
 '
 
 echo "Playwright demo run complete"
