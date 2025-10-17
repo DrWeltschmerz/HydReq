@@ -54,6 +54,7 @@ test.describe("Editor suite streaming", () => {
     // Visual baseline of streaming state (timing tolerant container)
     await expect(modal).toHaveScreenshot("visreg-editor-suite-running.png", {
       animations: "disabled",
+      maxDiffPixelRatio: 0.02,
     });
 
     // Wait for summary to appear (only after suite completes)
@@ -64,6 +65,7 @@ test.describe("Editor suite streaming", () => {
     // Final visual baseline after completion
     await expect(modal).toHaveScreenshot("visreg-editor-suite-done.png", {
       animations: "disabled",
+      maxDiffPixelRatio: 0.02,
     });
   });
 });

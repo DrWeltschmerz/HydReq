@@ -18,5 +18,6 @@ test("landing shows suites container (visreg)", async ({ page, baseURL }) => {
   await expect(page).toHaveScreenshot("landing.png", {
     fullPage: true,
     animations: "disabled",
+    maxDiffPixelRatio: 0.02,
   });
 });

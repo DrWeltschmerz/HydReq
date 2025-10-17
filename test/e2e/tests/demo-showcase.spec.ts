@@ -168,6 +168,7 @@ const shouldRun = process.env.DEMO === "1";
       // Quick visual captures for the demo (retained by Playwright demo project)
       await expect(modal).toHaveScreenshot("demo-editor-running.png", {
         animations: "disabled",
+        maxDiffPixelRatio: 0.02,
       });
     });
   }

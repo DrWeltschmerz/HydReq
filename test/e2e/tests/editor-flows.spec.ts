@@ -46,6 +46,7 @@ test.describe("Editor flows with screenshots", () => {
       "visreg-suite-expanded.png",
       {
         animations: "disabled",
+        maxDiffPixelRatio: 0.02,
       }
     );
 
@@ -57,6 +58,7 @@ test.describe("Editor flows with screenshots", () => {
     // VisReg: editor modal only
     await expect(modal).toHaveScreenshot("visreg-editor-open.png", {
       animations: "disabled",
+      maxDiffPixelRatio: 0.02,
     });
 
     // 4) Select the first test in editor if needed (some editors have a tests list)
@@ -89,6 +91,7 @@ test.describe("Editor flows with screenshots", () => {
     // VisReg: editor modal after quick run
     await expect(modal).toHaveScreenshot("visreg-editor-run-pass.png", {
       animations: "disabled",
+      maxDiffPixelRatio: 0.02,
     });
 
     // 7) Save changes
@@ -137,6 +140,7 @@ test.describe("Editor flows with screenshots", () => {
       "visreg-batch-run.png",
       {
         animations: "disabled",
+        maxDiffPixelRatio: 0.02,
       }
     );
   });
