@@ -29,7 +29,7 @@ test.describe("Editor flows with screenshots", () => {
 
     // 2) Expand a common example suite
     const suiteItem = page
-      .locator('#suites li[data-path$="example.yaml"]')
+      .locator('#suites li[data-path$="example.hrq.yaml"]')
       .first();
     await expect(suiteItem).toBeVisible();
     await suiteItem.locator('button[aria-label="Toggle tests"]').click();
@@ -113,10 +113,16 @@ test.describe("Editor flows with screenshots", () => {
     }
 
     // 9) Back on landing, select multiple suites for batch run
-    const li = page.locator("#suites li", { hasText: "example.yaml" }).first();
+    const li = page
+      .locator("#suites li", { hasText: "example.hrq.yaml" })
+      .first();
     await li.click(); // toggles selected
     // Mark a couple more suites if present to make batch summary richer
-    const moreSuites = ["matrix.yaml", "hooks.yaml", "depends.yaml"];
+    const moreSuites = [
+      "matrix.hrq.yaml",
+      "hooks.hrq.yaml",
+      "depends.hrq.yaml",
+    ];
     for (const name of moreSuites) {
       const item = page.locator("#suites li", { hasText: name }).first();
       if (await item.count()) {
@@ -131,7 +137,7 @@ test.describe("Editor flows with screenshots", () => {
     await expect(results).toBeVisible();
     // Wait until we see a specific "running" line appear to ensure UI expanded
     await expect(
-      results.locator("text=/^=== running: .*example.yaml.*===$/")
+  results.locator("text=/^=== running: .*example.hrq.yaml.*===$/")
     ).toBeVisible();
     await page.waitForTimeout(400); // give a moment for the suite row to open
     await screenshot(page, "batch-run.png");
