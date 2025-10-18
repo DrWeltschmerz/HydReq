@@ -10,7 +10,7 @@ describe('editor-modal', function(){
     const code = fs.readFileSync('internal/webui/static/js/editor/modal.js','utf8');
     window.eval(code);
 
-    window.hydreqEditorModal.open({ title:'My Suite', create:true, path:'testdata/x.yaml' });
+  window.hydreqEditorModal.open({ title:'My Suite', create:true, path:'testdata/x.hrq.yaml' });
     const modal = document.getElementById('editorModal');
     assert.ok(modal, 'modal exists');
     assert.ok(modal.querySelector('.badge.badge-info'), 'create badge exists');

@@ -173,13 +173,13 @@ func main() {
 			// Determine whether to run one or all suites
 			failedLoads := make([]string, 0, 8)
 			if strings.TrimSpace(file) == "" {
-				// Discover suites in testdata/*.yaml
-				paths, globErr := filepath.Glob("testdata/*.yaml")
+				// Discover suites in testdata/*.hrq.yaml
+				paths, globErr := filepath.Glob("testdata/*.hrq.yaml")
 				if globErr != nil {
 					return globErr
 				}
 				if len(paths) == 0 {
-					return fmt.Errorf("no suites found in testdata/*.yaml; specify -f to run a file")
+					return fmt.Errorf("no suites found in testdata/*.hrq.yaml; specify -f to run a file")
 				}
 				br := report.BatchReport{RunAt: time.Now()}
 				var totalFailed int

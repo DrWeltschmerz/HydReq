@@ -102,6 +102,22 @@ subsection "Running unit tests (race)"
 did_db_tests=0
 go test -race ./...
 
+section "Web UI Tests"
+
+if command -v npm >/dev/null 2>&1; then
+	subsection "Installing npm dependencies"
+	if [[ ! -d node_modules ]]; then
+		npm ci >/dev/null 2>&1 || npm install >/dev/null 2>&1
+	else
+		npm install >/dev/null 2>&1
+	fi
+
+	subsection "Running JS unit tests (mocha)"
+	npm run test:js
+else
+	echo -e "${YELLOW}⚠ npm not found; skipping JS unit tests${NC}"
+fi
+
 if [[ "${SKIP_SERVICES:-0}" == "1" ]]; then
 	echo -e "${YELLOW}⚠ SKIP_SERVICES=1 set; skipping service-based integration tests${NC}"
 elif [[ ${#COMPOSE[@]} -gt 0 ]]; then
@@ -160,63 +176,46 @@ elif [[ ${#COMPOSE[@]} -gt 0 ]]; then
 		export MSSQL_DSN="sqlserver://sa:Your_password123@localhost:1433?database=master"
 
 		subsection "Running database integration tests"
-		PG_DSN="$PG_DSN" MSSQL_DSN="$MSSQL_DSN" go test -run "Test(PG|MSSQL)Integration" -v ./internal/runner || true
-		did_db_tests=1
+	PG_DSN="$PG_DSN" MSSQL_DSN="$MSSQL_DSN" go test -run "Test(PG|MSSQL)Integration" -v ./internal/runner
+	did_db_tests=1
 
 		subsection "Running example test suites"
-		ENABLE_DEMO_AUTH="${ENABLE_DEMO_AUTH:-1}" HTTPBIN_BASE_URL="$HTTPBIN_BASE_URL" PG_DSN="$PG_DSN" MSSQL_DSN="$MSSQL_DSN" ./scripts/run-examples.sh || true
+	ENABLE_DEMO_AUTH="${ENABLE_DEMO_AUTH:-1}" HTTPBIN_BASE_URL="$HTTPBIN_BASE_URL" PG_DSN="$PG_DSN" MSSQL_DSN="$MSSQL_DSN" ./scripts/run-examples.sh
 
 				echo -e "\n${BOLD}${BLUE}========================================${NC}"
 				echo -e "${BOLD}${CYAN}Running Playwright E2E tests${NC}"
 				echo -e "${BOLD}${BLUE}========================================${NC}\n"
 				E2E_FLAGS=""
 				if [[ "${UPDATE_SNAPSHOTS:-0}" == "1" ]]; then
-						E2E_FLAGS="--update-snapshots=all"
+					E2E_FLAGS="--update-snapshots=all"
 				fi
-				set +e
-				# Always refresh baselines with a full run (line reporter)
-				"${COMPOSE[@]}" "${COMPOSE_FILES[@]}" exec playwright sh -lc "\
+				"${COMPOSE[@]}" "${COMPOSE_FILES[@]}" exec -T playwright sh -lc "\
 					set -e; \
 					cd /work/test/e2e; \
 					if [ ! -d node_modules ]; then npm ci >/dev/null 2>&1 || npm install >/dev/null 2>&1; fi; \
 					npx playwright install --with-deps >/dev/null 2>&1 || true; \
-					echo '▶ Running Playwright full suite...'; \
-					npx playwright test ${E2E_FLAGS} --reporter=line --reporter=html || true; \
+					echo '▶ Running Playwright tests...'; \
+					npx playwright test ${E2E_FLAGS} --reporter=dot --reporter=html \
 				"
-				set -e
-						# Run tests inside the already-running playwright container
-						# Install deps once per container lifetime with visible progress markers
-						if [[ "${DEMO:-0}" == "1" ]]; then
-							set +e
-							"${COMPOSE[@]}" "${COMPOSE_FILES[@]}" exec -e DEMO=1 playwright sh -lc "\
-								set -e; \
-								cd /work/test/e2e; \
-								# Prepare quietly on first run; suppress install noise\n\
-								if [ ! -d node_modules ]; then npm ci >/dev/null 2>&1 || npm install >/dev/null 2>&1; fi; \
-								npx playwright install --with-deps >/dev/null 2>&1 || true; \
-								# Ensure fresh artifacts (avoid picking up stale test-results)
-								rm -rf test-results 2>/dev/null || true; \
-								echo '▶ Running Playwright DEMO...'; \
-								DEMO=1 npx playwright test ${E2E_FLAGS} tests/demo-showcase.spec.ts --project=demo --reporter=list --reporter=html; \
-								echo '▶ Last run:'; \
-								ls -l test-results | tail -n +1 || true; \
-								if [ -f test-results/.last-run.json ]; then head -c 2000 test-results/.last-run.json; fi; \
-							"
-						PLAY_RC=$?
-						set -e
-						echo -e "${CYAN}▶ Playwright demo exit code: ${PLAY_RC}${NC}"
-						else
-						"${COMPOSE[@]}" "${COMPOSE_FILES[@]}" exec playwright sh -lc "\
-								set -e; \
-								cd /work/test/e2e; \
-								# Prepare quietly on first run; suppress install noise\n\
-								if [ ! -d node_modules ]; then npm ci >/dev/null 2>&1 || npm install >/dev/null 2>&1; fi; \
-								npx playwright install --with-deps >/dev/null 2>&1 || true; \
-								echo '▶ Running Playwright tests...'; \
-								npx playwright test ${E2E_FLAGS} --reporter=line --reporter=html || true \
-							"
-						fi
+				if [[ "${DEMO:-0}" == "1" ]]; then
 					set +e
+					"${COMPOSE[@]}" "${COMPOSE_FILES[@]}" exec -e DEMO=1 -T playwright sh -lc "\
+						set -e; \
+						cd /work/test/e2e; \
+						if [ ! -d node_modules ]; then npm ci >/dev/null 2>&1 || npm install >/dev/null 2>&1; fi; \
+						npx playwright install --with-deps >/dev/null 2>&1 || true; \
+						rm -rf test-results 2>/dev/null || true; \
+						echo '▶ Running Playwright DEMO...'; \
+						DEMO=1 npx playwright test ${E2E_FLAGS} tests/demo-showcase.spec.ts --project=demo --reporter=list --reporter=html; \
+						echo '▶ Last run:'; \
+						ls -l test-results | tail -n +1 || true; \
+						if [ -f test-results/.last-run.json ]; then head -c 2000 test-results/.last-run.json; fi; \
+					"
+					PLAY_RC=$?
+					set -e
+					echo -e "${CYAN}▶ Playwright demo exit code: ${PLAY_RC}${NC}"
+				fi
+				set +e
 					echo -e "${CYAN}Extracting latest demo artifacts from container...${NC}"
 				CONT_ID=$(docker ps -qf name=playwright)
 					VIDEO_SRC=""

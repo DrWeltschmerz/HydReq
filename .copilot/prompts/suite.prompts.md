@@ -24,7 +24,7 @@ Keep these rules in mind:
 - Matrix expansion: add `matrix:` with key: [values] to generate cartesian combinations; use vars in body/query/headers.
 - OpenAPI validation: enable suite-level `openApi: { file: path, enabled: true }` and optionally per-test `openApi.enabled`.
 
-Tip: While authoring, you can run tests from the CLI (`hydreq run -f suite.yaml`) or use the built-in Web UI by running `hydreq` with no arguments to launch a local GUI. The Web UI also supports importing collections directly from Postman, Insomnia, HAR, OpenAPI/Swagger, Bruno, REST Client, and Newman formats, and includes a visual editor for creating and modifying test suites.
+Tip: While authoring, you can run tests from the CLI (`hydreq run -f suite.hrq.yaml`) or use the built-in Web UI by running `hydreq` with no arguments to launch a local GUI. The Web UI also supports importing collections directly from Postman, Insomnia, HAR, OpenAPI/Swagger, Bruno, REST Client, and Newman formats, and includes a visual editor for creating and modifying test suites.
 
 Examples:
 

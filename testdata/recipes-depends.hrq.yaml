@@ -1,0 +1,13 @@
+name: recipes - dependsOn
+baseUrl: ${ENV:HTTPBIN_BASE_URL}
+vars: {}
+tests:
+  - name: create item
+    request: { method: POST, url: /anything, body: { id: 1 } }
+    assert: { status: 200 }
+    extract:
+      itemId: { jsonPath: json.id }
+  - name: use item
+    dependsOn: [create item]
+    request: { method: POST, url: /anything, body: { ref: "${itemId}" } }
+    assert: { status: 200, jsonEquals: { json.ref: "${itemId}" } }

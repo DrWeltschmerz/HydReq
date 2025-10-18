@@ -251,7 +251,7 @@ console.log('Response status:', response.status);
 
 ## Complete Example
 
-See `testdata/js-hooks.yaml` for a comprehensive example suite demonstrating all JS hook capabilities.
+See `testdata/js-hooks.hrq.yaml` for a comprehensive example suite demonstrating all JS hook capabilities.
 
 ## Limitations
 

@@ -125,7 +125,7 @@ const shouldRun = process.env.DEMO === "1";
         )
         .catch(() => {});
 
-      // Select a specific suite to show stages clearly: httpbin smoke (testdata/example.yaml)
+      // Select a specific suite to show stages clearly: httpbin smoke (testdata/example.hrq.yaml)
       const httpbinSuite = page.locator('#suites li:has-text("httpbin smoke")');
       await expect(httpbinSuite).toBeVisible();
       await httpbinSuite.click();
@@ -146,7 +146,7 @@ const shouldRun = process.env.DEMO === "1";
       await expect(results).toContainText("Batch summary", { timeout: 30000 });
 
       // Open editor for a representative suite
-      const suiteName = "js-hooks.yaml";
+      const suiteName = "js-hooks.hrq.yaml";
       const suiteItem = page
         .locator(`#suites li[data-path$="${suiteName}"]`)
         .first();

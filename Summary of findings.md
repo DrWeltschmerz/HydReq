@@ -1,14 +1,14 @@
 Summary of findings
 - The web UI currently lists suites (internal/webui/webui.go -> findSuites + /api/editor/suites) and opens an editor for an existing file when the user clicks Edit (internal/webui/static/index.html -> edit button calling /api/editor/suite?path=... and openEditor()).
-- The server already supports saving arbitrary files under testdata via /api/editor/save (handleEditorSave). That handler will create new files (it does not require the path to already exist) and enforces isEditablePath(path) which restricts writes to testdata/*.yml|.yaml and rejects directories.
+- The server already supports saving arbitrary files under testdata via /api/editor/save (handleEditorSave). That handler will create new files (it does not require the path to already exist) and enforces isEditablePath(path) which restricts writes to testdata/*.hrq.yaml and rejects directories.
 - Thus most of the work is on the UI: there is no “New suite” control or client-side workflow to pick a path/name, open an empty editor, run validation, and call /api/editor/save. No server changes are strictly required to make creating new suites work, but a small server-side helper endpoint and/or extra server-side safeguards are recommended.
 
 Concrete plan (what needs to be done)
 1. UI: add a “New suite” button and workflow
    - Add a “New” button in the sidebar near Import / Run.
    - When clicked:
-     - Prompt the user for a filename (e.g., testdata/<name>.yaml) or ask for a suite name and auto-suggest a safe filename (e.g., testdata/<slug>.yaml).
-     - Validate client-side that filename starts with testdata/ and ends with .yml/.yaml (to give immediate feedback).
+  - Prompt the user for a filename (e.g., testdata/<name>.hrq.yaml) or ask for a suite name and auto-suggest a safe filename (e.g., testdata/<slug>.hrq.yaml).
+  - Validate client-side that filename starts with testdata/ and ends with .hrq.yaml (to give immediate feedback).
      - Open the existing editor modal (reuse openEditor) with:
        - path set to the chosen path
        - data set to an empty/default models.Suite object (parsed) and an empty raw editor
@@ -19,7 +19,7 @@ Concrete plan (what needs to be done)
 
 2. Front-end behavior/UX details
    - When the user supplies a suite name (not a filename), derive a safe filename:
-     - Lowercase, replace spaces with '-', remove unsafe chars; then prefix with "testdata/" and append ".yaml".
+  - Lowercase, replace spaces with '-', remove unsafe chars; then prefix with "testdata/" and append ".hrq.yaml".
      - If the generated file already exists, prompt to overwrite or ask for a different name.
    - Provide optional client-side auto-fill of suite.name in the editor from the entered filename.
    - After successful save, show confirmation and call refresh(); optionally open the saved file in editor or close the modal.

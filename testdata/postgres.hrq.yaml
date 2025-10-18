@@ -1,0 +1,18 @@
+name: postgres example
+baseUrl: ${ENV:HTTPBIN_BASE_URL}
+vars:
+  PG_DSN: "${ENV:PG_DSN}"
+tests:
+  - name: pg create table
+    pre:
+      - name: create
+        sql:
+          driver: pgx
+          dsn: ${PG_DSN}
+          query: |
+            CREATE TABLE IF NOT EXISTS qa_items(
+              id SERIAL PRIMARY KEY,
+              name TEXT
+            );
+    request: { method: GET, url: /status/200 }
+    assert: { status: 200 }

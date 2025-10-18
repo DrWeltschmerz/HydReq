@@ -17,7 +17,7 @@ func TestEditorSuiteValidateSaveRoundtrip(t *testing.T) {
 	if err := os.MkdirAll(tdTestdata, 0o755); err != nil {
 		t.Fatalf("failed to create testdata dir: %v", err)
 	}
-	samplePath := filepath.Join(tdTestdata, "round.yaml")
+	samplePath := filepath.Join(tdTestdata, "round.hrq.yaml")
 	sampleYAML := "name: roundtrip suite\n"
 	if err := os.WriteFile(samplePath, []byte(sampleYAML), 0o644); err != nil {
 		t.Fatalf("failed to write sample yaml: %v", err)
@@ -32,7 +32,7 @@ func TestEditorSuiteValidateSaveRoundtrip(t *testing.T) {
 	s.routes()
 
 	// fetch single suite
-	req := httptest.NewRequest(http.MethodGet, "/api/editor/suite?path=testdata/round.yaml", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/editor/suite?path=testdata/round.hrq.yaml", nil)
 	w := httptest.NewRecorder()
 	s.handleEditorSuite(w, req)
 	if w.Code != http.StatusOK {
@@ -59,7 +59,7 @@ func TestEditorSuiteValidateSaveRoundtrip(t *testing.T) {
 	}
 
 	// save to a new path
-	savePayload := map[string]string{"path": "testdata/round_saved.yaml", "raw": raw}
+	savePayload := map[string]string{"path": "testdata/round_saved.hrq.yaml", "raw": raw}
 	sb, _ := json.Marshal(savePayload)
 	sreq := httptest.NewRequest(http.MethodPost, "/api/editor/save", bytes.NewReader(sb))
 	sreq.Header.Set("Content-Type", "application/json")
@@ -69,7 +69,7 @@ func TestEditorSuiteValidateSaveRoundtrip(t *testing.T) {
 		t.Fatalf("expected 200 OK for save, got %d: %s", sw.Code, sw.Body.String())
 	}
 	// confirm saved file exists and content matches
-	savedData, err := os.ReadFile(filepath.Join(tdTestdata, "round_saved.yaml"))
+	savedData, err := os.ReadFile(filepath.Join(tdTestdata, "round_saved.hrq.yaml"))
 	if err != nil {
 		t.Fatalf("failed to read saved file: %v", err)
 	}
@@ -77,5 +77,5 @@ func TestEditorSuiteValidateSaveRoundtrip(t *testing.T) {
 		t.Fatalf("saved content mismatch: got %q expected %q", string(savedData), raw)
 	}
 	// cleanup
-	_ = os.Remove(filepath.Join(tdTestdata, "round_saved.yaml"))
+	_ = os.Remove(filepath.Join(tdTestdata, "round_saved.hrq.yaml"))
 }

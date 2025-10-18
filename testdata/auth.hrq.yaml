@@ -1,0 +1,23 @@
+name: auth demo
+baseUrl: ${ENV:HTTPBIN_BASE_URL}
+auth:
+  bearerEnv: DEMO_BEARER
+tests:
+  - name: bearer header via env
+    request:
+      method: GET
+      url: /headers
+    assert:
+      status: 200
+      jsonContains:
+        headers.Authorization: Bearer ${ENV:DEMO_BEARER}
+  - name: basic header via env
+    request:
+      method: GET
+      url: /headers
+      headers:
+        Authorization: Basic ${ENV:BASIC_B64}
+    assert:
+      status: 200
+      jsonContains:
+        headers.Authorization: Basic ${ENV:BASIC_B64}

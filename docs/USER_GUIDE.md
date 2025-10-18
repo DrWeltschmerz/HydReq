@@ -13,7 +13,7 @@ This single guide walks you through everything you need for day‑to‑day use:
 - Batch run: select suites and run; track stage progress and per-test outcomes; download JSON/JUnit/HTML.
 
 3) CLI
-- hydreq run -f suite.yaml [--workers N] [--tags smoke] [--report-json path] [--report-junit path] [--report-dir dir]
+- hydreq run -f suite.hrq.yaml [--workers N] [--tags smoke] [--report-json path] [--report-junit path] [--report-dir dir]
 - hydreq import <format> <file> — Postman, Insomnia, HAR, OpenAPI, Bruno, REST Client, Newman.
 - validate — validate suites against the JSON schema.
 

@@ -1,6 +1,37 @@
 # Changelog
 
-## v0.3.7-beta (Unreleased)
+## v0.3.8-beta (Unreleased)
+
+Highlights
+- Canonicalized `.hrq.yaml` as the suite extension end-to-end; CLI auto-discovery, validator defaults, fixtures, docs, and samples all honor the new suffix.
+- `hydreq run` now emits batch/run artifacts whenever `--report-dir` is provided, surfaces schema-derived diagnostics for load failures, and cleanly separates exit code `1` (test failures) from `2` (load/validation issues).
+- Local CI flow mirrors GitHub Actions: Go fmt/vet/tidy checks, race-enabled tests, Web UI mocha tests, database integrations, example suites, and the Playwright suite execute in one pass with failure propagation.
+- Playwright specs and media refreshed for `.hrq` naming; failing runs capture context (video, screenshots, Markdown) that is now linked from troubleshooting docs.
+
+Breaking changes
+- Suite discovery ignores legacy `.yaml`/`.hrq.yml` files; rename suites to `*.hrq.yaml` to keep them runnable and valid.
+- `scripts/local-ci.sh` expects working Node/npm tooling; JavaScript unit tests and Playwright now stop the script on failure instead of logging warnings.
+
+Features
+- `hydreq run`:
+	- Discovers `testdata/*.hrq.yaml` by default and prints schema validation errors inline when suites fail to load.
+	- Always writes run-level JSON/JUnit/HTML artifacts beside per-suite reports when `--report-dir` is used, even in single-suite mode.
+	- Pretty-prints load errors with bold prefixes for easier scanning and continues collecting runtime results into the batch summary.
+- `validate` CLI:
+	- Recursively scans for `.hrq.yaml` files, skips `specs/` fixtures, and ignores backups.
+	- Filters out YAML lacking `name`, `baseUrl`, or `tests` before validation to cut noise from partial files.
+	- Ships table-driven tests that lock down the new discovery rules.
+
+Tooling
+- `scripts/local-ci.sh` ensures npm dependencies are installed once, runs `npm run test:js`, executes the Playwright suite a single time with `dot`+HTML reporters, and treats DB/examples/Playwright exits as fatal.
+- Playwright container workflow refreshes snapshots against `.hrq` selectors and publishes recorded artifacts (`error-context.md`, videos, screenshots) for docs.
+- CLI smoke tests (`cmd/hydreq/main_test.go`, `cmd/validate/main_test.go`) exercise the compiled binaries to cover import commands, run/validate paths, and help output.
+
+Docs
+- Updated `README.md`, `docs/*`, and cheatsheets to reference `.hrq.yaml`, refreshed screenshots/GIFs, and documented the new local CI flow.
+- Troubleshooting guide now embeds the latest Playwright failure artifacts to help diagnose editor regressions quickly.
+
+## v0.3.7-beta (2025-10-15)
 
 Features
 - **Official Docker image**: Lightweight multi-architecture Docker image (~30MB) published to GitHub Container Registry (ghcr.io/drweltschmerz/hydreq)
@@ -9,6 +40,7 @@ Features
   - Runs as non-root user for security
   - Automated builds via GitHub Actions on push to main and release tags
   - Semantic versioning tags (latest, v1, v1.2, v1.2.3)
+Full UI refactor
 
 Documentation
 - Added comprehensive Docker documentation (`docs/docker.md`) with quick start, configuration, CI/CD integration examples (GitHub Actions, GitLab CI, Jenkins), and troubleshooting
@@ -155,7 +187,7 @@ Highlights
 
 Features
 - Scripts
-	- `scripts/run-suites.sh`: discover and run suites (defaults to `testdata/*.yaml`), write per-suite JSON/JUnit, and generate Markdown summaries.
+	- `scripts/run-suites.sh`: discover and run suites (defaults to `testdata/*.hrq.yaml`), write per-suite JSON/JUnit, and generate Markdown summaries.
 	- `scripts/pr-summary-batch.sh`: aggregate multiple JSON reports into a single PR-ready summary (`PR_SUMMARY_ALL.md`).
 	- Release archives now bundle `scripts/**` so end-users can generate summaries without cloning the repo.
 - VS Code

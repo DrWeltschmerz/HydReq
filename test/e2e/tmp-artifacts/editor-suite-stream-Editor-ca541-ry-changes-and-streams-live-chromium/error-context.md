@@ -1,0 +1,864 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - img "HydReq" [ref=e4]
+      - generic [ref=e5]: HydReq — Hydra Request
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - checkbox "Auto-refresh" [checked] [ref=e8]
+        - text: Auto-refresh
+      - generic [ref=e9]:
+        - checkbox "Only failed" [ref=e10]
+        - text: Only failed
+      - generic [ref=e11]:
+        - checkbox "Auto-scroll" [checked] [ref=e12]
+        - text: Auto-scroll
+      - generic "Theme" [ref=e13]:
+        - generic [ref=e14]: Theme
+        - combobox "Theme" [ref=e15]:
+          - option "Light"
+          - option "Dark" [selected]
+          - option "Synthwave"
+          - option "Hack"
+          - option "Catppuccin Mocha"
+          - option "Catppuccin Latte"
+          - option "Catppuccin Frappé"
+          - option "Catppuccin Macchiato"
+          - option "Nord"
+          - option "Dracula"
+          - option "Monokai"
+          - option "Gruvbox Dark"
+          - option "Gruvbox Light"
+          - option "Solarized Dark"
+          - option "Solarized Light"
+          - option "Tokyo Night"
+          - option "One Dark Pro"
+          - option "Palenight"
+          - option "Rose Pine"
+          - option "Everforest Dark"
+          - option "Everforest Light"
+          - option "Ayu Dark"
+      - button "Run Selected" [ref=e16] [cursor=pointer]
+      - generic [ref=e17]: 0 selected
+      - button "Stop" [ref=e18] [cursor=pointer]
+  - main [ref=e19]:
+    - complementary [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - text: Workers
+          - spinbutton "Workers" [ref=e23]: "4"
+        - generic [ref=e24]:
+          - text: Timeout (ms)
+          - spinbutton "Timeout (ms)" [ref=e25]
+      - group [ref=e26]
+      - group [ref=e28]
+      - group [ref=e30]:
+        - option "Postman Collection (JSON)" [selected]
+        - option "Insomnia Export (JSON)"
+        - option "HAR Archive (JSON)"
+        - option "OpenAPI/Swagger Spec (YAML/JSON)"
+        - option "Bruno Export (JSON)"
+        - option "REST Client (.http)"
+        - option "Newman Collection (JSON)"
+      - group [ref=e32]:
+        - generic [ref=e34]:
+          - button "Refresh" [ref=e35] [cursor=pointer]
+          - button "New Suite" [ref=e36] [cursor=pointer]
+          - button "Expand all" [ref=e37] [cursor=pointer]
+          - button "Collapse all" [ref=e38] [cursor=pointer]
+        - list [ref=e39]:
+          - listitem [ref=e40] [cursor=pointer]:
+            - generic [ref=e41] [cursor=pointer]:
+              - generic [ref=e42] [cursor=pointer]:
+                - button "Toggle tests" [ref=e43] [cursor=pointer]: ▸
+                - generic [ref=e44] [cursor=pointer]: auth demo
+                - generic "suite status" [ref=e45] [cursor=pointer]: ·
+                - generic [ref=e46] [cursor=pointer]:
+                  - button "Download suite" [ref=e48] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e49] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e50] [cursor=pointer]: 🗑
+              - generic [ref=e52] [cursor=pointer]: auth.hrq.yaml
+          - listitem [ref=e53] [cursor=pointer]:
+            - generic [ref=e54] [cursor=pointer]:
+              - generic [ref=e55] [cursor=pointer]:
+                - button "Toggle tests" [ref=e56] [cursor=pointer]: ▸
+                - generic [ref=e57] [cursor=pointer]: dependsOn demo
+                - generic "suite status" [ref=e58] [cursor=pointer]: ·
+                - generic [ref=e59] [cursor=pointer]:
+                  - button "Download suite" [ref=e61] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e62] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e63] [cursor=pointer]: 🗑
+              - generic [ref=e65] [cursor=pointer]: depends.hrq.yaml
+          - listitem [ref=e66] [cursor=pointer]:
+            - generic [ref=e67] [cursor=pointer]:
+              - generic [ref=e68] [cursor=pointer]:
+                - button "Toggle tests" [ref=e69] [cursor=pointer]: ▸
+                - generic [ref=e70] [cursor=pointer]: httpbin smoke
+                - generic "suite status" [ref=e71] [cursor=pointer]: ·
+                - generic [ref=e72] [cursor=pointer]:
+                  - button "Download suite" [ref=e74] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e75] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e76] [cursor=pointer]: 🗑
+              - generic [ref=e78] [cursor=pointer]: example.hrq.yaml
+          - listitem [ref=e79] [cursor=pointer]:
+            - generic [ref=e80] [cursor=pointer]:
+              - generic [ref=e81] [cursor=pointer]:
+                - button "Toggle tests" [ref=e82] [cursor=pointer]: ▸
+                - generic [ref=e83] [cursor=pointer]: hooks demo
+                - generic "suite status" [ref=e84] [cursor=pointer]: ·
+                - generic [ref=e85] [cursor=pointer]:
+                  - button "Download suite" [ref=e87] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e88] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e89] [cursor=pointer]: 🗑
+              - generic [ref=e91] [cursor=pointer]: hooks.hrq.yaml
+          - listitem [ref=e92] [cursor=pointer]:
+            - generic [ref=e93] [cursor=pointer]:
+              - generic [ref=e94] [cursor=pointer]:
+                - button "Toggle tests" [ref=e95] [cursor=pointer]: ▸
+                - generic [ref=e96] [cursor=pointer]: JavaScript Hooks Examples
+                - generic "suite status" [ref=e97] [cursor=pointer]: ✗
+                - generic [ref=e98] [cursor=pointer]:
+                  - button "Download suite" [ref=e100] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e101] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e102] [cursor=pointer]: 🗑
+              - generic [ref=e104] [cursor=pointer]: js-hooks.hrq.yaml
+          - listitem [ref=e105] [cursor=pointer]:
+            - generic [ref=e106] [cursor=pointer]:
+              - generic [ref=e107] [cursor=pointer]:
+                - button "Toggle tests" [ref=e108] [cursor=pointer]: ▸
+                - generic [ref=e109] [cursor=pointer]: json contains demo
+                - generic "suite status" [ref=e110] [cursor=pointer]: ·
+                - generic [ref=e111] [cursor=pointer]:
+                  - button "Download suite" [ref=e113] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e114] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e115] [cursor=pointer]: 🗑
+              - generic [ref=e117] [cursor=pointer]: jsoncontains.hrq.yaml
+          - listitem [ref=e118] [cursor=pointer]:
+            - generic [ref=e119] [cursor=pointer]:
+              - generic [ref=e120] [cursor=pointer]:
+                - button "Toggle tests" [ref=e121] [cursor=pointer]: ▸
+                - generic [ref=e122] [cursor=pointer]: httpbin matrix demo
+                - generic "suite status" [ref=e123] [cursor=pointer]: ·
+                - generic [ref=e124] [cursor=pointer]:
+                  - button "Download suite" [ref=e126] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e127] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e128] [cursor=pointer]: 🗑
+              - generic [ref=e130] [cursor=pointer]: matrix.hrq.yaml
+          - listitem [ref=e131] [cursor=pointer]:
+            - generic [ref=e132] [cursor=pointer]:
+              - generic [ref=e133] [cursor=pointer]:
+                - button "Toggle tests" [ref=e134] [cursor=pointer]: ▸
+                - generic [ref=e135] [cursor=pointer]: openapi demo
+                - generic "suite status" [ref=e136] [cursor=pointer]: ·
+                - generic [ref=e137] [cursor=pointer]:
+                  - button "Download suite" [ref=e139] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e140] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e141] [cursor=pointer]: 🗑
+              - generic [ref=e143] [cursor=pointer]: openapi.hrq.yaml
+          - listitem [ref=e144] [cursor=pointer]:
+            - generic [ref=e145] [cursor=pointer]:
+              - generic [ref=e146] [cursor=pointer]:
+                - button "Toggle tests" [ref=e147] [cursor=pointer]: ▸
+                - generic [ref=e148] [cursor=pointer]: postgres example
+                - generic "suite status" [ref=e149] [cursor=pointer]: ·
+                - generic [ref=e150] [cursor=pointer]:
+                  - button "Download suite" [ref=e152] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e153] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e154] [cursor=pointer]: 🗑
+              - generic [ref=e156] [cursor=pointer]: postgres.hrq.yaml
+          - listitem [ref=e157] [cursor=pointer]:
+            - generic [ref=e158] [cursor=pointer]:
+              - generic [ref=e159] [cursor=pointer]:
+                - button "Toggle tests" [ref=e160] [cursor=pointer]: ▸
+                - generic [ref=e161] [cursor=pointer]: recipes - dependsOn
+                - generic "suite status" [ref=e162] [cursor=pointer]: ·
+                - generic [ref=e163] [cursor=pointer]:
+                  - button "Download suite" [ref=e165] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e166] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e167] [cursor=pointer]: 🗑
+              - generic [ref=e169] [cursor=pointer]: recipes-depends.hrq.yaml
+          - listitem [ref=e170] [cursor=pointer]:
+            - generic [ref=e171] [cursor=pointer]:
+              - generic [ref=e172] [cursor=pointer]:
+                - button "Toggle tests" [ref=e173] [cursor=pointer]: ▸
+                - generic [ref=e174] [cursor=pointer]: recipes - retries
+                - generic "suite status" [ref=e175] [cursor=pointer]: ·
+                - generic [ref=e176] [cursor=pointer]:
+                  - button "Download suite" [ref=e178] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e179] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e180] [cursor=pointer]: 🗑
+              - generic [ref=e182] [cursor=pointer]: recipes-retries.hrq.yaml
+          - listitem [ref=e183] [cursor=pointer]:
+            - generic [ref=e184] [cursor=pointer]:
+              - generic [ref=e185] [cursor=pointer]:
+                - button "Toggle tests" [ref=e186] [cursor=pointer]: ▸
+                - generic [ref=e187] [cursor=pointer]: recipes - smoke tags
+                - generic "suite status" [ref=e188] [cursor=pointer]: ·
+                - generic [ref=e189] [cursor=pointer]:
+                  - button "Download suite" [ref=e191] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e192] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e193] [cursor=pointer]: 🗑
+              - generic [ref=e194] [cursor=pointer]:
+                - generic [ref=e195] [cursor=pointer]: recipes-smoke.hrq.yaml
+                - generic [ref=e196] [cursor=pointer]: "#smoke"
+          - listitem [ref=e197] [cursor=pointer]:
+            - generic [ref=e198] [cursor=pointer]:
+              - generic [ref=e199] [cursor=pointer]:
+                - button "Toggle tests" [ref=e200] [cursor=pointer]: ▸
+                - generic [ref=e201] [cursor=pointer]: retries demo
+                - generic "suite status" [ref=e202] [cursor=pointer]: ·
+                - generic [ref=e203] [cursor=pointer]:
+                  - button "Download suite" [ref=e205] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e206] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e207] [cursor=pointer]: 🗑
+              - generic [ref=e209] [cursor=pointer]: retries.hrq.yaml
+          - listitem [ref=e210] [cursor=pointer]:
+            - generic [ref=e211] [cursor=pointer]:
+              - generic [ref=e212] [cursor=pointer]:
+                - button "Toggle tests" [ref=e213] [cursor=pointer]: ▸
+                - generic [ref=e214] [cursor=pointer]: sqlite hooks demo
+                - generic "suite status" [ref=e215] [cursor=pointer]: ·
+                - generic [ref=e216] [cursor=pointer]:
+                  - button "Download suite" [ref=e218] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e219] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e220] [cursor=pointer]: 🗑
+              - generic [ref=e222] [cursor=pointer]: sqlite.hrq.yaml
+          - listitem [ref=e223] [cursor=pointer]:
+            - generic [ref=e224] [cursor=pointer]:
+              - generic [ref=e225] [cursor=pointer]:
+                - button "Toggle tests" [ref=e226] [cursor=pointer]: ▸
+                - generic [ref=e227] [cursor=pointer]: sqlserver example
+                - generic "suite status" [ref=e228] [cursor=pointer]: ·
+                - generic [ref=e229] [cursor=pointer]:
+                  - button "Download suite" [ref=e231] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e232] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e233] [cursor=pointer]: 🗑
+              - generic [ref=e235] [cursor=pointer]: sqlserver.hrq.yaml
+          - listitem [ref=e236] [cursor=pointer]:
+            - generic [ref=e237] [cursor=pointer]:
+              - generic [ref=e238] [cursor=pointer]:
+                - button "Toggle tests" [ref=e239] [cursor=pointer]: ▸
+                - generic [ref=e240] [cursor=pointer]: tags demo
+                - generic "suite status" [ref=e241] [cursor=pointer]: ·
+                - generic [ref=e242] [cursor=pointer]:
+                  - button "Download suite" [ref=e244] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e245] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e246] [cursor=pointer]: 🗑
+              - generic [ref=e247] [cursor=pointer]:
+                - generic [ref=e248] [cursor=pointer]: tags.hrq.yaml
+                - generic [ref=e249] [cursor=pointer]: "#headers"
+                - generic [ref=e250] [cursor=pointer]: "#slow"
+                - generic [ref=e251] [cursor=pointer]: "#smoke"
+    - generic [ref=e252]:
+      - generic [ref=e253]:
+        - generic [ref=e254]:
+          - generic [ref=e255]: Batch progress
+          - generic [ref=e256]:
+            - generic [ref=e257]: "env overrides:"
+            - generic [ref=e258]:
+              - generic [ref=e259]: COMPOSE_PROJECT_NAME
+              - generic [ref=e260]: HTTPBIN_BASE_URL
+              - generic [ref=e261]: PG_DSN
+              - generic [ref=e262]: MSSQL_DSN
+              - generic [ref=e263]: HYDREQ_E2E_URL
+              - generic [ref=e264]: ENABLE_DEMO_AUTH
+          - generic [ref=e265]:
+            - generic [ref=e266]: "running with tags:"
+            - generic "Click to unselect" [ref=e268] [cursor=pointer]: "#smoke"
+        - generic [ref=e269]: 0/0
+      - generic [ref=e272]:
+        - generic [ref=e273]:
+          - text: Suite progress —
+          - generic [ref=e274]: (none)
+        - generic [ref=e275]: 0/0
+      - generic [ref=e277]:
+        - generic [ref=e278]:
+          - heading "Results" [level=3] [ref=e279]
+          - generic "For CI artifacts use CLI flags --report-json / --report-junit" [ref=e280]: (Reports via CLI)
+        - generic [ref=e281]:
+          - button "Download Run JSON" [ref=e282] [cursor=pointer]
+          - button "Download Run JUnit" [ref=e283] [cursor=pointer]
+          - button "Download Run HTML" [ref=e284] [cursor=pointer]
+          - button "Clear" [ref=e285] [cursor=pointer]
+      - generic [ref=e286]:
+        - generic [ref=e287]: "HYDREQ-DBG: post-load-1 count=16"
+        - generic [ref=e288]: "HYDREQ-DBG: post-load-2 count=16"
+        - generic [ref=e289]: "HYDREQ-FINAL: status= len=0 err="
+  - generic [ref=e291]:
+    - generic [ref=e292]:
+      - generic [ref=e293]:
+        - heading "Editor" [level=3] [ref=e294]
+        - generic [ref=e295]:
+          - text: "Edit:"
+          - generic [ref=e296]: testdata/js-hooks.hrq.yaml
+      - generic [ref=e297]:
+        - generic [ref=e298]:
+          - generic [ref=e299]: Comfortable
+          - checkbox "Toggle comfortable density" [ref=e300] [cursor=pointer]
+        - generic "Include dependsOn when running the selected test" [ref=e301]:
+          - generic [ref=e302]: with deps
+          - checkbox "Include dependsOn when running the selected test" [ref=e303] [cursor=pointer]
+        - generic "Include all tests from previous stages before the selected one" [ref=e304]:
+          - generic [ref=e305]: with previous stages
+          - checkbox "Include all tests from previous stages" [ref=e306] [cursor=pointer]
+        - button "Run test" [ref=e307] [cursor=pointer]
+        - button "Run suite" [active] [ref=e308] [cursor=pointer]
+        - button "Validate" [ref=e309] [cursor=pointer]
+        - button "Save" [ref=e310] [cursor=pointer]
+        - button "Save & Close" [ref=e311] [cursor=pointer]
+        - button "Close" [ref=e312] [cursor=pointer]
+    - generic [ref=e313]:
+      - generic [ref=e314]:
+        - generic [ref=e315] [cursor=pointer]:
+          - generic [ref=e316] [cursor=pointer]: Tests
+          - generic [ref=e317] [cursor=pointer]:
+            - button "Collapse or expand tests column" [expanded] [ref=e318] [cursor=pointer]: ◀
+            - button "+" [ref=e319] [cursor=pointer]
+            - button "−" [ref=e320] [cursor=pointer]
+        - generic [ref=e322]:
+          - generic [ref=e323]:
+            - generic [ref=e324] [cursor=pointer]:
+              - generic [ref=e325] [cursor=pointer]: Pre-request JS hook - set timestamp and custom header
+              - generic [ref=e326] [cursor=pointer]:
+                - generic "failed" [ref=e327] [cursor=pointer]: ✗
+                - button "Delete test" [ref=e328] [cursor=pointer]: 🗑
+            - group [ref=e329]
+          - generic [ref=e331]:
+            - generic [ref=e332] [cursor=pointer]:
+              - generic [ref=e333] [cursor=pointer]: Post-response JS hook - validate and extract data
+              - generic [ref=e334] [cursor=pointer]:
+                - generic "failed" [ref=e335] [cursor=pointer]: ✗
+                - button "Delete test" [ref=e336] [cursor=pointer]: 🗑
+            - group [ref=e337]
+          - generic [ref=e339]:
+            - generic [ref=e340] [cursor=pointer]:
+              - generic [ref=e341] [cursor=pointer]: Complex JS logic - conditional requests
+              - generic [ref=e342] [cursor=pointer]:
+                - generic "failed" [ref=e343] [cursor=pointer]: ✗
+                - button "Delete test" [ref=e344] [cursor=pointer]: 🗑
+            - group [ref=e345]
+          - generic [ref=e347]:
+            - generic [ref=e348] [cursor=pointer]:
+              - generic [ref=e349] [cursor=pointer]: JS hooks with variable manipulation
+              - generic [ref=e350] [cursor=pointer]:
+                - generic "failed" [ref=e351] [cursor=pointer]: ✗
+                - button "Delete test" [ref=e352] [cursor=pointer]: 🗑
+            - group [ref=e353]
+          - generic [ref=e355]:
+            - generic [ref=e356] [cursor=pointer]:
+              - generic [ref=e357] [cursor=pointer]: Error handling in JS hooks
+              - generic [ref=e358] [cursor=pointer]:
+                - generic "failed" [ref=e359] [cursor=pointer]: ✗
+                - button "Delete test" [ref=e360] [cursor=pointer]: 🗑
+            - group [ref=e361]
+          - generic [ref=e363]:
+            - generic [ref=e364] [cursor=pointer]:
+              - generic [ref=e365] [cursor=pointer]: Simple JS pre-hook variable manipulation
+              - generic [ref=e366] [cursor=pointer]:
+                - generic "failed" [ref=e367] [cursor=pointer]: ✗
+                - button "Delete test" [ref=e368] [cursor=pointer]: 🗑
+            - group [ref=e369]
+          - generic [ref=e371]:
+            - generic [ref=e372] [cursor=pointer]:
+              - generic [ref=e373] [cursor=pointer]: JS post-hook response processing
+              - generic [ref=e374] [cursor=pointer]:
+                - generic "failed" [ref=e375] [cursor=pointer]: ✗
+                - button "Delete test" [ref=e376] [cursor=pointer]: 🗑
+            - group [ref=e377]
+          - generic [ref=e379]:
+            - generic [ref=e380] [cursor=pointer]:
+              - generic [ref=e381] [cursor=pointer]: Complex JS logic and error handling
+              - generic [ref=e382] [cursor=pointer]:
+                - generic "failed" [ref=e383] [cursor=pointer]: ✗
+                - button "Delete test" [ref=e384] [cursor=pointer]: 🗑
+            - group [ref=e385]
+          - generic [ref=e387]:
+            - generic [ref=e388] [cursor=pointer]:
+              - generic [ref=e389] [cursor=pointer]: JS hooks with conditional logic
+              - generic [ref=e390] [cursor=pointer]:
+                - generic "failed" [ref=e391] [cursor=pointer]: ✗
+                - button "Delete test" [ref=e392] [cursor=pointer]: 🗑
+            - group [ref=e393]
+          - generic [ref=e395]:
+            - generic [ref=e396] [cursor=pointer]:
+              - generic [ref=e397] [cursor=pointer]: Multiple JS hooks in sequence
+              - generic [ref=e398] [cursor=pointer]:
+                - generic "failed" [ref=e399] [cursor=pointer]: ✗
+                - button "Delete test" [ref=e400] [cursor=pointer]: 🗑
+            - group [ref=e401]
+      - generic [ref=e403]:
+        - generic [ref=e404] [cursor=pointer]:
+          - generic [ref=e405] [cursor=pointer]: Visual Editor
+          - button "Collapse or expand visual editor column" [expanded] [ref=e407] [cursor=pointer]: ◀
+        - generic [ref=e409]:
+          - group [ref=e410]:
+            - generic [ref=e413]:
+              - generic [ref=e414]: Name *
+              - textbox "Name *" [ref=e415]: JavaScript Hooks Examples
+              - generic [ref=e416]: Base URL *
+              - textbox "Base URL *" [ref=e417]: "${ENV:HTTPBIN_BASE_URL}"
+              - generic [ref=e418]: Variables
+              - generic [ref=e419]:
+                - generic [ref=e420]:
+                  - generic [ref=e421]:
+                    - textbox [ref=e422]: api_version
+                    - textbox [ref=e423]: v1
+                    - button "×" [ref=e424] [cursor=pointer]
+                  - generic [ref=e425]:
+                    - textbox [ref=e426]: initial_counter
+                    - textbox [ref=e427]: "0"
+                    - button "×" [ref=e428] [cursor=pointer]
+                  - generic [ref=e429]:
+                    - textbox [ref=e430]: user_agent
+                    - textbox [ref=e431]: HydReq-Test/1.0
+                    - button "×" [ref=e432] [cursor=pointer]
+                - button "Add" [ref=e433] [cursor=pointer]
+              - generic [ref=e434]: Auth
+              - generic [ref=e435]:
+                - generic [ref=e436]: Bearer env
+                - generic [ref=e437]:
+                  - textbox "Bearer env" [ref=e438]
+                  - generic "env presence" [ref=e439]: "?"
+                - generic [ref=e440]: Basic env
+                - generic [ref=e441]:
+                  - textbox "Basic env" [ref=e442]
+                  - generic "env presence" [ref=e443]: "?"
+              - generic [ref=e444]:
+                - generic [ref=e445]: Auth header (preview)
+                - generic [ref=e446]: (none)
+              - generic [ref=e447]: OpenAPI
+              - generic [ref=e448]: Spec file
+              - textbox "Spec file" [ref=e449]
+              - generic [ref=e450]: Enabled
+              - checkbox "Enable OpenAPI validation for suite" [ref=e451]
+          - group [ref=e452]:
+            - generic [ref=e454]:
+              - generic [ref=e455]: Test name *
+              - textbox "My test name" [ref=e456]: Pre-request JS hook - set timestamp and custom header
+              - generic [ref=e457]: Stage
+              - spinbutton [ref=e458]
+              - generic [ref=e459]: Skip
+              - checkbox [ref=e460]
+              - generic [ref=e461]: Only
+              - checkbox [ref=e462]
+              - generic [ref=e463]: Depends on
+              - textbox "comma-separated" [ref=e464]
+              - generic [ref=e465]: Tags
+              - textbox "comma-separated" [ref=e466]
+          - group [ref=e467]:
+            - generic [ref=e470]:
+              - generic [ref=e471]: Method *
+              - combobox [ref=e472]:
+                - option "GET" [selected]
+                - option "POST"
+                - option "PUT"
+                - option "PATCH"
+                - option "DELETE"
+                - option "HEAD"
+                - option "OPTIONS"
+              - generic [ref=e473]: URL path *
+              - textbox [ref=e474]: /get
+              - generic [ref=e475]: Timeout (ms)
+              - spinbutton [ref=e476]
+              - generic [ref=e477]: Headers
+              - generic [ref=e478]: Query
+              - generic [ref=e479]: Body (JSON/YAML)
+              - textbox [ref=e480]
+          - group [ref=e481]:
+            - generic [ref=e484]:
+              - generic [ref=e485]: Status *
+              - spinbutton [ref=e486]: "200"
+              - generic [ref=e487]: Header equals
+              - generic [ref=e489]: JSON equals (path → value)
+              - generic [ref=e491]: JSON contains (path → value)
+              - generic [ref=e493]: Body contains
+              - generic [ref=e495]: Max duration (ms)
+              - spinbutton [ref=e496]
+          - group [ref=e497]:
+            - button "Add" [ref=e500] [cursor=pointer]
+          - group [ref=e501]:
+            - generic [ref=e503]:
+              - generic [ref=e504]: pre
+              - generic [ref=e505]:
+                - generic [ref=e507]:
+                  - generic [ref=e508]:
+                    - button "▾" [ref=e509] [cursor=pointer]
+                    - textbox "hook name" [ref=e510]: Set timestamp and API version
+                    - generic [ref=e511]: JS
+                    - button "Run" [ref=e512] [cursor=pointer]
+                    - button "Convert…" [ref=e513] [cursor=pointer]
+                    - button "×" [ref=e514] [cursor=pointer]
+                  - generic [ref=e516]:
+                    - generic [ref=e517]: Variables
+                    - button "Add" [ref=e519] [cursor=pointer]
+                    - generic [ref=e521]:
+                      - generic [ref=e522]: Code
+                      - textbox "JavaScript code..." [ref=e523]: "setVar('timestamp', new Date().toISOString()); setVar('request_id', 'req_' + Math.random().toString(36).slice(2, 11)); console.log('Pre-request: Generated request ID:', getVar('request_id'));"
+                - generic [ref=e524]:
+                  - combobox [ref=e525] [cursor=pointer]:
+                    - option "HTTP" [selected]
+                    - option "SQL"
+                    - option "JS"
+                    - option "EMPTY"
+                  - button "Add" [ref=e526] [cursor=pointer]
+              - generic [ref=e528]: post
+              - generic [ref=e529]:
+                - generic [ref=e530]: No hooks yet. Pick a mode, then Add.
+                - generic [ref=e531]:
+                  - combobox [ref=e532] [cursor=pointer]:
+                    - option "HTTP" [selected]
+                    - option "SQL"
+                    - option "JS"
+                    - option "EMPTY"
+                  - button "Add" [ref=e533] [cursor=pointer]
+          - group [ref=e534]:
+            - generic [ref=e536]:
+              - generic [ref=e537]: Enable retry
+              - checkbox [ref=e538]
+              - generic [ref=e539]: Max attempts
+              - spinbutton [ref=e540]
+              - generic [ref=e541]: Backoff (ms)
+              - spinbutton [ref=e542]
+              - generic [ref=e543]: Jitter (%)
+              - spinbutton [ref=e544]
+          - group [ref=e545]:
+            - generic [ref=e547]:
+              - generic [ref=e549]:
+                - textbox "Variable name" [ref=e550]
+                - generic [ref=e551]:
+                  - generic [ref=e552]:
+                    - textbox "Value" [ref=e553]
+                    - button "×" [ref=e554] [cursor=pointer]
+                  - button "+ Value" [ref=e555] [cursor=pointer]
+                - button "×" [ref=e556] [cursor=pointer]
+              - button "+ Add Variable" [ref=e557] [cursor=pointer]
+          - group [ref=e558]:
+            - generic [ref=e560]:
+              - generic [ref=e561]: Per-test override
+              - combobox [ref=e562]:
+                - option "Inherit (suite default)" [selected]
+                - option "Enabled"
+                - option "Disabled"
+      - generic [ref=e563]:
+        - generic [ref=e564] [cursor=pointer]:
+          - generic [ref=e565] [cursor=pointer]: YAML Source
+          - button "Collapse or expand YAML editor column" [expanded] [ref=e567] [cursor=pointer]: ◀
+        - generic [ref=e570]:
+          - textbox [ref=e571]
+          - generic [ref=e574]:
+            - generic [ref=e575]:
+              - generic [ref=e576]: "1"
+              - generic [ref=e577]: name
+              - generic [ref=e578]: ":"
+              - text: JavaScript Hooks Examples
+            - generic [ref=e579]:
+              - generic [ref=e580]: "2"
+              - generic [ref=e581]: baseUrl
+              - generic [ref=e582]: ":"
+              - text: $
+              - generic [ref=e583]: "{"
+              - text: ENV
+              - generic [ref=e584]: ":"
+              - text: HTTPBIN_BASE_URL
+              - generic [ref=e585]: "}"
+            - generic [ref=e586]:
+              - generic [ref=e587]: "3"
+              - generic [ref=e588]: vars
+              - generic [ref=e589]: ":"
+            - generic [ref=e590]:
+              - generic [ref=e591]: "4"
+              - generic [ref=e592]: api_version
+              - generic [ref=e593]: ":"
+              - text: v1
+            - generic [ref=e594]:
+              - generic [ref=e595]: "5"
+              - generic [ref=e596]: initial_counter
+              - generic [ref=e597]: ":"
+              - generic [ref=e598]: "\"0\""
+            - generic [ref=e599]:
+              - generic [ref=e600]: "6"
+              - generic [ref=e601]: user_agent
+              - generic [ref=e602]: ":"
+              - text: HydReq-Test/1.0
+            - generic [ref=e603]:
+              - generic [ref=e604]: "7"
+              - generic [ref=e605]: tests
+              - generic [ref=e606]: ":"
+            - generic [ref=e607]:
+              - generic [ref=e608]: "8"
+              - generic [ref=e609]: "-"
+              - generic [ref=e610]: name
+              - generic [ref=e611]: ":"
+              - text: Pre-request JS hook - set timestamp and custom header
+            - generic [ref=e612]:
+              - generic [ref=e613]: "9"
+              - generic [ref=e614]: request
+              - generic [ref=e615]: ":"
+            - generic [ref=e616]:
+              - generic [ref=e617]: "10"
+              - generic [ref=e618]: method
+              - generic [ref=e619]: ":"
+              - text: GET
+            - generic [ref=e620]:
+              - generic [ref=e621]: "11"
+              - generic [ref=e622]: url
+              - generic [ref=e623]: ":"
+              - text: /get
+            - generic [ref=e624]:
+              - generic [ref=e625]: "12"
+              - generic [ref=e626]: headers
+              - generic [ref=e627]: ":"
+            - generic [ref=e628]:
+              - generic [ref=e629]: "13"
+              - generic [ref=e630]: User-Agent
+              - generic [ref=e631]: ":"
+              - text: $
+              - generic [ref=e632]: "{"
+              - text: user_agent
+              - generic [ref=e633]: "}"
+            - generic [ref=e634]:
+              - generic [ref=e635]: "14"
+              - generic [ref=e636]: assert
+              - generic [ref=e637]: ":"
+            - generic [ref=e638]:
+              - generic [ref=e639]: "15"
+              - generic [ref=e640]: status
+              - generic [ref=e641]: ":"
+              - generic [ref=e642]: "200"
+            - generic [ref=e643]:
+              - generic [ref=e644]: "16"
+              - generic [ref=e645]: jsonContains
+              - generic [ref=e646]: ":"
+            - generic [ref=e647]:
+              - generic [ref=e648]: "17"
+              - generic [ref=e649]: headers.User-Agent
+              - generic [ref=e650]: ":"
+              - text: $
+              - generic [ref=e651]: "{"
+              - text: user_agent
+              - generic [ref=e652]: "}"
+            - generic [ref=e653]:
+              - generic [ref=e654]: "18"
+              - generic [ref=e655]: timeoutMs
+              - generic [ref=e656]: ":"
+              - generic [ref=e657]: "0"
+            - generic [ref=e658]:
+              - generic [ref=e659]: "19"
+              - generic [ref=e660]: repeat
+              - generic [ref=e661]: ":"
+              - generic [ref=e662]: "0"
+            - generic [ref=e663]:
+              - generic [ref=e664]: "20"
+              - generic [ref=e665]: pre
+              - generic [ref=e666]: ":"
+            - generic [ref=e667]:
+              - generic [ref=e668]: "21"
+              - generic [ref=e669]: "-"
+              - generic [ref=e670]: name
+              - generic [ref=e671]: ":"
+              - text: Set timestamp and API version
+            - generic [ref=e672]:
+              - generic [ref=e673]: "22"
+              - generic [ref=e674]: js
+              - generic [ref=e675]: ":"
+            - generic [ref=e676]:
+              - generic [ref=e677]: "23"
+              - generic [ref=e678]: code
+              - generic [ref=e679]: ": >"
+            - generic [ref=e680]:
+              - generic [ref=e681]: "24"
+              - generic [ref=e682]: setVar('timestamp', new Date().toISOString());
+            - generic [ref=e684]: "25"
+            - generic [ref=e685]:
+              - generic [ref=e686]: "26"
+              - generic [ref=e687]: setVar('request_id', 'req_' + Math.random().toString(36).slice(2,
+            - generic [ref=e688]:
+              - generic [ref=e689]: "27"
+              - generic [ref=e690]: 11));
+            - generic [ref=e692]: "28"
+            - generic [ref=e693]:
+              - generic [ref=e694]: "29"
+              - generic [ref=e695]: "console.log('Pre-request: Generated request ID:',"
+            - generic [ref=e696]:
+              - generic [ref=e697]: "30"
+              - generic [ref=e698]: getVar('request_id'));
+            - generic [ref=e699]:
+              - generic [ref=e700]: "31"
+              - generic [ref=e701]: "-"
+              - generic [ref=e702]: name
+              - generic [ref=e703]: ":"
+              - text: Post-response JS hook - validate and extract data
+            - generic [ref=e704]:
+              - generic [ref=e705]: "32"
+              - generic [ref=e706]: request
+              - generic [ref=e707]: ":"
+            - generic [ref=e708]:
+              - generic [ref=e709]: "33"
+              - generic [ref=e710]: method
+              - generic [ref=e711]: ":"
+              - text: POST
+            - generic [ref=e712]:
+              - generic [ref=e713]: "34"
+              - generic [ref=e714]: url
+              - generic [ref=e715]: ":"
+              - text: /post
+            - generic [ref=e716]:
+              - generic [ref=e717]: "35"
+              - generic [ref=e718]: body
+              - generic [ref=e719]: ":"
+            - generic [ref=e720]:
+              - generic [ref=e721]: "36"
+              - generic [ref=e722]: action
+              - generic [ref=e723]: ":"
+              - text: test
+            - generic [ref=e724]:
+              - generic [ref=e725]: "37"
+              - generic [ref=e726]: version
+              - generic [ref=e727]: ":"
+              - text: $
+              - generic [ref=e728]: "{"
+              - text: api_version
+              - generic [ref=e729]: "}"
+            - generic [ref=e730]:
+              - generic [ref=e731]: "38"
+              - generic [ref=e732]: assert
+              - generic [ref=e733]: ":"
+            - generic [ref=e734]:
+              - generic [ref=e735]: "39"
+              - generic [ref=e736]: status
+              - generic [ref=e737]: ":"
+              - generic [ref=e738]: "200"
+            - generic [ref=e739]:
+              - generic [ref=e740]: "40"
+              - generic [ref=e741]: jsonEquals
+              - generic [ref=e742]: ":"
+            - generic [ref=e743]:
+              - generic [ref=e744]: "41"
+              - generic [ref=e745]: json.action
+              - generic [ref=e746]: ":"
+              - text: test
+            - generic [ref=e747]:
+              - generic [ref=e748]: "42"
+              - generic [ref=e749]: json.version
+              - generic [ref=e750]: ":"
+              - text: $
+              - generic [ref=e751]: "{"
+              - text: api_version
+              - generic [ref=e752]: "}"
+            - generic [ref=e753]:
+              - generic [ref=e754]: "43"
+              - generic [ref=e755]: maxDurationMs
+              - generic [ref=e756]: ":"
+              - generic [ref=e757]: "0"
+            - generic [ref=e758]:
+              - generic [ref=e759]: "44"
+              - generic [ref=e760]: timeoutMs
+              - generic [ref=e761]: ":"
+              - generic [ref=e762]: "0"
+            - generic [ref=e763]:
+              - generic [ref=e764]: "45"
+              - generic [ref=e765]: repeat
+              - generic [ref=e766]: ":"
+              - generic [ref=e767]: "0"
+            - generic [ref=e768]:
+              - generic [ref=e769]: "46"
+              - generic [ref=e770]: post
+              - generic [ref=e771]: ":"
+            - generic [ref=e772]:
+              - generic [ref=e773]: "47"
+              - generic [ref=e774]: "-"
+              - generic [ref=e775]: name
+              - generic [ref=e776]: ":"
+              - text: Validate response and extract values
+            - generic [ref=e777]:
+              - generic [ref=e778]: "48"
+              - generic [ref=e779]: assert
+              - generic [ref=e780]: ":"
+            - generic [ref=e781]:
+              - generic [ref=e782]: "49"
+              - generic [ref=e783]: status
+              - generic [ref=e784]: ":"
+              - generic [ref=e785]: "0"
+            - generic [ref=e786]:
+              - generic [ref=e787]: "50"
+              - generic [ref=e788]: maxDurationMs
+              - generic [ref=e789]: ":"
+              - generic [ref=e790]: "0"
+            - generic [ref=e791]:
+              - generic [ref=e792]: "51"
+              - generic [ref=e793]: js
+              - generic [ref=e794]: ":"
+            - generic [ref=e795]:
+              - generic [ref=e796]: "52"
+              - generic [ref=e797]: code
+              - generic [ref=e798]: ": |"
+      - generic [ref=e802]:
+        - generic [ref=e803] [cursor=pointer]:
+          - generic [ref=e804] [cursor=pointer]: Results
+          - button "Collapse or expand results column" [expanded] [ref=e806] [cursor=pointer]: ◀
+        - generic [ref=e808]:
+          - group [ref=e809]:
+            - generic [ref=e811]:
+              - generic [ref=e812]: ✗ Pre-request JS hook - set timestamp and custom header
+              - group [ref=e813]
+              - generic [ref=e815]: "Error: test failures"
+          - group [ref=e816]:
+            - generic [ref=e818]:
+              - generic [ref=e819]: Running JavaScript Hooks Examples...
+              - generic [ref=e820]:
+                - generic [ref=e821]: "--- stage 0 ---"
+                - generic [ref=e822]:
+                  - generic [ref=e823]: ✗ Pre-request JS hook - set timestamp and custom header
+                  - group [ref=e825]
+                - generic [ref=e827]:
+                  - generic [ref=e828]: ✗ Post-response JS hook - validate and extract data
+                  - group [ref=e830]
+                - generic [ref=e832]:
+                  - generic [ref=e833]: ✗ Complex JS logic - conditional requests
+                  - group [ref=e835]
+                - generic [ref=e837]:
+                  - generic [ref=e838]: ✗ JS hooks with variable manipulation
+                  - group [ref=e840]
+                - generic [ref=e842]:
+                  - generic [ref=e843]: ✗ Error handling in JS hooks
+                  - group [ref=e845]
+                - generic [ref=e847]:
+                  - generic [ref=e848]: ✗ Simple JS pre-hook variable manipulation
+                  - group [ref=e850]
+                - generic [ref=e852]:
+                  - generic [ref=e853]: ✗ JS post-hook response processing
+                  - group [ref=e855]
+                - generic [ref=e857]:
+                  - generic [ref=e858]: ✗ Complex JS logic and error handling
+                  - group [ref=e860]
+                - generic [ref=e862]:
+                  - generic [ref=e863]: ✗ JS hooks with conditional logic
+                  - group [ref=e865]
+                - generic [ref=e867]:
+                  - generic [ref=e868]: ✗ Multiple JS hooks in sequence
+                  - group [ref=e870]
+              - generic [ref=e872]: Summary — 0 passed, 10 failed, 0 skipped, total 10 in 7 ms
+          - group [ref=e873]:
+            - generic "Validation Copy" [ref=e874] [cursor=pointer]:
+              - generic [ref=e875] [cursor=pointer]: Validation
+              - button "Copy" [ref=e876] [cursor=pointer]
+```

@@ -65,8 +65,8 @@ func TestCLI_ImportCommands(t *testing.T) {
 		},
 		{
 			name:        "Import with invalid format",
-			command:     []string{"import", "invalidformat", "../../testdata/example.yaml"},
-			inputFile:   "../../testdata/example.yaml",
+			command:     []string{"import", "invalidformat", "../../testdata/example.hrq.yaml"},
+			inputFile:   "../../testdata/example.hrq.yaml",
 			expectError: false, // Cobra shows help for unknown commands, doesn't error
 		},
 	}
@@ -117,7 +117,7 @@ func TestCLI_RunCommand(t *testing.T) {
 	}{
 		{
 			name:        "Run valid suite",
-			suiteFile:   "../../testdata/example.yaml",
+			suiteFile:   "../../testdata/example.hrq.yaml",
 			expectError: false, // Exit status 1 means tests ran but some failed, which is normal
 		},
 		{
@@ -172,7 +172,7 @@ func TestCLI_ValidateCommand(t *testing.T) {
 	}{
 		{
 			name:        "Validate valid suite",
-			suiteFile:   "../../testdata/example.yaml",
+			suiteFile:   "../../testdata/example.hrq.yaml",
 			expectError: false,
 		},
 		{

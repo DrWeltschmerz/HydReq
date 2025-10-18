@@ -243,17 +243,19 @@ func (s *server) handleSuites(w http.ResponseWriter, r *http.Request) {
 }
 
 // ---- Editor API (MVP) ----
-// Restrict edits to files under testdata/ and with .yml/.yaml suffix.
+// Restrict edits to files under testdata/ and with the .hrq.yaml suffix.
 func isEditablePath(p string) bool {
 	if p == "" {
 		return false
 	}
 	cp := filepath.Clean(p)
-	if !strings.HasSuffix(cp, ".yaml") && !strings.HasSuffix(cp, ".yml") {
+	// Normalize to forward slashes for prefix/suffix checks so Windows paths pass validation.
+	cpSlash := strings.ReplaceAll(filepath.ToSlash(cp), "\\", "/")
+	if !strings.HasSuffix(cpSlash, ".hrq.yaml") {
 		return false
 	}
 	// ensure under testdata/
-	if !strings.HasPrefix(cp, "testdata/") && cp != "testdata" {
+	if !strings.HasPrefix(cpSlash, "testdata/") && cpSlash != "testdata" {
 		return false
 	}
 	if info, err := os.Stat(cp); err == nil && info.IsDir() {
@@ -341,7 +343,7 @@ func (s *server) handleEditorSuite(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = json.NewEncoder(w).Encode(resp)
 	case http.MethodDelete:
-		// Delete a suite file at the provided path. Restricted to testdata/*.yml/.yaml
+		// Delete a suite file at the provided path. Restricted to testdata/*.hrq.yaml
 		path := r.URL.Query().Get("path")
 		if !isEditablePath(path) {
 			w.WriteHeader(http.StatusBadRequest)
@@ -1967,10 +1969,11 @@ func findSuites() []string {
 		if info.IsDir() {
 			return nil
 		}
-		if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {
-			if _, ok := seen[path]; !ok {
-				seen[path] = struct{}{}
-				found = append(found, path)
+		norm := filepath.ToSlash(path)
+		if strings.HasSuffix(norm, ".hrq.yaml") {
+			if _, ok := seen[norm]; !ok {
+				seen[norm] = struct{}{}
+				found = append(found, norm)
 			}
 		}
 		return nil

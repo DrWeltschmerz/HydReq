@@ -21,7 +21,7 @@ Run a single test suite:
 ```bash
 docker run -v $(pwd)/testdata:/testdata \
   ghcr.io/drweltschmerz/hydreq:latest \
-  run -f /testdata/example.yaml -v
+  run -f /testdata/example.hrq.yaml -v
 ```
 
 Run all test suites in a directory:
@@ -73,7 +73,7 @@ docker run \
   -v $(pwd)/testdata:/testdata:ro \
   -v $(pwd)/reports:/reports \
   ghcr.io/drweltschmerz/hydreq:latest \
-  run -f /testdata/my-suite.yaml --report-dir /reports
+  run -f /testdata/my-suite.hrq.yaml --report-dir /reports
 ```
 
 **Common mount points:**
@@ -234,7 +234,7 @@ Alternatively, run as root (not recommended):
 docker run --user root \
   -v $(pwd)/testdata:/testdata \
   ghcr.io/drweltschmerz/hydreq:latest \
-  run -f /testdata/example.yaml
+  run -f /testdata/example.hrq.yaml
 ```
 
 ### Network Issues
@@ -245,7 +245,7 @@ If tests can't reach external services, ensure proper network configuration:
 # Use host network (Linux only)
 docker run --network host \
   ghcr.io/drweltschmerz/hydreq:latest \
-  run -f /testdata/example.yaml
+  run -f /testdata/example.hrq.yaml
 ```
 
 ### Viewing Logs
@@ -254,7 +254,7 @@ Run with verbose output:
 
 ```bash
 docker run ghcr.io/drweltschmerz/hydreq:latest \
-  run -f /testdata/example.yaml -v
+  run -f /testdata/example.hrq.yaml -v
 ```
 
 Get container logs:

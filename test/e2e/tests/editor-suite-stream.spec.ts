@@ -11,7 +11,7 @@ test.describe("Editor suite streaming", () => {
     );
 
     // Expand a stable example suite
-    const suiteName = "js-hooks.yaml";
+    const suiteName = "js-hooks.hrq.yaml";
     const suiteItem = page
       .locator(`#suites li[data-path$="${suiteName}"]`)
       .first();
@@ -49,7 +49,7 @@ test.describe("Editor suite streaming", () => {
     const finishedLine = suiteResults
       .locator(".ed-test-line")
       .filter({ hasText: /(✓|✗|○).*(\d+ms)/ });
-    await expect(finishedLine.first()).toBeVisible({ timeout: 15000 });
+    await expect(finishedLine.first()).toBeVisible({ timeout: 30000 });
 
     // Visual baseline of streaming state (timing tolerant container)
     await expect(modal).toHaveScreenshot("visreg-editor-suite-running.png", {

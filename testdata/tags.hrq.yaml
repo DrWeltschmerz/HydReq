@@ -1,0 +1,13 @@
+name: tags demo
+baseUrl: ${ENV:HTTPBIN_BASE_URL}
+
+tests:
+  - name: smoke headers
+    tags: [smoke, headers]
+    request: { method: GET, url: /headers }
+    assert: { status: 200 }
+
+  - name: slow-only
+    tags: [slow]
+    request: { method: GET, url: /delay/1 }
+    assert: { status: 200 }

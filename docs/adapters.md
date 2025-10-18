@@ -14,21 +14,21 @@ Convert external formats into HydReq suites:
 
 CLI examples:
 ```
-hydreq import postman path/to/collection.json > suite.yaml
-hydreq import postman path/to/collection.json --env path/to/environment.json > suite.yaml
-hydreq import postman path/to/collection.json --base-url https://staging.api.com --verbose > suite.yaml
-hydreq import newman path/to/collection.json > suite.yaml
-hydreq import newman path/to/collection.json --env path/to/environment.json --skip-auth > suite.yaml
-hydreq import insomnia path/to/export.json > suite.yaml
-hydreq import insomnia path/to/export.json --flat --no-scripts > suite.yaml
-hydreq import har path/to/archive.har > suite.yaml
-hydreq import har path/to/archive.har --base-url https://api.example.com > suite.yaml
-hydreq import openapi path/to/spec.(yaml|json) > suite.yaml
-hydreq import openapi path/to/spec.(yaml|json) --base-url https://api.example.com > suite.yaml
-hydreq import bruno path/to/export.json > suite.yaml
-hydreq import bruno path/to/export.json --flat > suite.yaml
-hydreq import restclient path/to/requests.http > suite.yaml
-hydreq import restclient path/to/requests.http --base-url https://api.example.com > suite.yaml
+hydreq import postman path/to/collection.json > suite.hrq.yaml
+hydreq import postman path/to/collection.json --env path/to/environment.json > suite.hrq.yaml
+hydreq import postman path/to/collection.json --base-url https://staging.api.com --verbose > suite.hrq.yaml
+hydreq import newman path/to/collection.json > suite.hrq.yaml
+hydreq import newman path/to/collection.json --env path/to/environment.json --skip-auth > suite.hrq.yaml
+hydreq import insomnia path/to/export.json > suite.hrq.yaml
+hydreq import insomnia path/to/export.json --flat --no-scripts > suite.hrq.yaml
+hydreq import har path/to/archive.har > suite.hrq.yaml
+hydreq import har path/to/archive.har --base-url https://api.example.com > suite.hrq.yaml
+hydreq import openapi path/to/spec.(yaml|json) > suite.hrq.yaml
+hydreq import openapi path/to/spec.(yaml|json) --base-url https://api.example.com > suite.hrq.yaml
+hydreq import bruno path/to/export.json > suite.hrq.yaml
+hydreq import bruno path/to/export.json --flat > suite.hrq.yaml
+hydreq import restclient path/to/requests.http > suite.hrq.yaml
+hydreq import restclient path/to/requests.http --base-url https://api.example.com > suite.hrq.yaml
 ```
 
 ### Import Flags

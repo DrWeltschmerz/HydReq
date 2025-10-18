@@ -16,9 +16,9 @@ Schema binding
 ```jsonc
 "yaml.schemas": {
   "./schemas/suite.schema.json": [
-    "suite.yaml",
-    "suites/**/*.yaml",
-    "**/hydreq*.yaml"
+    "suite.hrq.yaml",
+    "suites/**/*.hrq.yaml",
+    "**/hydreq*.hrq.yaml"
   ]
 }
 ```
@@ -32,7 +32,7 @@ Schema binding
 
 ## Run from VS Code or CLI
 - Task: “hydreq: Run current suite” is available (see `.vscode/tasks.json`). Open a YAML suite and run the Task (Terminal → Run Task...).
-- CLI: `./bin/hydreq run -f <path/to/suite.yaml>`
+- CLI: `./bin/hydreq run -f <path/to/suite.hrq.yaml>`
 
 ## Validation
 Validate from the command line:

@@ -35,9 +35,9 @@
     const name = prompt('Enter suite name (e.g. My API tests):');
     if (!name) return;
     const slug = (typeof slugify==='function') ? slugify(name) : name.toLowerCase().replace(/\s+/g,'-');
-    const path = 'testdata/' + slug + '.yaml';
+    const path = 'testdata/' + slug + '.hrq.yaml';
     // quick client-side validation
-    if (!path.startsWith('testdata/') || (!path.endsWith('.yaml') && !path.endsWith('.yml'))) {
+    if (!path.startsWith('testdata/') || !path.endsWith('.hrq.yaml')) {
       alert('Invalid path generated. Please choose a different name.');
       return;
     }
@@ -104,8 +104,8 @@
       const blob = new Blob([yaml], { type: 'application/x-yaml' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = 'imported-suite.yaml'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-      if (statusEl) statusEl.textContent = 'Import successful! Downloaded as imported-suite.yaml';
+      a.href = url; a.download = 'imported-suite.hrq.yaml'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      if (statusEl) statusEl.textContent = 'Import successful! Downloaded as imported-suite.hrq.yaml';
       fileInput.value = '';
     } catch (e) {
       if (statusEl) statusEl.textContent = 'Import failed: ' + (e && e.message ? e.message : String(e));

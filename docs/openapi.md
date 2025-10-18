@@ -7,5 +7,5 @@ Enable response validation against an OpenAPI 3.x spec.
 - Enable per test (`openApi.enabled: true`) or per suite.
 
 See:
-- `testdata/openapi.yaml`
+- `testdata/openapi.hrq.yaml`
 - `testdata/specs/openapi.yaml`

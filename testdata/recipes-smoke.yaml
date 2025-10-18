@@ -1,8 +1,0 @@
-name: recipes - smoke tags
-baseUrl: ${ENV:HTTPBIN_BASE_URL}
-vars: {}
-tests:
-  - name: GET 200 smoke
-    tags: [smoke]
-    request: { method: GET, url: /status/200 }
-    assert: { status: 200, maxDurationMs: 3000 }

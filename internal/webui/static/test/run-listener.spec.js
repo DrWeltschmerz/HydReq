@@ -40,10 +40,10 @@ describe('run-listener integration', function(){
     // Emit a sequence of events from the fake EventSource
     const es = window._fakeESinstances[0];
     es.emit({ type: 'batchStart', payload: { total: 1 } });
-    es.emit({ type: 'suiteStart', payload: { name: 's1', path: 'testdata/s1.yaml' } });
+  es.emit({ type: 'suiteStart', payload: { name: 's1', path: 'testdata/s1.hrq.yaml' } });
     es.emit({ type: 'testStart', payload: { Name: 't1', Stage: 0 } });
     es.emit({ type: 'test', payload: { Name: 't1', Status: 'passed', DurationMs: 5 } });
-    es.emit({ type: 'suiteEnd', payload: { name: 's1', path: 'testdata/s1.yaml' } });
+  es.emit({ type: 'suiteEnd', payload: { name: 's1', path: 'testdata/s1.hrq.yaml' } });
     es.emit({ type: 'batchEnd', payload: {} });
     es.emit({ type: 'done', payload: {} });
 
