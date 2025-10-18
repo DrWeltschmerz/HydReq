@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.3.8-beta (Unreleased)
+## v0.3.8-beta (2025-10-18)
 
 Highlights
 - Canonicalized `.hrq.yaml` as the suite extension end-to-end; CLI auto-discovery, validator defaults, fixtures, docs, and samples all honor the new suffix.
