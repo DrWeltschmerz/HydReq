@@ -137,7 +137,7 @@ test.describe("Editor flows with screenshots", () => {
     await expect(results).toBeVisible();
     // Wait until we see a specific "running" line appear to ensure UI expanded
     await expect(
-  results.locator("text=/^=== running: .*example.hrq.yaml.*===$/")
+      results.locator("text=/^=== running: .*example.hrq.yaml.*===$/")
     ).toBeVisible();
     await page.waitForTimeout(400); // give a moment for the suite row to open
     await screenshot(page, "batch-run.png");
