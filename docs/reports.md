@@ -9,20 +9,20 @@ HydReq can emit detailed results and theme-aware HTML pages you can share in CI 
 
 Generate:
 ```
-./hydreq run -f testdata/example.yaml \
+./hydreq run -f testdata/example.hrq.yaml \
   --report-json report.json \
   --report-junit report.xml
 ```
 
 HTML report:
 ```
-./hydreq run -f testdata/example.yaml \
+./hydreq run -f testdata/example.hrq.yaml \
   --report-html report.html
 ```
 
 Or let the tool generate all three with timestamped names:
 ```
-./hydreq run -f testdata/example.yaml \
+./hydreq run -f testdata/example.hrq.yaml \
   --report-dir reports
 ```
 

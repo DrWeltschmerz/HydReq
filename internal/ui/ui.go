@@ -31,7 +31,7 @@ func Failf(format string, a ...any) {
 }
 
 // FailWithBoldPrefix prints an error with a bold, red prefix and a normal-colored message.
-// Example: ✗ <bold>load suite testdata/x.yaml:</bold> yaml parse error
+// Example: ✗ <bold>load suite testdata/x.hrq.yaml:</bold> yaml parse error
 func FailWithBoldPrefix(prefix string, format string, a ...any) {
 	if !Enabled {
 		return

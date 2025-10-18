@@ -21,7 +21,7 @@ Toggles
 - `VALIDATION_WARN_ONLY=1` — keep running even if validation fails; prints a warning. Handy to exercise CLI reporting for not-run suites while still producing batch artifacts.
 
 ## Auth example (local)
-To include `testdata/auth.yaml` in batch runs:
+To include `testdata/auth.hrq.yaml` in batch runs:
 
 ```
 export DEMO_BEARER="my-demo-token"

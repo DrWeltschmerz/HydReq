@@ -104,4 +104,4 @@ tests:
 - **Custom assertions**: Beyond built-in assertion types
 - **Integration testing**: Complex multi-step workflows
 
-See `testdata/js-hooks.yaml` for comprehensive examples.
+See `testdata/js-hooks.hrq.yaml` for comprehensive examples.

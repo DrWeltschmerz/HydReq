@@ -19,7 +19,7 @@ func main() {
 		schema string
 		quiet  bool
 	)
-	flag.StringVar(&dir, "dir", "testdata", "Directory to scan for YAML suites")
+	flag.StringVar(&dir, "dir", "testdata", "Directory to scan for HydReq suites (*.hrq.yaml)")
 	flag.StringVar(&schema, "schema", "schemas/suite.schema.json", "Path to JSON schema file")
 	flag.BoolVar(&quiet, "quiet", false, "Only print failures; suppress per-file PASS lines")
 	flag.Parse()
@@ -37,52 +37,14 @@ func main() {
 		os.Exit(2)
 	}
 
-	var files []string
-	// Collect YAML files recursively, skipping testdata/specs and backups
-	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			// skip any specs folder
-			if strings.EqualFold(info.Name(), "specs") {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		name := info.Name()
-		lower := strings.ToLower(name)
-		if strings.Contains(lower, ".bak") {
-			return nil
-		}
-		if strings.HasSuffix(lower, ".yaml") || strings.HasSuffix(lower, ".yml") {
-			// Quick check if this looks like a HydReq suite by reading first few lines
-			if data, err := os.ReadFile(path); err == nil {
-				// Convert to JSON to check structure
-				if jsonBytes, err := kyaml.YAMLToJSON(data); err == nil {
-					var v map[string]interface{}
-					if err := json.Unmarshal(jsonBytes, &v); err == nil {
-						// Check for required suite properties
-						if _, hasName := v["name"]; hasName {
-							if _, hasBaseUrl := v["baseUrl"]; hasBaseUrl {
-								if _, hasTests := v["tests"]; hasTests {
-									files = append(files, path)
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		return nil
-	})
+	files, err := collectSuiteFiles(dir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "walk error: %v\n", err)
 		os.Exit(2)
 	}
 
 	if len(files) == 0 {
-		fmt.Println("no YAML files found to validate")
+		fmt.Println("no HydReq suites found to validate")
 		return
 	}
 
@@ -119,6 +81,47 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\n%d file(s) failed schema validation\n", failed)
 		os.Exit(1)
 	}
+}
+
+func collectSuiteFiles(dir string) ([]string, error) {
+	var files []string
+	// Collect YAML files recursively, skipping testdata/specs and backups
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if strings.EqualFold(info.Name(), "specs") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		lower := strings.ToLower(info.Name())
+		if strings.Contains(lower, ".bak") {
+			return nil
+		}
+		if strings.HasSuffix(lower, ".hrq.yaml") {
+			if data, err := os.ReadFile(path); err == nil {
+				if jsonBytes, err := kyaml.YAMLToJSON(data); err == nil {
+					var v map[string]interface{}
+					if err := json.Unmarshal(jsonBytes, &v); err == nil {
+						if _, hasName := v["name"]; hasName {
+							if _, hasBaseURL := v["baseUrl"]; hasBaseURL {
+								if _, hasTests := v["tests"]; hasTests {
+									files = append(files, path)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
 }
 
 // no custom reader required

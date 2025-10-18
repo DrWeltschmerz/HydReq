@@ -1,0 +1,297 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - img "HydReq" [ref=e4]
+      - generic [ref=e5]: HydReq — Hydra Request
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - checkbox "Auto-refresh" [checked] [ref=e8]
+        - text: Auto-refresh
+      - generic [ref=e9]:
+        - checkbox "Only failed" [ref=e10]
+        - text: Only failed
+      - generic [ref=e11]:
+        - checkbox "Auto-scroll" [checked] [ref=e12]
+        - text: Auto-scroll
+      - generic "Theme" [ref=e13]:
+        - generic [ref=e14]: Theme
+        - combobox "Theme" [ref=e15]:
+          - option "Light"
+          - option "Dark" [selected]
+          - option "Synthwave"
+          - option "Hack"
+          - option "Catppuccin Mocha"
+          - option "Catppuccin Latte"
+          - option "Catppuccin Frappé"
+          - option "Catppuccin Macchiato"
+          - option "Nord"
+          - option "Dracula"
+          - option "Monokai"
+          - option "Gruvbox Dark"
+          - option "Gruvbox Light"
+          - option "Solarized Dark"
+          - option "Solarized Light"
+          - option "Tokyo Night"
+          - option "One Dark Pro"
+          - option "Palenight"
+          - option "Rose Pine"
+          - option "Everforest Dark"
+          - option "Everforest Light"
+          - option "Ayu Dark"
+      - button "Run Selected" [ref=e16] [cursor=pointer]
+      - generic [ref=e17]: 0 selected
+      - button "Stop" [ref=e18] [cursor=pointer]
+  - main [ref=e19]:
+    - complementary [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - text: Workers
+          - spinbutton "Workers" [ref=e23]: "4"
+        - generic [ref=e24]:
+          - text: Timeout (ms)
+          - spinbutton "Timeout (ms)" [ref=e25]
+      - group [ref=e26]
+      - group [ref=e28]
+      - group [ref=e30]:
+        - option "Postman Collection (JSON)" [selected]
+        - option "Insomnia Export (JSON)"
+        - option "HAR Archive (JSON)"
+        - option "OpenAPI/Swagger Spec (YAML/JSON)"
+        - option "Bruno Export (JSON)"
+        - option "REST Client (.http)"
+        - option "Newman Collection (JSON)"
+      - group [ref=e32]:
+        - generic [ref=e34]:
+          - button "Refresh" [ref=e35] [cursor=pointer]
+          - button "New Suite" [ref=e36] [cursor=pointer]
+          - button "Expand all" [ref=e37] [cursor=pointer]
+          - button "Collapse all" [ref=e38] [cursor=pointer]
+        - list [ref=e39]:
+          - listitem [ref=e40] [cursor=pointer]:
+            - generic [ref=e41] [cursor=pointer]:
+              - generic [ref=e42] [cursor=pointer]:
+                - button "Toggle tests" [ref=e43] [cursor=pointer]: ▸
+                - generic [ref=e44] [cursor=pointer]: auth demo
+                - generic "suite status" [ref=e45] [cursor=pointer]: ·
+                - generic [ref=e46] [cursor=pointer]:
+                  - button "Download suite" [ref=e48] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e49] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e50] [cursor=pointer]: 🗑
+              - generic [ref=e52] [cursor=pointer]: auth.hrq.yaml
+          - listitem [ref=e53] [cursor=pointer]:
+            - generic [ref=e54] [cursor=pointer]:
+              - generic [ref=e55] [cursor=pointer]:
+                - button "Toggle tests" [ref=e56] [cursor=pointer]: ▸
+                - generic [ref=e57] [cursor=pointer]: dependsOn demo
+                - generic "suite status" [ref=e58] [cursor=pointer]: ·
+                - generic [ref=e59] [cursor=pointer]:
+                  - button "Download suite" [ref=e61] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e62] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e63] [cursor=pointer]: 🗑
+              - generic [ref=e65] [cursor=pointer]: depends.hrq.yaml
+          - listitem [ref=e66] [cursor=pointer]:
+            - generic [ref=e67] [cursor=pointer]:
+              - generic [ref=e68] [cursor=pointer]:
+                - button "Toggle tests" [ref=e69] [cursor=pointer]: ▸
+                - generic [ref=e70] [cursor=pointer]: httpbin smoke
+                - generic "suite status" [ref=e71] [cursor=pointer]: ·
+                - generic [ref=e72] [cursor=pointer]:
+                  - button "Download suite" [ref=e74] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e75] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e76] [cursor=pointer]: 🗑
+              - generic [ref=e78] [cursor=pointer]: example.hrq.yaml
+          - listitem [ref=e79] [cursor=pointer]:
+            - generic [ref=e80] [cursor=pointer]:
+              - generic [ref=e81] [cursor=pointer]:
+                - button "Toggle tests" [ref=e82] [cursor=pointer]: ▸
+                - generic [ref=e83] [cursor=pointer]: hooks demo
+                - generic "suite status" [ref=e84] [cursor=pointer]: ·
+                - generic [ref=e85] [cursor=pointer]:
+                  - button "Download suite" [ref=e87] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e88] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e89] [cursor=pointer]: 🗑
+              - generic [ref=e91] [cursor=pointer]: hooks.hrq.yaml
+          - listitem [ref=e92] [cursor=pointer]:
+            - generic [ref=e93] [cursor=pointer]:
+              - generic [ref=e94] [cursor=pointer]:
+                - button "Toggle tests" [ref=e95] [cursor=pointer]: ▸
+                - generic [ref=e96] [cursor=pointer]: JavaScript Hooks Examples
+                - generic "suite status" [ref=e97] [cursor=pointer]: ·
+                - generic [ref=e98] [cursor=pointer]:
+                  - button "Download suite" [ref=e100] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e101] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e102] [cursor=pointer]: 🗑
+              - generic [ref=e104] [cursor=pointer]: js-hooks.hrq.yaml
+          - listitem [ref=e105] [cursor=pointer]:
+            - generic [ref=e106] [cursor=pointer]:
+              - generic [ref=e107] [cursor=pointer]:
+                - button "Toggle tests" [ref=e108] [cursor=pointer]: ▸
+                - generic [ref=e109] [cursor=pointer]: json contains demo
+                - generic "suite status" [ref=e110] [cursor=pointer]: ·
+                - generic [ref=e111] [cursor=pointer]:
+                  - button "Download suite" [ref=e113] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e114] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e115] [cursor=pointer]: 🗑
+              - generic [ref=e117] [cursor=pointer]: jsoncontains.hrq.yaml
+          - listitem [ref=e118] [cursor=pointer]:
+            - generic [ref=e119] [cursor=pointer]:
+              - generic [ref=e120] [cursor=pointer]:
+                - button "Toggle tests" [ref=e121] [cursor=pointer]: ▸
+                - generic [ref=e122] [cursor=pointer]: httpbin matrix demo
+                - generic "suite status" [ref=e123] [cursor=pointer]: ·
+                - generic [ref=e124] [cursor=pointer]:
+                  - button "Download suite" [ref=e126] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e127] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e128] [cursor=pointer]: 🗑
+              - generic [ref=e130] [cursor=pointer]: matrix.hrq.yaml
+          - listitem [ref=e131] [cursor=pointer]:
+            - generic [ref=e132] [cursor=pointer]:
+              - generic [ref=e133] [cursor=pointer]:
+                - button "Toggle tests" [ref=e134] [cursor=pointer]: ▸
+                - generic [ref=e135] [cursor=pointer]: openapi demo
+                - generic "suite status" [ref=e136] [cursor=pointer]: ·
+                - generic [ref=e137] [cursor=pointer]:
+                  - button "Download suite" [ref=e139] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e140] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e141] [cursor=pointer]: 🗑
+              - generic [ref=e143] [cursor=pointer]: openapi.hrq.yaml
+          - listitem [ref=e144] [cursor=pointer]:
+            - generic [ref=e145] [cursor=pointer]:
+              - generic [ref=e146] [cursor=pointer]:
+                - button "Toggle tests" [ref=e147] [cursor=pointer]: ▸
+                - generic [ref=e148] [cursor=pointer]: postgres example
+                - generic "suite status" [ref=e149] [cursor=pointer]: ·
+                - generic [ref=e150] [cursor=pointer]:
+                  - button "Download suite" [ref=e152] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e153] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e154] [cursor=pointer]: 🗑
+              - generic [ref=e156] [cursor=pointer]: postgres.hrq.yaml
+          - listitem [ref=e157] [cursor=pointer]:
+            - generic [ref=e158] [cursor=pointer]:
+              - generic [ref=e159] [cursor=pointer]:
+                - button "Toggle tests" [ref=e160] [cursor=pointer]: ▸
+                - generic [ref=e161] [cursor=pointer]: recipes - dependsOn
+                - generic "suite status" [ref=e162] [cursor=pointer]: ·
+                - generic [ref=e163] [cursor=pointer]:
+                  - button "Download suite" [ref=e165] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e166] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e167] [cursor=pointer]: 🗑
+              - generic [ref=e169] [cursor=pointer]: recipes-depends.hrq.yaml
+          - listitem [ref=e170] [cursor=pointer]:
+            - generic [ref=e171] [cursor=pointer]:
+              - generic [ref=e172] [cursor=pointer]:
+                - button "Toggle tests" [ref=e173] [cursor=pointer]: ▸
+                - generic [ref=e174] [cursor=pointer]: recipes - retries
+                - generic "suite status" [ref=e175] [cursor=pointer]: ·
+                - generic [ref=e176] [cursor=pointer]:
+                  - button "Download suite" [ref=e178] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e179] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e180] [cursor=pointer]: 🗑
+              - generic [ref=e182] [cursor=pointer]: recipes-retries.hrq.yaml
+          - listitem [ref=e183] [cursor=pointer]:
+            - generic [ref=e184] [cursor=pointer]:
+              - generic [ref=e185] [cursor=pointer]:
+                - button "Toggle tests" [ref=e186] [cursor=pointer]: ▸
+                - generic [ref=e187] [cursor=pointer]: recipes - smoke tags
+                - generic "suite status" [ref=e188] [cursor=pointer]: ·
+                - generic [ref=e189] [cursor=pointer]:
+                  - button "Download suite" [ref=e191] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e192] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e193] [cursor=pointer]: 🗑
+              - generic [ref=e194] [cursor=pointer]:
+                - generic [ref=e195] [cursor=pointer]: recipes-smoke.hrq.yaml
+                - generic [ref=e196] [cursor=pointer]: "#smoke"
+          - listitem [ref=e197] [cursor=pointer]:
+            - generic [ref=e198] [cursor=pointer]:
+              - generic [ref=e199] [cursor=pointer]:
+                - button "Toggle tests" [ref=e200] [cursor=pointer]: ▸
+                - generic [ref=e201] [cursor=pointer]: retries demo
+                - generic "suite status" [ref=e202] [cursor=pointer]: ·
+                - generic [ref=e203] [cursor=pointer]:
+                  - button "Download suite" [ref=e205] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e206] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e207] [cursor=pointer]: 🗑
+              - generic [ref=e209] [cursor=pointer]: retries.hrq.yaml
+          - listitem [ref=e210] [cursor=pointer]:
+            - generic [ref=e211] [cursor=pointer]:
+              - generic [ref=e212] [cursor=pointer]:
+                - button "Toggle tests" [ref=e213] [cursor=pointer]: ▸
+                - generic [ref=e214] [cursor=pointer]: sqlite hooks demo
+                - generic "suite status" [ref=e215] [cursor=pointer]: ·
+                - generic [ref=e216] [cursor=pointer]:
+                  - button "Download suite" [ref=e218] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e219] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e220] [cursor=pointer]: 🗑
+              - generic [ref=e222] [cursor=pointer]: sqlite.hrq.yaml
+          - listitem [ref=e223] [cursor=pointer]:
+            - generic [ref=e224] [cursor=pointer]:
+              - generic [ref=e225] [cursor=pointer]:
+                - button "Toggle tests" [ref=e226] [cursor=pointer]: ▸
+                - generic [ref=e227] [cursor=pointer]: sqlserver example
+                - generic "suite status" [ref=e228] [cursor=pointer]: ·
+                - generic [ref=e229] [cursor=pointer]:
+                  - button "Download suite" [ref=e231] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e232] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e233] [cursor=pointer]: 🗑
+              - generic [ref=e235] [cursor=pointer]: sqlserver.hrq.yaml
+          - listitem [ref=e236] [cursor=pointer]:
+            - generic [ref=e237] [cursor=pointer]:
+              - generic [ref=e238] [cursor=pointer]:
+                - button "Toggle tests" [ref=e239] [cursor=pointer]: ▸
+                - generic [ref=e240] [cursor=pointer]: tags demo
+                - generic "suite status" [ref=e241] [cursor=pointer]: ·
+                - generic [ref=e242] [cursor=pointer]:
+                  - button "Download suite" [ref=e244] [cursor=pointer]:
+                    - generic: ⬇
+                  - button "Open editor" [ref=e245] [cursor=pointer]: ✐
+                  - button "Delete suite" [ref=e246] [cursor=pointer]: 🗑
+              - generic [ref=e247] [cursor=pointer]:
+                - generic [ref=e248] [cursor=pointer]: tags.hrq.yaml
+                - generic [ref=e249] [cursor=pointer]: "#headers"
+                - generic [ref=e250] [cursor=pointer]: "#slow"
+                - generic [ref=e251] [cursor=pointer]: "#smoke"
+    - generic [ref=e252]:
+      - generic [ref=e253]:
+        - generic [ref=e254]:
+          - generic [ref=e255]: Batch progress
+          - generic [ref=e256]:
+            - generic [ref=e257]: "running with tags:"
+            - generic "Click to unselect" [ref=e259] [cursor=pointer]: "#smoke"
+        - generic [ref=e260]: 0/0
+      - generic [ref=e263]:
+        - generic [ref=e264]:
+          - text: Suite progress —
+          - generic [ref=e265]: (none)
+        - generic [ref=e266]: 0/0
+      - generic [ref=e268]:
+        - generic [ref=e269]:
+          - heading "Results" [level=3] [ref=e270]
+          - generic "For CI artifacts use CLI flags --report-json / --report-junit" [ref=e271]: (Reports via CLI)
+        - generic [ref=e272]:
+          - button "Download Run JSON" [ref=e273] [cursor=pointer]
+          - button "Download Run JUnit" [ref=e274] [cursor=pointer]
+          - button "Download Run HTML" [ref=e275] [cursor=pointer]
+          - button "Clear" [ref=e276] [cursor=pointer]
+      - generic [ref=e277]:
+        - generic [ref=e278]: "HYDREQ-DBG: post-load-1 count=16"
+        - generic [ref=e279]: "HYDREQ-DBG: post-load-2 count=16"
+        - generic [ref=e280]: "HYDREQ-FINAL: status= len=0 err="
+```

@@ -1,8 +1,0 @@
-name: recipes - retries
-baseUrl: ${ENV:HTTPBIN_BASE_URL}
-vars: {}
-tests:
-  - name: GET retried
-    request: { method: GET, url: /status/200 }
-    assert: { status: 200 }
-    retry: { max: 3, backoffMs: 200, jitterPct: 25 }

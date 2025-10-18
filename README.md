@@ -89,13 +89,13 @@
 2) Run a suite from the terminal:
 
 ```
-./hydreq run -f testdata/example.yaml --workers 4 -v
+./hydreq run -f testdata/example.hrq.yaml --workers 4 -v
 ```
 
 3) Optional reports (JSON + JUnit):
 
 ```
-./hydreq run -f testdata/example.yaml \
+./hydreq run -f testdata/example.hrq.yaml \
   --report-json report.json \
   --report-junit report.xml
 ```
@@ -109,7 +109,7 @@
   docker run -p 8787:8787 ghcr.io/drweltschmerz/hydreq:latest
   
   # Run tests from a local directory
-  docker run -v $(pwd)/testdata:/testdata ghcr.io/drweltschmerz/hydreq:latest run -f /testdata/example.yaml -v
+  docker run -v $(pwd)/testdata:/testdata ghcr.io/drweltschmerz/hydreq:latest run -f /testdata/example.hrq.yaml -v
   
   # Run all tests in a directory
   docker run -v $(pwd)/testdata:/testdata -v $(pwd)/reports:/reports \
@@ -136,14 +136,14 @@ Refactor notes
 ### Using the CLI
 
 - Run all suites: `./hydreq run --workers 4 -v` (when `-f` is omitted, HydReq discovers and runs all suites under `testdata/`).
-- Run a single suite: `./hydreq run -f testdata/example.yaml --workers 4 -v`
+- Run a single suite: `./hydreq run -f testdata/example.hrq.yaml --workers 4 -v`
 - Reports: add `--report-json report.json`, `--report-junit report.xml`, and/or `--report-html report.html` for detailed outputs.
 
 Auto-generate reports (no per-report flags)
 - Generate JSON, JUnit, and HTML with default names for all suites:
   - `./hydreq run --report-dir reports`
 - Or for one suite:
-  - `./hydreq run -f testdata/example.yaml --report-dir reports`
+  - `./hydreq run -f testdata/example.hrq.yaml --report-dir reports`
 Naming:
 - Per-suite: `<suite>-<timestamp>.{json,xml,html}`
 - Run-level (batch): `run-<timestamp>.{json,xml,html}`
@@ -191,9 +191,9 @@ How to use it (quick)
 ```json
 "yaml.schemas": {
   "./schemas/suite.schema.json": [
-    "suite.yaml",
-    "suites/**/*.yaml",
-    "**/hydreq*.yaml"
+    "suite.hrq.yaml",
+    "suites/**/*.hrq.yaml",
+    "**/hydreq*.hrq.yaml"
   ]
 }
 ```
@@ -261,7 +261,7 @@ docker run -p 8787:8787 ghcr.io/drweltschmerz/hydreq:latest
 # Run a single suite
 docker run -v $(pwd)/testdata:/testdata \
   ghcr.io/drweltschmerz/hydreq:latest \
-  run -f /testdata/example.yaml -v
+  run -f /testdata/example.hrq.yaml -v
 
 # Run all suites with reports
 docker run -v $(pwd)/testdata:/testdata \
@@ -327,16 +327,16 @@ jobs:
 ### CLI examples:
 
 ```
-hydreq import postman path/to/collection.json > suite.yaml
-hydreq import postman path/to/collection.json --env path/to/environment.json > suite.yaml
-hydreq import postman path/to/collection.json --env path/to/environment.json --base-url https://staging.api.com --verbose > suite.yaml
-hydreq import insomnia path/to/export.json > suite.yaml
-hydreq import har path/to/archive.har > suite.yaml
-hydreq import openapi path/to/spec.(yaml|json) > suite.yaml
-hydreq import bruno path/to/export.json > suite.yaml
-hydreq import restclient path/to/requests.http > suite.yaml
-hydreq import newman path/to/collection.json > suite.yaml
-hydreq import newman path/to/collection.json --env path/to/environment.json > suite.yaml
+hydreq import postman path/to/collection.json > suite.hrq.yaml
+hydreq import postman path/to/collection.json --env path/to/environment.json > suite.hrq.yaml
+hydreq import postman path/to/collection.json --env path/to/environment.json --base-url https://staging.api.com --verbose > suite.hrq.yaml
+hydreq import insomnia path/to/export.json > suite.hrq.yaml
+hydreq import har path/to/archive.har > suite.hrq.yaml
+hydreq import openapi path/to/spec.(yaml|json) > suite.hrq.yaml
+hydreq import bruno path/to/export.json > suite.hrq.yaml
+hydreq import restclient path/to/requests.http > suite.hrq.yaml
+hydreq import newman path/to/collection.json > suite.hrq.yaml
+hydreq import newman path/to/collection.json --env path/to/environment.json > suite.hrq.yaml
 ```
 
 ### Reports
@@ -358,9 +358,9 @@ Maintenance note: Prefer updating the single User Guide and Visual Editor guide 
 - Run multiple suites and generate summaries in one go (works from a release archive):
 
 ```
-./scripts/run-suites.sh                 # defaults to testdata/*.yaml
+./scripts/run-suites.sh                 # defaults to testdata/*.hrq.yaml
 # or provide your own globs
-./scripts/run-suites.sh suites/*.yaml other/*.yaml
+./scripts/run-suites.sh suites/*.hrq.yaml other/*.hrq.yaml
 ```
 
 ### Outputs
@@ -377,17 +377,17 @@ Optional PR comment
 
 ### Example suites (at a glance)
 
-- `testdata/example.yaml` — smoke and extraction
-- `testdata/matrix.yaml` — matrix expansion
-- `testdata/depends.yaml` — DAG scheduling
-- `testdata/hooks.yaml` — HTTP hooks
-- `testdata/js-hooks.yaml` — JavaScript hooks
-- `testdata/sqlite.yaml` — SQL hooks
-- `testdata/openapi.yaml` — OpenAPI validation
-- `testdata/tags.yaml` — tags and slow example
-- `testdata/retries.yaml` — retries with jitter
-- `testdata/jsoncontains.yaml` — JSONContains
-- `testdata/postgres.yaml` / `sqlserver.yaml` — DB examples (env DSNs)
+- `testdata/example.hrq.yaml` — smoke and extraction
+- `testdata/matrix.hrq.yaml` — matrix expansion
+- `testdata/depends.hrq.yaml` — DAG scheduling
+- `testdata/hooks.hrq.yaml` — HTTP hooks
+- `testdata/js-hooks.hrq.yaml` — JavaScript hooks
+- `testdata/sqlite.hrq.yaml` — SQL hooks
+- `testdata/openapi.hrq.yaml` — OpenAPI validation
+- `testdata/tags.hrq.yaml` — tags and slow example
+- `testdata/retries.hrq.yaml` — retries with jitter
+- `testdata/jsoncontains.hrq.yaml` — JSONContains
+- `testdata/postgres.hrq.yaml` / `testdata/sqlserver.hrq.yaml` — DB examples (env DSNs)
 
 ---
 
@@ -419,7 +419,7 @@ tests:
 - `response` — Access to the HTTP response (in post hooks)
 - Full JavaScript runtime with standard libraries
 
-See `docs/hooks.md` and `testdata/js-hooks.yaml` for comprehensive examples.
+See `docs/hooks.md` and `testdata/js-hooks.hrq.yaml` for comprehensive examples.
 
 ---
 

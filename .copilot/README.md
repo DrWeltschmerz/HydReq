@@ -14,7 +14,7 @@ Add this to your workspace `.vscode/settings.json` to validate YAML with the sch
 {
   "yaml.schemas": {
     "./schemas/suite.schema.json": [
-      "testdata/*.yaml",
+      "testdata/*.hrq.yaml",
       "**/suite*.yaml",
       "**/*qa*.yaml"
     ]

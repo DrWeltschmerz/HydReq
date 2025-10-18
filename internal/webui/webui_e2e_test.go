@@ -69,7 +69,7 @@ func TestEditorVisualYamlSaveE2E(t *testing.T) {
 	}
 
 	// Save the YAML to a testdata path and assert file written
-	path := "testdata/e2e_test_suite.yaml"
+	path := "testdata/e2e_test_suite.hrq.yaml"
 	_ = os.Remove(path)
 	t.Cleanup(func() { _ = os.Remove(path) })
 	save := map[string]any{"path": path, "raw": vr.YAML}

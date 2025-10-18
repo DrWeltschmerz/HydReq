@@ -17,7 +17,7 @@ docker run -p 8787:8787 ghcr.io/drweltschmerz/hydreq:latest
 # Run tests
 docker run -v $(pwd)/testdata:/testdata \
   ghcr.io/drweltschmerz/hydreq:latest \
-  run -f /testdata/example.yaml -v
+  run -f /testdata/example.hrq.yaml -v
 ```
 
 See [Docker documentation](docker.md) for more details.
@@ -44,11 +44,11 @@ Run all suites (default):
 ```
 Run a suite:
 ```
-./hydreq run -f testdata/example.yaml --workers 4 -v
+./hydreq run -f testdata/example.hrq.yaml --workers 4 -v
 ```
 Add reports:
 ```
-./hydreq run -f testdata/example.yaml \
+./hydreq run -f testdata/example.hrq.yaml \
   --report-json report.json \
   --report-junit report.xml \
   --report-html report.html
@@ -56,7 +56,7 @@ Add reports:
 
 Or generate a full set (JSON/JUnit/HTML) plus run-level artifacts in a directory:
 ```
-./hydreq run -f testdata/example.yaml --report-dir reports
+./hydreq run -f testdata/example.hrq.yaml --report-dir reports
 ```
 
 Run all suites and auto-generate all report types (default names):

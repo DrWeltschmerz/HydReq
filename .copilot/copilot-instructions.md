@@ -170,8 +170,8 @@ func TestAdapter_Convert(t *testing.T) {
 - Run with race detector: `go test -race ./...`
 - Full local CI: `./scripts/local-ci.sh`
 - Start Web UI: `./bin/hydreq` (no arguments)
-- Run specific suite: `./bin/hydreq run -f testdata/example.yaml`
-- Validate suite: `./bin/validate testdata/example.yaml`
+- Run specific suite: `./bin/hydreq run -f testdata/example.hrq.yaml`
+- Validate suite: `./bin/validate testdata/example.hrq.yaml`
 
 ## Key Models
 

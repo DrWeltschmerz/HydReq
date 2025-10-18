@@ -18,7 +18,7 @@ func TestHandleEditorSuites(t *testing.T) {
 	if err := os.MkdirAll(tdTestdata, 0o755); err != nil {
 		t.Fatalf("failed to create testdata dir: %v", err)
 	}
-	samplePath := filepath.Join(tdTestdata, "sample.yaml")
+	samplePath := filepath.Join(tdTestdata, "sample.hrq.yaml")
 	sampleYAML := "name: sample suite\ntests: []\n"
 	if err := os.WriteFile(samplePath, []byte(sampleYAML), 0o644); err != nil {
 		t.Fatalf("failed to write sample yaml: %v", err)
@@ -61,7 +61,7 @@ func TestHandleEditorCheckPath(t *testing.T) {
 	if err := os.MkdirAll(tdTestdata, 0o755); err != nil {
 		t.Fatalf("failed to create testdata dir: %v", err)
 	}
-	samplePath := filepath.Join(tdTestdata, "new.yaml")
+	samplePath := filepath.Join(tdTestdata, "new.hrq.yaml")
 	sampleYAML := "name: new suite\n"
 	if err := os.WriteFile(samplePath, []byte(sampleYAML), 0o644); err != nil {
 		t.Fatalf("failed to write sample yaml: %v", err)
@@ -76,7 +76,7 @@ func TestHandleEditorCheckPath(t *testing.T) {
 	s := &server{mux: http.NewServeMux(), streams: map[string]chan string{}, runs: map[string]context.CancelFunc{}, ready: map[string]chan struct{}{}, reports: map[string]map[string]any{}}
 	s.routes()
 
-	reqBody := map[string]string{"path": "testdata/new.yaml"}
+	reqBody := map[string]string{"path": "testdata/new.hrq.yaml"}
 	b, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest(http.MethodPost, "/api/editor/checkpath", bytes.NewReader(b))
 	w := httptest.NewRecorder()
@@ -89,9 +89,48 @@ func TestHandleEditorCheckPath(t *testing.T) {
 		t.Fatalf("failed to decode json: %v", err)
 	}
 	if safe, ok := resp["safe"]; !ok || !safe {
-		t.Fatalf("expected safe=true for testdata/new.yaml, got %v", resp)
+		t.Fatalf("expected safe=true for testdata/new.hrq.yaml, got %v", resp)
 	}
 	if exists, ok := resp["exists"]; !ok || !exists {
-		t.Fatalf("expected exists=true for testdata/new.yaml, got %v", resp)
+		t.Fatalf("expected exists=true for testdata/new.hrq.yaml, got %v", resp)
+	}
+}
+
+func TestHandleEditorCheckPathRejectsLegacyExtensions(t *testing.T) {
+	td := t.TempDir()
+	tdTestdata := filepath.Join(td, "testdata")
+	if err := os.MkdirAll(tdTestdata, 0o755); err != nil {
+		t.Fatalf("failed to create testdata dir: %v", err)
+	}
+
+	oldwd, _ := os.Getwd()
+	if err := os.Chdir(td); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldwd) }()
+
+	s := &server{mux: http.NewServeMux(), streams: map[string]chan string{}, runs: map[string]context.CancelFunc{}, ready: map[string]chan struct{}{}, reports: map[string]map[string]any{}}
+	s.routes()
+
+	cases := []string{"testdata/legacy.yaml", "testdata/sample.hrq.yml"}
+	for _, path := range cases {
+		t.Run(path, func(t *testing.T) {
+			reqBody := map[string]string{"path": path}
+			b, _ := json.Marshal(reqBody)
+			req := httptest.NewRequest(http.MethodPost, "/api/editor/checkpath", bytes.NewReader(b))
+			w := httptest.NewRecorder()
+			s.handleEditorCheckPath(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("expected 200 OK, got %d", w.Code)
+			}
+			var resp map[string]bool
+			if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+				t.Fatalf("failed to decode json: %v", err)
+			}
+			if safe := resp["safe"]; safe {
+				t.Fatalf("expected safe=false for %s, got %v", path, resp)
+			}
+		})
 	}
 }

@@ -6,7 +6,7 @@ set -euo pipefail
 #
 # Usage:
 #   scripts/run-suites.sh [SUITES_GLOB...]
-# Defaults to testdata/*.yaml if no globs provided.
+# Defaults to testdata/*.hrq.yaml if no globs provided.
 #
 # Outputs:
 #   - Per-suite reports: reports/<suite>.{json,xml}

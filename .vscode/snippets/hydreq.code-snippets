@@ -229,7 +229,7 @@
     "scope": "shellscript,bash,zsh,sh",
     "prefix": "hydreq-import-postman",
     "body": [
-      "hydreq import postman ${1:path/to/collection.json} > ${2:suite.yaml}"
+      "hydreq import postman ${1:path/to/collection.json} > ${2:suite.hrq.yaml}"
     ],
     "description": "Import Postman collection to HydReq suite"
   },
@@ -237,7 +237,7 @@
     "scope": "shellscript,bash,zsh,sh",
     "prefix": "hydreq-import-postman-env",
     "body": [
-      "hydreq import postman ${1:path/to/collection.json} --env ${2:path/to/environment.json} > ${3:suite.yaml}"
+      "hydreq import postman ${1:path/to/collection.json} --env ${2:path/to/environment.json} > ${3:suite.hrq.yaml}"
     ],
     "description": "Import Postman collection with environment variables to HydReq suite"
   },
@@ -245,7 +245,7 @@
     "scope": "shellscript,bash,zsh,sh",
     "prefix": "hydreq-import-insomnia",
     "body": [
-      "hydreq import insomnia ${1:path/to/export.json} > ${2:suite.yaml}"
+      "hydreq import insomnia ${1:path/to/export.json} > ${2:suite.hrq.yaml}"
     ],
     "description": "Import Insomnia export to HydReq suite"
   },
@@ -253,7 +253,7 @@
     "scope": "shellscript,bash,zsh,sh",
     "prefix": "hydreq-import-har",
     "body": [
-      "hydreq import har ${1:path/to/archive.har} > ${2:suite.yaml}"
+      "hydreq import har ${1:path/to/archive.har} > ${2:suite.hrq.yaml}"
     ],
     "description": "Import HAR archive to HydReq suite"
   },
@@ -261,7 +261,7 @@
     "scope": "shellscript,bash,zsh,sh",
     "prefix": "hydreq-import-openapi",
     "body": [
-      "hydreq import openapi ${1:path/to/spec.yaml} > ${2:suite.yaml}"
+      "hydreq import openapi ${1:path/to/spec.yaml} > ${2:suite.hrq.yaml}"
     ],
     "description": "Import OpenAPI 3.x or Swagger 2.0 spec to HydReq suite"
   },
@@ -269,7 +269,7 @@
     "scope": "shellscript,bash,zsh,sh",
     "prefix": "hydreq-import-bruno",
     "body": [
-      "hydreq import bruno ${1:path/to/collection.json} > ${2:suite.yaml}"
+      "hydreq import bruno ${1:path/to/collection.json} > ${2:suite.hrq.yaml}"
     ],
     "description": "Import Bruno collection to HydReq suite"
   },
@@ -277,7 +277,7 @@
     "scope": "shellscript,bash,zsh,sh",
     "prefix": "hydreq-import-restclient",
     "body": [
-      "hydreq import restclient ${1:path/to/file.http} > ${2:suite.yaml}"
+      "hydreq import restclient ${1:path/to/file.http} > ${2:suite.hrq.yaml}"
     ],
     "description": "Import VS Code REST Client file to HydReq suite"
   },
@@ -285,7 +285,7 @@
     "scope": "shellscript,bash,zsh,sh",
     "prefix": "hydreq-import-newman",
     "body": [
-      "hydreq import newman ${1:path/to/collection.json} > ${2:suite.yaml}"
+      "hydreq import newman ${1:path/to/collection.json} > ${2:suite.hrq.yaml}"
     ],
     "description": "Import Newman collection to HydReq suite"
   },
@@ -293,7 +293,7 @@
     "scope": "shellscript,bash,zsh,sh",
     "prefix": "hydreq-import-newman-env",
     "body": [
-      "hydreq import newman ${1:path/to/collection.json} --env ${2:path/to/environment.json} > ${3:suite.yaml}"
+      "hydreq import newman ${1:path/to/collection.json} --env ${2:path/to/environment.json} > ${3:suite.hrq.yaml}"
     ],
     "description": "Import Newman collection with environment variables to HydReq suite"
   },
@@ -301,7 +301,7 @@
     "scope": "shellscript,bash,zsh,sh",
     "prefix": "hydreq-import-postman-full",
     "body": [
-      "hydreq import postman ${1:path/to/collection.json} --env ${2:path/to/environment.json} --base-url ${3:https://api.example.com} --verbose > ${4:suite.yaml}"
+      "hydreq import postman ${1:path/to/collection.json} --env ${2:path/to/environment.json} --base-url ${3:https://api.example.com} --verbose > ${4:suite.hrq.yaml}"
     ],
     "description": "Import Postman collection with environment, base URL override, and verbose output"
   },
@@ -309,7 +309,7 @@
     "scope": "shellscript,bash,zsh,sh",
     "prefix": "hydreq-import-insomnia-options",
     "body": [
-      "hydreq import insomnia ${1:path/to/export.json} --flat --no-scripts --base-url ${2:https://api.example.com} > ${3:suite.yaml}"
+      "hydreq import insomnia ${1:path/to/export.json} --flat --no-scripts --base-url ${2:https://api.example.com} > ${3:suite.hrq.yaml}"
     ],
     "description": "Import Insomnia export with flattened structure, no scripts, and base URL override"
   }

@@ -1,7 +1,7 @@
 {
   "yaml.schemas": {
     "./schemas/suite.schema.json": [
-      "testdata/*.yaml",
+      "testdata/*.hrq.yaml",
       "**/suite*.yaml",
       "**/*qa*.yaml"
     ]

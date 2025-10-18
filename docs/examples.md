@@ -1,13 +1,13 @@
 # Examples overview
 
 Browse `testdata/` for complete suites:
-- `example.yaml` — smoke and extraction
-- `matrix.yaml` — matrix expansion
-- `depends.yaml` — DAG scheduling
-- `hooks.yaml` — HTTP hooks
-- `sqlite.yaml` — SQL hooks
-- `openapi.yaml` — OpenAPI validation
-- `tags.yaml` — tags and slow example
-- `retries.yaml` — retries with jitter
-- `jsoncontains.yaml` — JSONContains
-- `postgres.yaml` / `sqlserver.yaml` — DB examples (env DSNs)
+- `example.hrq.yaml` — smoke and extraction
+- `matrix.hrq.yaml` — matrix expansion
+- `depends.hrq.yaml` — DAG scheduling
+- `hooks.hrq.yaml` — HTTP hooks
+- `sqlite.hrq.yaml` — SQL hooks
+- `openapi.hrq.yaml` — OpenAPI validation
+- `tags.hrq.yaml` — tags and slow example
+- `retries.hrq.yaml` — retries with jitter
+- `jsoncontains.hrq.yaml` — JSONContains
+- `postgres.hrq.yaml` / `sqlserver.hrq.yaml` — DB examples (env DSNs)

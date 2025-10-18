@@ -155,7 +155,7 @@ Highlights
 
 Features
 - Scripts
-	- `scripts/run-suites.sh`: discover and run suites (defaults to `testdata/*.yaml`), write per-suite JSON/JUnit, and generate Markdown summaries.
+	- `scripts/run-suites.sh`: discover and run suites (defaults to `testdata/*.hrq.yaml`), write per-suite JSON/JUnit, and generate Markdown summaries.
 	- `scripts/pr-summary-batch.sh`: aggregate multiple JSON reports into a single PR-ready summary (`PR_SUMMARY_ALL.md`).
 	- Release archives now bundle `scripts/**` so end-users can generate summaries without cloning the repo.
 - VS Code

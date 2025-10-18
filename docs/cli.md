@@ -8,7 +8,7 @@ Run all suites (default):
 
 Run a specific suite:
 ```
-./hydreq run -f testdata/example.yaml --workers 4 -v
+./hydreq run -f testdata/example.hrq.yaml --workers 4 -v
 ```
 
 Generate all report types with default names:
@@ -38,19 +38,19 @@ Run semantics:
 Import external API collections to HydReq YAML suites:
 
 ```
-./hydreq import postman collection.json > suite.yaml
-./hydreq import postman collection.json --env environment.json --base-url https://api.example.com > suite.yaml
-./hydreq import newman collection.json --env environment.json --skip-auth > suite.yaml
-./hydreq import insomnia export.json --verbose > suite.yaml
-./hydreq import insomnia export.json --flat --no-scripts --base-url https://api.example.com > suite.yaml
-./hydreq import bruno export.json > suite.yaml
-./hydreq import bruno export.json --flat --no-scripts > suite.yaml
-./hydreq import har archive.har > suite.yaml
-./hydreq import har archive.har --base-url https://api.example.com > suite.yaml
-./hydreq import openapi spec.yaml > suite.yaml
-./hydreq import openapi spec.yaml --base-url https://api.example.com > suite.yaml
-./hydreq import restclient requests.http > suite.yaml
-./hydreq import restclient requests.http --base-url https://api.example.com > suite.yaml
+./hydreq import postman collection.json > suite.hrq.yaml
+./hydreq import postman collection.json --env environment.json --base-url https://api.example.com > suite.hrq.yaml
+./hydreq import newman collection.json --env environment.json --skip-auth > suite.hrq.yaml
+./hydreq import insomnia export.json --verbose > suite.hrq.yaml
+./hydreq import insomnia export.json --flat --no-scripts --base-url https://api.example.com > suite.hrq.yaml
+./hydreq import bruno export.json > suite.hrq.yaml
+./hydreq import bruno export.json --flat --no-scripts > suite.hrq.yaml
+./hydreq import har archive.har > suite.hrq.yaml
+./hydreq import har archive.har --base-url https://api.example.com > suite.hrq.yaml
+./hydreq import openapi spec.yaml > suite.hrq.yaml
+./hydreq import openapi spec.yaml --base-url https://api.example.com > suite.hrq.yaml
+./hydreq import restclient requests.http > suite.hrq.yaml
+./hydreq import restclient requests.http --base-url https://api.example.com > suite.hrq.yaml
 ```
 
 ### Import Flags
